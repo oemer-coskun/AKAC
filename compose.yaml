@@ -55,10 +55,12 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    networks: [backend]
+    networks: [backend, ingress]
 volumes:
   database:
   credentials:
 networks:
+  ingress:
+    driver: bridge
   backend:
     internal: true
