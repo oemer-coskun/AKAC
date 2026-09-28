@@ -2,9 +2,9 @@
 
 | Files | License |
 |---|---|
-| `reference/`, `adapters/`, `sdk/`, `policies/`, `schemas/`, `conformance/`, `tests/`, `examples/`, `scripts/` | AKAC Attribution License 1.0-draft |
+| `reference/`, `implementations/` code, `adapters/`, `sdk/`, `policies/`, `schemas/`, `conformance/`, `tests/`, `examples/`, `scripts/` | AKAC Attribution License 1.0-draft |
 | Docker, Compose, package metadata, CI and other executable configuration | AKAC Attribution License 1.0-draft |
-| Original prose in `spec/`, `docs/`, `governance/` and root Markdown files | CC BY 4.0 |
+| Original prose in `spec/`, `docs/`, `governance/` and root Markdown files and implementation README files | CC BY 4.0 |
 | Code examples embedded in documentation | AKAC Attribution License 1.0-draft |
 | `docs/openapi.json` | AKAC Attribution License 1.0-draft |
 | Third-party dependencies and their notices | Their own licenses; see THIRD_PARTY_NOTICES.md |
@@ -24,7 +24,7 @@ Software credits: "AKAC — Agent Knowledge Access Control. Founded by Ömer Hü
 Coşkun. https://github.com/WestMoneyDE/AKAC. Licensed under the AKAC Attribution
 License 1.0-draft. Modified by [your organization], [date]."
 
-Specification reuse: "Adapted from AKAC 0.1 Draft Specification, Ömer Hüseyin
+Specification reuse: "Adapted from AKAC 0.2 Draft Specification, Ömer Hüseyin
 Coşkun and contributors, https://github.com/WestMoneyDE/AKAC, CC BY 4.0. Changes:
 [description]." Include a link to https://creativecommons.org/licenses/by/4.0/.
 
