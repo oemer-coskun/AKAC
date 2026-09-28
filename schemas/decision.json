@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/decision.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "effect": {
+      "enum": [
+        "allow",
+        "deny"
+      ]
+    },
+    "code": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "effect",
+    "code"
+  ]
+}

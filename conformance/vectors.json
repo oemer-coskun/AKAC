@@ -1,0 +1,243 @@
+{
+  "version": "akac-conformance/0.1",
+  "clock": 1800000000000,
+  "cases": [
+    {
+      "id": "AKAC-001-positive-public",
+      "binding": "intern",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "allow"
+    },
+    {
+      "id": "AKAC-001-positive-restricted",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "allow"
+    },
+    {
+      "id": "AKAC-002-intern-restricted",
+      "binding": "intern",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-003-missing-resource",
+      "binding": "intern",
+      "resource": "missing",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-004-tenant",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "strategy",
+          "tenant",
+          "other"
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-005-agent-clearance",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief-agent",
+          "clearance",
+          "internal"
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-006-expiry",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "expiresAt",
+          1800000000000
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-007-purpose",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "purposes",
+          [
+            "other"
+          ]
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-008-source-revoked",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "strategy",
+          "sources",
+          [
+            {
+              "id": "handbook",
+              "version": 1
+            }
+          ]
+        ],
+        [
+          "knowledge",
+          "handbook",
+          "active",
+          false
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-009-source-stale",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "strategy",
+          "sources",
+          [
+            {
+              "id": "handbook",
+              "version": 2
+            }
+          ]
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-010-role",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief",
+          "roles",
+          [
+            "staff"
+          ]
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-011-project",
+      "binding": "chief",
+      "resource": "project-alpha",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief-agent",
+          "projects",
+          []
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-012-missing-acl",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "strategy",
+          "readerRoles",
+          []
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-013-cycle",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "strategy",
+          "sources",
+          [
+            {
+              "id": "strategy",
+              "version": 1
+            }
+          ]
+        ]
+      ],
+      "expected": "deny"
+    },
+    {
+      "id": "AKAC-014-agent-identity",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "agent",
+          "intern-agent"
+        ]
+      ],
+      "expected": "deny"
+    }
+  ]
+}

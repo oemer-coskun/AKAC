@@ -1,0 +1,67 @@
+name: AKAC verification
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: akac_test
+          POSTGRES_PASSWORD: synthetic_ci_only
+          POSTGRES_DB: akac_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U akac_test -d akac_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      AKAC_TEST_DATABASE_URL: postgresql://akac_test:synthetic_ci_only@127.0.0.1:5432/akac_test
+      OPA_BIN: /usr/local/bin/opa
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install pinned OPA binary
+        run: |
+          curl -fsSL --retry 3 https://openpolicyagent.org/downloads/v1.9.0/opa_linux_amd64_static -o opa
+          echo '66fa66f3b730b2fb086003863428b382b2898d343adb4b5dfab5598b4d739eed  opa' | sha256sum -c -
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+      - run: npm run check
+      - run: npm run conformance
+      - run: npm run test:opa
+      - run: npm run demo
+      - run: npm audit --omit=dev --audit-level=high
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      POSTGRES_PASSWORD: synthetic_container_test_only
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: docker compose config --quiet
+      - run: docker compose --profile setup build
+      - run: docker compose up -d postgres opa
+      - run: docker compose run --rm seed
+      - run: docker compose up -d --wait gateway
+      - name: Check gateway liveness
+        run: curl --fail http://127.0.0.1:8787/health
+      - name: Check authorized and denied requests inside the trusted service
+        run: |
+          docker compose exec -T gateway node --input-type=module -e '
+          import {readFileSync} from "node:fs";
+          const c=JSON.parse(readFileSync("data/credentials.json","utf8")).find(x=>x.binding.subject==="intern");
+          for(const [id,status] of [["handbook",200],["strategy",403]]) {
+            const r=await fetch("http://127.0.0.1:8787/v1/contexts",{method:"POST",headers:{authorization:`Bearer ${c.token}`,"content-type":"application/json"},body:JSON.stringify({resources:[id],purpose:"work"})});
+            if(r.status!==status) throw new Error(`Expected ${status}, got ${r.status}`);
+          }'
+      - if: always()
+        run: docker compose down -v

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/request-release.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "context": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+      "not": {
+        "enum": [
+          "constructor",
+          "prototype",
+          "__proto__"
+        ]
+      }
+    },
+    "recipient": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+      "not": {
+        "enum": [
+          "constructor",
+          "prototype",
+          "__proto__"
+        ]
+      }
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100000
+    },
+    "action": {
+      "enum": [
+        "share",
+        "export"
+      ]
+    }
+  },
+  "required": [
+    "context",
+    "recipient",
+    "content",
+    "action"
+  ]
+}

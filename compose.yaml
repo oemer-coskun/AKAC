@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: akac
+      POSTGRES_USER: akac
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U akac -d akac"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+  opa:
+    image: openpolicyagent/opa:1.9.0-static
+    command: [run, --server, --addr=0.0.0.0:8181, /policies]
+    volumes:
+      - ./policies:/policies:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+  seed:
+    build: .
+    command: [node, scripts/seed.ts]
+    environment:
+      DATABASE_URL: postgresql://akac:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/akac
+      AKAC_CREDENTIALS_FILE: /app/data/credentials.json
+    volumes: [credentials:/app/data]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: [setup]
+    networks: [backend]
+  gateway:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://akac:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/akac
+      AKAC_CREDENTIALS_FILE: /app/data/credentials.json
+      OPA_URL: http://opa:8181/v1/data/akac/allow
+    volumes: [credentials:/app/data:ro]
+    ports: ["127.0.0.1:8787:8787"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opa:
+        condition: service_started
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [backend]
+volumes:
+  database:
+  credentials:
+networks:
+  backend:
+    internal: true

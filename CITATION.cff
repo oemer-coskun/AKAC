@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "Please cite the version of AKAC you use. Citation metadata does not imply independent validation."
+title: "AKAC: Agent Knowledge Access Control"
+type: software
+authors:
+  - family-names: "Coşkun"
+    given-names: "Ömer Hüseyin"
+version: 0.1.0
+date-released: 2026-09-28
+url: "https://github.com/WestMoneyDE/AKAC"
+repository-code: "https://github.com/WestMoneyDE/AKAC"
+license: "LicenseRef-AKAC-Attribution-1.0-draft"
+abstract: "Draft knowledge-access specification with a reference implementation, provenance-aware memory protection and conformance tests."

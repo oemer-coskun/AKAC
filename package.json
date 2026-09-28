@@ -1,0 +1,31 @@
+{
+  "name": "@akac/reference",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent Knowledge Access Control: draft specification, reference implementation and conformance suite",
+  "type": "module",
+  "license": "LicenseRef-AKAC-Attribution-1.0-draft",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "check": "tsc --noEmit && npm test",
+    "test": "node --test tests/*.test.ts",
+    "test:coverage": "node --test --experimental-test-coverage tests/*.test.ts",
+    "test:opa": "opa test policies/ -v",
+    "demo": "node examples/demo.ts",
+    "start": "node reference/server.ts",
+    "seed": "node scripts/seed.ts",
+    "conformance": "node conformance/run.ts",
+    "test:postgres": "node --test tests/postgres.test.ts"
+  },
+  "dependencies": {
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "@types/pg": "8.23.1",
+    "ajv": "8.20.0",
+    "typescript": "5.9.3"
+  }
+}

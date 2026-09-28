@@ -1,0 +1,16 @@
+import { Engine } from '../reference/engine.ts';
+import { MemoryStore } from '../reference/store.ts';
+import { fixture, bindings } from './fixture.ts';
+const engine = new Engine(new MemoryStore(fixture()));
+console.log('AKAC 0.1 — synthetic company demonstration');
+const publicRead = await engine.openContext(bindings.intern, ['handbook'], 'work');
+console.log('Intern reads handbook:', publicRead.ok ? 'ALLOW' : 'DENY');
+console.log('Intern reads executive strategy:', (await engine.openContext(bindings.intern, ['strategy'], 'work')).ok ? 'ALLOW' : 'DENY');
+const confidential = await engine.openContext(bindings.chief, ['handbook', 'strategy'], 'work');
+if (!confidential.ok) throw new Error('Positive control failed');
+const summary = await engine.derive(bindings.chief, confidential.value.context, 'A short summary.', 'memory');
+console.log('Summary inherits classification:', summary.ok ? summary.value.classification : 'DENY');
+console.log('Chief agent shares summary with intern:', (await engine.release(bindings.chief, confidential.value.context, 'intern', 'A short summary.')).ok ? 'ALLOW' : 'DENY');
+console.log('Chief agent shares with chief:', (await engine.release(bindings.chief, confidential.value.context, 'chief', 'A short summary.')).ok ? 'ALLOW' : 'DENY');
+await engine.revoke('admin', 'knowledge', 'strategy');
+console.log('Old context after revocation:', (await engine.derive(bindings.chief, confidential.value.context, 'Try again')).ok ? 'ALLOW' : 'DENY');
