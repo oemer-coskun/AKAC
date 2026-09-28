@@ -12,25 +12,30 @@ export type JwtConfiguration = {
   maxLifetimeSeconds?: number;
 };
 
-export class JwtAuthenticator implements Authenticator {
-  private config: JwtConfiguration;
+/** Trusted operator identity for the administrative listener: tenant and admin actor, never token claims. */
+export type AdminIdentity = { tenant: string; admin: string };
+export interface AdminAuthenticator { authenticate(token: string): Promise<AdminIdentity | null> }
+export type AdminJwtConfiguration = Omit<JwtConfiguration, 'subjects'> & {
+  /** Verified token subject -> administrative identity. Use an audience distinct from the agent API. */
+  admins: Record<string, AdminIdentity>;
+};
+
+/** Shared verification: pinned issuer, audience, algorithms and keys; returns the verified subject only. */
+class Verifier {
+  private config: Omit<JwtConfiguration, 'subjects'>;
   private key: JWTVerifyGetKey;
-  constructor(config: JwtConfiguration, trustedKeyResolver?: JWTVerifyGetKey) {
+  constructor(config: Omit<JwtConfiguration, 'subjects'>, trustedKeyResolver?: JWTVerifyGetKey) {
     const jwks = new URL(config.jwksUrl), issuer = new URL(config.issuer);
     if (jwks.protocol !== 'https:' || issuer.protocol !== 'https:' || jwks.username || jwks.password
       || jwks.hash || !config.audience || !config.algorithms.length
       || config.algorithms.some(a => !['RS256', 'ES256', 'EdDSA'].includes(a))
-      || !Object.keys(config.subjects).length
       || (config.maxLifetimeSeconds !== undefined && (!Number.isInteger(config.maxLifetimeSeconds)
         || config.maxLifetimeSeconds < 1 || config.maxLifetimeSeconds > 900))) throw new Error('Invalid JWT configuration');
-    for (const [subject, binding] of Object.entries(config.subjects)) {
-      if (!subject || subject.length > 256 || !exactKeys(binding, ['tenant', 'subject', 'agent', 'grant'])
-        || !Object.values(binding).every(validId)) throw new Error('Invalid JWT identity binding');
-    }
-    this.config = structuredClone(config);
+    this.config = { issuer: config.issuer, audience: config.audience, jwksUrl: config.jwksUrl, algorithms: [...config.algorithms],
+      ...(config.maxLifetimeSeconds !== undefined ? { maxLifetimeSeconds: config.maxLifetimeSeconds } : {}) };
     this.key = trustedKeyResolver ?? createRemoteJWKSet(jwks, { timeoutDuration: 2000, cooldownDuration: 30000, cacheMaxAge: 60000 });
   }
-  async authenticate(token: string): Promise<Binding | null> {
+  async subject(token: string): Promise<string | null> {
     try {
       if (token.length > 16384) return null;
       const header = decodeProtectedHeader(token);
@@ -44,9 +49,47 @@ export class JwtAuthenticator implements Authenticator {
       if (!Number.isSafeInteger(payload.iat) || !Number.isSafeInteger(payload.exp)
         || payload.exp! <= payload.iat! || payload.exp! - payload.iat! > (this.config.maxLifetimeSeconds ?? 300)
         || typeof payload.jti !== 'string' || !payload.jti || payload.jti.length > 256
-        || !Object.hasOwn(this.config.subjects, payload.sub!)) return null;
-      // Roles, permissions and agent IDs supplied in the token are deliberately ignored.
-      return structuredClone(this.config.subjects[payload.sub!]!);
+        || typeof payload.sub !== 'string') return null;
+      return payload.sub;
     } catch { return null; }
+  }
+}
+
+export class JwtAuthenticator implements Authenticator {
+  private verifier: Verifier;
+  private subjects: Record<string, Binding>;
+  constructor(config: JwtConfiguration, trustedKeyResolver?: JWTVerifyGetKey) {
+    const { subjects, ...base } = config;
+    this.verifier = new Verifier(base, trustedKeyResolver);
+    if (!Object.keys(subjects).length) throw new Error('Invalid JWT configuration');
+    for (const [subject, binding] of Object.entries(subjects)) {
+      if (!subject || subject.length > 256 || !exactKeys(binding, ['tenant', 'subject', 'agent', 'grant'])
+        || !Object.values(binding).every(validId)) throw new Error('Invalid JWT identity binding');
+    }
+    this.subjects = structuredClone(subjects);
+  }
+  async authenticate(token: string): Promise<Binding | null> {
+    const sub = await this.verifier.subject(token);
+    // Roles, permissions and agent IDs supplied in the token are deliberately ignored.
+    return sub !== null && Object.hasOwn(this.subjects, sub) ? structuredClone(this.subjects[sub]!) : null;
+  }
+}
+
+/** Same verification as the agent API with its own audience and an admin identity mapping. Modes never fall back to each other. */
+export class AdminJwtAuthenticator implements AdminAuthenticator {
+  private verifier: Verifier;
+  private admins: Record<string, AdminIdentity>;
+  constructor(config: AdminJwtConfiguration, trustedKeyResolver?: JWTVerifyGetKey) {
+    const { admins, ...base } = config;
+    this.verifier = new Verifier(base, trustedKeyResolver);
+    if (!admins || !Object.keys(admins).length) throw new Error('Invalid JWT configuration');
+    for (const [subject, identity] of Object.entries(admins)) {
+      if (!subject || subject.length > 256 || !exactKeys(identity, ['tenant', 'admin']) || !Object.values(identity).every(validId)) throw new Error('Invalid JWT identity binding');
+    }
+    this.admins = structuredClone(admins);
+  }
+  async authenticate(token: string): Promise<AdminIdentity | null> {
+    const sub = await this.verifier.subject(token);
+    return sub !== null && Object.hasOwn(this.admins, sub) ? structuredClone(this.admins[sub]!) : null;
   }
 }

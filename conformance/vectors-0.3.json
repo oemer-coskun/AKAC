@@ -1,0 +1,772 @@
+{
+  "version": "akac-conformance/0.3",
+  "profile": "AKAC-KB/0.3-draft",
+  "clock": 1800000000000,
+  "fixture": "kbFixture",
+  "cases": [
+    {
+      "id": "KB-001-hierarchy-inherits",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief",
+          "roles",
+          [
+            "board"
+          ]
+        ],
+        [
+          "actors",
+          "chief-agent",
+          "roles",
+          [
+            "board"
+          ]
+        ]
+      ],
+      "expected": "allow"
+    },
+    {
+      "id": "KB-002-hierarchy-inactive-role",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief",
+          "roles",
+          [
+            "board"
+          ]
+        ],
+        [
+          "actors",
+          "chief-agent",
+          "roles",
+          [
+            "board"
+          ]
+        ],
+        [
+          "roles",
+          "board",
+          "active",
+          false
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-003-hierarchy-cycle",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief",
+          "roles",
+          [
+            "board"
+          ]
+        ],
+        [
+          "actors",
+          "chief-agent",
+          "roles",
+          [
+            "board"
+          ]
+        ],
+        [
+          "roles",
+          "staff",
+          "inherits",
+          [
+            "board"
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-004-hierarchy-cross-tenant-record-is-flat",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief",
+          "roles",
+          [
+            "board"
+          ]
+        ],
+        [
+          "actors",
+          "chief-agent",
+          "roles",
+          [
+            "board"
+          ]
+        ],
+        [
+          "roles",
+          "board",
+          "tenant",
+          "other"
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-005-group-grants-roles",
+      "binding": "lead",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "groups",
+          "leadership",
+          "active",
+          true
+        ]
+      ],
+      "expected": "allow"
+    },
+    {
+      "id": "KB-006-group-inactive",
+      "binding": "lead",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-007-group-cross-tenant",
+      "binding": "lead",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "groups",
+          "leadership",
+          "active",
+          true
+        ],
+        [
+          "groups",
+          "leadership",
+          "tenant",
+          "other"
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-008-ssd-direct",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief",
+          "roles",
+          [
+            "staff",
+            "executive",
+            "requester",
+            "approver"
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-009-ssd-via-group",
+      "binding": "lead",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "groups",
+          "leadership",
+          "active",
+          true
+        ],
+        [
+          "groups",
+          "leadership",
+          "roles",
+          [
+            "approver"
+          ]
+        ],
+        [
+          "actors",
+          "lead",
+          "roles",
+          [
+            "staff",
+            "project",
+            "requester"
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-010-ssd-via-hierarchy",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "roles",
+          "auditor-role",
+          {
+            "id": "auditor-role",
+            "tenant": "acme",
+            "inherits": [
+              "approver"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "chief",
+          "roles",
+          [
+            "staff",
+            "executive",
+            "requester",
+            "auditor-role"
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-011-dsd-all-roles-active",
+      "binding": "lead",
+      "resource": "project-alpha",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "lead",
+          "roles",
+          [
+            "staff",
+            "project",
+            "auditor-role"
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-012-dsd-activated-subset",
+      "binding": "lead",
+      "resource": "project-alpha",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "lead",
+          "roles",
+          [
+            "staff",
+            "project",
+            "auditor-role"
+          ]
+        ],
+        [
+          "grants",
+          "lead-run",
+          "activeRoles",
+          [
+            "project"
+          ]
+        ]
+      ],
+      "expected": "allow"
+    },
+    {
+      "id": "KB-013-active-role-not-held",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "activeRoles",
+          [
+            "board"
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "INVALID_DELEGATION"
+    },
+    {
+      "id": "KB-014-active-role-excludes-needed",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "activeRoles",
+          [
+            "staff"
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-015-child-widens-activation",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "activeRoles",
+          [
+            "staff"
+          ]
+        ],
+        [
+          "grants",
+          "chief-child",
+          {
+            "id": "chief-child",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "activeRoles": [
+              "staff",
+              "executive"
+            ]
+          }
+        ]
+      ],
+      "expected": "deny",
+      "grant": "chief-child",
+      "code": "INVALID_DELEGATION"
+    },
+    {
+      "id": "KB-016-child-narrows-activation",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "activeRoles",
+          [
+            "staff",
+            "executive"
+          ]
+        ],
+        [
+          "grants",
+          "chief-child",
+          {
+            "id": "chief-child",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "activeRoles": [
+              "staff"
+            ]
+          }
+        ]
+      ],
+      "expected": "allow",
+      "grant": "chief-child"
+    },
+    {
+      "id": "KB-017-container-positive",
+      "binding": "chief",
+      "resource": "vault-memo",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "allow"
+    },
+    {
+      "id": "KB-018-container-audience",
+      "binding": "intern",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-019-knowledge-base-audience",
+      "binding": "intern",
+      "resource": "staff-faq",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "allow"
+    },
+    {
+      "id": "KB-020-folder-floor-above-clearance",
+      "binding": "lead",
+      "resource": "vault-memo",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "groups",
+          "leadership",
+          "active",
+          true
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-021-folder-floor-agent",
+      "binding": "chief",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "actors",
+          "chief-agent",
+          "clearance",
+          "internal"
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-022-inactive-folder",
+      "binding": "chief",
+      "resource": "vault-memo",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "containers",
+          "f-executive",
+          "active",
+          false
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-023-cross-tenant-container",
+      "binding": "chief",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "containers",
+          "f-executive",
+          "tenant",
+          "other"
+        ]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-024-container-cycle",
+      "binding": "chief",
+      "resource": "vault-memo",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "containers",
+          "f-executive",
+          "parent",
+          "f-vault"
+        ]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-025-missing-container",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          "container",
+          "missing"
+        ]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-026-folder-without-parent",
+      "binding": "chief",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "containers",
+          "f-executive",
+          {
+            "id": "f-executive",
+            "tenant": "acme",
+            "kind": "folder",
+            "classification": "confidential",
+            "readerRoles": [
+              "executive"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true
+          }
+        ]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-027-source-container-applies",
+      "binding": "intern",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          "sources",
+          [
+            {
+              "id": "board-notes",
+              "version": 1
+            }
+          ]
+        ]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-028-origin-unknown",
+      "binding": "intern",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          "origin",
+          "unknown"
+        ]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-029-flat-role-compatibility",
+      "binding": "lead",
+      "resource": "project-alpha",
+      "action": "read",
+      "purpose": "work",
+      "patch": [],
+      "expected": "allow"
+    },
+    {
+      "id": "KB-030-context-current-epoch",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000300000,
+        "policyVersion": "conformance-revision",
+        "epoch": 0,
+        "active": true
+      },
+      "revision": "conformance-revision",
+      "patch": [],
+      "expected": "valid"
+    },
+    {
+      "id": "KB-031-other-tenant-revocation-isolated",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000300000,
+        "policyVersion": "conformance-revision",
+        "epoch": 0,
+        "active": true
+      },
+      "revision": "conformance-revision",
+      "patch": [
+        [
+          "epochs",
+          "other",
+          1
+        ]
+      ],
+      "expected": "valid"
+    },
+    {
+      "id": "KB-032-own-tenant-revocation",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000300000,
+        "policyVersion": "conformance-revision",
+        "epoch": 0,
+        "active": true
+      },
+      "revision": "conformance-revision",
+      "patch": [
+        [
+          "epochs",
+          "acme",
+          1
+        ]
+      ],
+      "expected": "invalid"
+    },
+    {
+      "id": "KB-033-revision-change",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000300000,
+        "policyVersion": "conformance-revision",
+        "epoch": 0,
+        "active": true
+      },
+      "revision": "conformance-revision-2",
+      "patch": [],
+      "expected": "invalid"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Engine, verifyAudit } from '../reference/engine.ts';
-import { MemoryStore, SqliteStore } from '../reference/store.ts';
+import { MemoryStore, SqliteStore, importState } from '../reference/store.ts';
 import { decide } from '../reference/policy.ts';
 import { fixture, bindings } from '../examples/fixture.ts';
 import { LEVELS } from '../reference/types.ts';
@@ -88,7 +88,7 @@ test('mixed-source memory inherits restrictions and transitively blocks intern',
   const result = await engine.openContext(bindings.chief, ['handbook', 'strategy'], 'work'); assert.ok(result.ok);
   const derived = await engine.derive(bindings.chief, result.value.context, 'Public-looking text', 'memory'); assert.ok(derived.ok);
   assert.equal(derived.value.classification, 'restricted');
-  const knowledge = await store.transaction(async s => structuredClone(s.knowledge[derived.value.id]!));
+  const knowledge = await store.transaction('acme', async ({ state: s }) => structuredClone(s.knowledge[derived.value.id]!));
   assert.equal(knowledge.sources.length, 2);
   assert.equal((await engine.openContext(bindings.intern, [derived.value.id], 'work')).ok, false);
 });
@@ -98,7 +98,7 @@ test('old context cannot omit later reads in the same run', async () => {
   await chiefContext(engine);
   const derived = await engine.derive(bindings.chief, first.value.context, 'The model cites only handbook'); assert.ok(derived.ok);
   assert.equal(derived.value.classification, 'restricted');
-  assert.equal(await store.transaction(async s => s.knowledge[derived.value.id]!.sources.length), 2);
+  assert.equal(await store.transaction('acme', async ({ state: s }) => s.knowledge[derived.value.id]!.sources.length), 2);
 });
 test('recipient check blocks cross-agent and cross-tenant laundering', async () => {
   const { engine } = setup(); const context = await chiefContext(engine);
@@ -108,13 +108,13 @@ test('recipient check blocks cross-agent and cross-tenant laundering', async () 
 test('revocation invalidates contexts and derived knowledge', async () => {
   const { engine } = setup(); const context = await chiefContext(engine);
   const derived = await engine.derive(bindings.chief, context, 'secret'); assert.ok(derived.ok);
-  assert.ok((await engine.revoke('admin', 'knowledge', 'strategy')).ok);
+  assert.ok((await engine.revoke('acme', 'admin', 'knowledge', 'strategy')).ok);
   assert.equal((await engine.release(bindings.chief, context, 'chief', 'secret')).ok, false);
   assert.equal((await engine.openContext(bindings.chief, [derived.value.id], 'work')).ok, false);
 });
 test('changed source version invalidates a previous context', async () => {
   const { engine, store } = setup(); const context = await chiefContext(engine);
-  await store.transaction(async s => { s.knowledge.strategy!.version++; });
+  await store.transaction('acme', async ({ state: s }) => { s.knowledge.strategy!.version++; });
   assert.equal((await engine.derive(bindings.chief, context, 'secret')).ok, false);
 });
 test('unknown context and forged binding cannot release', async () => {
@@ -143,36 +143,36 @@ test('grant expiring during a policy call never discloses', async () => {
 });
 test('delegation attenuates and respects parent revocation', async () => {
   const { engine, store } = setup();
-  const parent = await store.transaction(async s => structuredClone(s.grants['chief-run']!));
+  const parent = await store.transaction('acme', async ({ state: s }) => structuredClone(s.grants['chief-run']!));
   const child: Grant = { ...parent, id: 'child', parent: parent.id, resources: ['handbook'], actions: ['read'], expiresAt: now + 1000 };
   assert.ok((await engine.delegate(bindings.chief, child)).ok);
   assert.equal((await engine.openContext({ ...bindings.chief, grant: 'child' }, ['strategy'], 'work')).ok, false);
   assert.ok((await engine.openContext({ ...bindings.chief, grant: 'child' }, ['handbook'], 'work')).ok);
-  await engine.revoke('admin', 'grant', parent.id);
+  await engine.revoke('acme', 'admin', 'grant', parent.id);
   assert.equal((await engine.openContext({ ...bindings.chief, grant: 'child' }, ['handbook'], 'work')).ok, false);
 });
 test('delegation cannot extend lifetime', async () => {
-  const { engine, store } = setup(); const p = await store.transaction(async s => structuredClone(s.grants['chief-run']!));
+  const { engine, store } = setup(); const p = await store.transaction('acme', async ({ state: s }) => structuredClone(s.grants['chief-run']!));
   assert.equal((await engine.delegate(bindings.chief, { ...p, id: 'child', parent: p.id, expiresAt: p.expiresAt + 1 })).ok, false);
 });
 test('agent cannot revoke via an ordinary actor', async () => {
-  const { engine } = setup(); assert.equal((await engine.revoke('chief', 'actor', 'intern')).ok, false);
+  const { engine } = setup(); assert.equal((await engine.revoke('acme', 'chief', 'actor', 'intern')).ok, false);
 });
 test('audit chain detects accidental tampering and contains no source content', async () => {
   const { engine, store } = setup(); await chiefContext(engine);
   await engine.openContext(bindings.intern, ['strategy'], 'work');
-  const entries = await store.transaction(async s => structuredClone(s.audits));
+  const entries = await store.transaction('acme', async ({ state: s }) => structuredClone(s.audits));
   assert.ok(verifyAudit(entries)); assert.ok(!JSON.stringify(entries).includes('900000'));
   entries[0]!.reason = 'modified'; assert.equal(verifyAudit(entries), false);
 });
 test('SQLite restart preserves policy state, contexts and revocation', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'akac-')); const path = join(dir, 'state.sqlite');
   try {
-    const first = new SqliteStore(path); await first.transaction(async s => { Object.assign(s, fixture(now)); });
+    const first = new SqliteStore(path); await importState(first, fixture(now));
     const context = await chiefContext(new Engine(first, { clock: () => now })); await first.close();
     const second = new SqliteStore(path); const engine = new Engine(second, { clock: () => now });
     assert.ok((await engine.derive(bindings.chief, context, 'persisted')).ok);
-    await engine.revoke('admin', 'grant', 'chief-run'); await second.close();
+    await engine.revoke('acme', 'admin', 'grant', 'chief-run'); await second.close();
     const third = new SqliteStore(path);
     assert.equal((await new Engine(third, { clock: () => now }).derive(bindings.chief, context, 'after revoke')).ok, false);
     await third.close();
@@ -180,12 +180,12 @@ test('SQLite restart preserves policy state, contexts and revocation', async () 
 });
 test('transaction rollback does not publish partial state', async () => {
   const store = new MemoryStore(fixture(now));
-  await assert.rejects(store.transaction(async s => { s.epoch++; throw new Error('rollback'); }));
-  assert.equal(await store.transaction(async s => s.epoch), 0);
+  await assert.rejects(store.transaction('acme', async ({ state: s }) => { s.epochs.acme = 7; throw new Error('rollback'); }));
+  assert.equal(await store.transaction('acme', async ({ state: s }) => s.epochs.acme ?? 0), 0);
 });
 test('serialized revocation wins over subsequent reads', async () => {
   const { engine } = setup();
-  const revoke = engine.revoke('admin', 'knowledge', 'strategy');
+  const revoke = engine.revoke('acme', 'admin', 'knowledge', 'strategy');
   const reads = Array.from({ length: 20 }, () => engine.openContext(bindings.chief, ['strategy'], 'work'));
   assert.ok((await revoke).ok); for (const result of await Promise.all(reads)) assert.equal(result.ok, false);
 });

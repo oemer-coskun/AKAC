@@ -50,3 +50,29 @@ complete mediation, provider isolation and external operational controls.
 
 The Python evaluator implements decisions only. Same-project differential tests
 do not satisfy an independent organizational implementation or security audit gate.
+
+## AKAC-KB/0.3 draft profile
+
+Extends AKAC-Hardened/0.2 with R22–R31 of [AKAC 0.3](AKAC-0.3.md). Portable
+vectors live in `conformance/vectors-0.3.json` against `kbFixture()` in
+`examples/fixture.ts`. Patch entries either set a field (`[collection, id, field,
+value]`), replace a record (`[collection, id, record]`) or set a tenant epoch
+(`["epochs", tenant, n]`). Decision vectors MAY pin an internal `code`; context
+vectors (`kind: "context"`) check epoch and revision freshness.
+
+| Requirements | Evidence |
+|---|---|
+| R22–R23 | Vectors KB-001–KB-007, KB-029; `kb.test.ts` cycles, depth/width budgets, inactive and cross-tenant roles and groups |
+| R24 | Vectors KB-008–KB-016; control-plane rejection at assignment, group membership and grant issuance; holder-count refusal of constraints and role widening; reductions and SCIM deprovisioning of a violating user (`regressions.test.ts`) |
+| R25 | Vectors KB-017–KB-028; container attacks; monotonic-restriction property with a broken-oracle meta-test; derivation property; transitive classification for supplemental policy and ingestion (`regressions.test.ts`) |
+| R26 | Candidate-source tests: re-check, dropped and counted mismatches, other-tenant candidates, unavailable source; lexical content budget and batched reconcile (memory and PostgreSQL) |
+| R27 | Vector KB-028; missing/unknown origin attacks; ingestion refuses model origin |
+| R28 | Vectors KB-030–KB-033; per-tenant revocation in memory and PostgreSQL |
+| R29 | Category tests; audit reasons; decision schema over every vector |
+| R30 | `postgres.test.ts`: RLS for a non-bypass role, parallel tenants, migration idempotency and checksum refusal, legacy import, bounded readiness, non-truncating loads, inactive role behind 576 names, `(tenant, id)` keys for bypassing and RLS roles, migration 003 over a database at 002, start-up refusal of a bypassing role; tenant-partitioned memory/SQLite stores |
+| R31 | Control-plane role separation, cross-tenant and agent administrators, audited denials, audited idempotent replays, `DEFERRED:STORE_ERROR` follow-up audit, kb-admin document removal with the real ingestor |
+| Decision agreement | `interop.test.ts`: 1,000 0.2 cases, 1,500 hierarchy/SoD/container cases and every portable vector against the Python evaluator |
+
+PostgreSQL evidence requires `AKAC_TEST_DATABASE_URL`; without it those tests
+are reported as skipped. Row-level security evidence is only meaningful with a
+runtime role that is neither superuser nor `BYPASSRLS`.

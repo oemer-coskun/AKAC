@@ -13,10 +13,36 @@
     "code": {
       "type": "string",
       "minLength": 1
+    },
+    "category": {
+      "enum": [
+        "deny",
+        "defer"
+      ],
+      "description": "deny: definite policy denial. defer: authorization could not be established."
     }
   },
   "required": [
     "effect",
     "code"
-  ]
+  ],
+  "if": {
+    "properties": {
+      "effect": {
+        "const": "deny"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "category"
+    ]
+  },
+  "else": {
+    "not": {
+      "required": [
+        "category"
+      ]
+    }
+  }
 }

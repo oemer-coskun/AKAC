@@ -5,9 +5,9 @@ type: software
 authors:
   - family-names: "Coşkun"
     given-names: "Ömer Hüseyin"
-version: 0.2.0
+version: 0.3.0
 date-released: 2026-09-28
 url: "https://github.com/WestMoneyDE/AKAC"
 repository-code: "https://github.com/WestMoneyDE/AKAC"
 license: "LicenseRef-AKAC-Attribution-1.0-draft"
-abstract: "Draft knowledge-access specification with a reference implementation, provenance-aware memory protection and conformance tests."
+abstract: "Draft knowledge-access specification with a reference implementation: hierarchical roles, separation of duty, knowledge bases and folders, permission-aware vector retrieval, provenance-aware memory protection and conformance tests."

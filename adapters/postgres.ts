@@ -1,43 +1,421 @@
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import pg from 'pg';
-import type { State, Store } from '../reference/types.ts';
-import { emptyState } from '../reference/types.ts';
+import type { Audit, HolderQuery, KnowledgeMeta, Need, State, Store, Tx } from '../reference/types.ts';
+import { emptyState, upgradeState } from '../reference/types.ts';
+import { verifyAudit } from '../reference/audit.ts';
+import { validId } from '../reference/validation.ts';
+import { BudgetExceeded } from '../reference/hydrate.ts';
 
-/** One locked state row deliberately favors correctness over throughput in v0.1. */
+type Kind = 'text' | 'int' | 'bool' | 'list' | 'json';
+type Column = [column: string, field: string, kind: Kind, optional?: true];
+type Collection = 'actors' | 'roles' | 'groups' | 'constraints' | 'containers' | 'knowledge' | 'grants' | 'contexts';
+const common: Column[] = [['id', 'id', 'text'], ['tenant', 'tenant', 'text']];
+/** Real columns for identifiers, tenant, lifecycle, versions, parents, labels and expiry. JSONB only for source references. */
+const TABLES: Record<Collection, { table: string; columns: Column[] }> = {
+  actors: { table: 'akac_actors', columns: [...common, ['kind', 'kind', 'text'], ['roles', 'roles', 'list'], ['projects', 'projects', 'list'],
+    ['clearance', 'clearance', 'text'], ['active', 'active', 'bool']] },
+  roles: { table: 'akac_roles', columns: [...common, ['inherits', 'inherits', 'list'], ['active', 'active', 'bool']] },
+  groups: { table: 'akac_groups', columns: [...common, ['members', 'members', 'list'], ['roles', 'roles', 'list'], ['active', 'active', 'bool']] },
+  constraints: { table: 'akac_constraints', columns: [...common, ['kind', 'kind', 'text'], ['roles', 'roles', 'list'], ['cardinality', 'cardinality', 'int']] },
+  containers: { table: 'akac_containers', columns: [...common, ['kind', 'kind', 'text'], ['parent', 'parent', 'text', true],
+    ['classification', 'classification', 'text'], ['reader_roles', 'readerRoles', 'list'], ['readers', 'readers', 'list'],
+    ['projects', 'projects', 'list'], ['active', 'active', 'bool']] },
+  knowledge: { table: 'akac_knowledge', columns: [...common, ['version', 'version', 'int'], ['kind', 'kind', 'text'], ['origin', 'origin', 'text'],
+    ['content', 'content', 'text'], ['classification', 'classification', 'text'], ['projects', 'projects', 'list'],
+    ['reader_roles', 'readerRoles', 'list'], ['readers', 'readers', 'list'], ['sources', 'sources', 'json'], ['active', 'active', 'bool'],
+    ['access_expires_at', 'accessExpiresAt', 'int', true], ['container', 'container', 'text', true]] },
+  grants: { table: 'akac_grants', columns: [...common, ['subject', 'subject', 'text'], ['agent', 'agent', 'text'], ['actions', 'actions', 'list'],
+    ['resources', 'resources', 'list'], ['purposes', 'purposes', 'list'], ['not_before', 'notBefore', 'int'], ['expires_at', 'expiresAt', 'int'],
+    ['active', 'active', 'bool'], ['parent', 'parent', 'text', true], ['active_roles', 'activeRoles', 'list', true]] },
+  contexts: { table: 'akac_contexts', columns: [...common, ['subject', 'subject', 'text'], ['agent', 'agent', 'text'], ['grant_id', 'grant', 'text'],
+    ['purpose', 'purpose', 'text'], ['sources', 'sources', 'json'], ['expires_at', 'expiresAt', 'int'], ['policy_version', 'policyVersion', 'text'],
+    ['epoch', 'epoch', 'int'], ['active', 'active', 'bool']] }
+};
+const AUDIT: (keyof Audit)[] = ['tenant', 'sequence', 'time', 'actor', 'operation', 'decision', 'reason', 'policyVersion', 'epoch', 'previous', 'hash'];
+const AUDIT_COLUMNS = AUDIT.map(f => f === 'policyVersion' ? 'policy_version' : f);
+/**
+ * Per-load bounds. A load never truncates: when a request or its closure exceeds
+ * the bound, the load throws BudgetExceeded and the caller denies (deferred).
+ * Grant and container ancestry are additionally depth-bounded (33); a deeper
+ * chain stays incomplete, which the decision treats as a missing record (deny).
+ */
+export const BOUNDS = { contexts: 512, memberships: 256, constraints: 1024, roles: 512, grants: 64, knowledge: 1100, containers: 256,
+  principals: 2048, groups: 1024 } as const;
+
+function fromRow(columns: Column[], row: Record<string, unknown>): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  for (const [column, field, kind] of columns) {
+    const value = row[column];
+    if (value === null || value === undefined) continue;
+    record[field] = kind === 'int' ? Number(value) : value;
+  }
+  return record;
+}
+function toParams(columns: Column[], record: Record<string, unknown>): unknown[] {
+  return columns.map(([, field, kind, optional]) => {
+    const value = record[field];
+    if (value === undefined && optional) return null;
+    if (value === undefined) throw new Error(`Missing ${field}`);
+    return kind === 'json' ? JSON.stringify(value) : value;
+  });
+}
+function upsertSql(table: string, columns: Column[]): string {
+  const names = columns.map(c => c[0]);
+  // Keys are (tenant, id) (migration 003): the same id in another tenant is another row,
+  // and an update can never move a row to another tenant.
+  return `INSERT INTO ${table} (${names.join(',')}) VALUES (${names.map((_, i) => `$${i + 1}`).join(',')}) ON CONFLICT (tenant, id) DO UPDATE SET `
+    + names.filter(n => n !== 'id' && n !== 'tenant').map(n => `${n}=EXCLUDED.${n}`).join(',');
+}
+const fromAudit = (row: Record<string, unknown>): Audit => Object.fromEntries(AUDIT.map((f, i) => {
+  const value = row[AUDIT_COLUMNS[i]!];
+  return [f, ['sequence', 'time', 'epoch'].includes(f) ? Number(value) : value];
+})) as Audit;
+
+async function upsert(client: pg.PoolClient | pg.Client, collection: Collection, record: Record<string, unknown>) {
+  const { table, columns } = TABLES[collection];
+  await client.query(upsertSql(table, columns), toParams(columns, record));
+}
+async function appendAudits(client: pg.PoolClient | pg.Client, tenant: string, entries: Audit[]) {
+  if (!entries.length) return;
+  for (const entry of entries) {
+    if (entry.tenant !== tenant) throw new Error('Cross-tenant audit write');
+    await client.query(`INSERT INTO akac_audit (${AUDIT_COLUMNS.join(',')}) VALUES (${AUDIT.map((_, i) => `$${i + 1}`).join(',')})`, AUDIT.map(f => entry[f]));
+  }
+  const last = entries.at(-1)!;
+  await client.query('INSERT INTO akac_audit_head (tenant, sequence, hash) VALUES ($1,$2,$3) ON CONFLICT (tenant) DO UPDATE SET sequence=EXCLUDED.sequence, hash=EXCLUDED.hash',
+    [tenant, last.sequence, last.hash]);
+}
+
+/**
+ * Partial per-tenant snapshot. Keeps the serialized form of every loaded row and
+ * flushes only new or changed rows at commit. Records are never deleted.
+ */
+class PgTx implements Tx {
+  readonly state: State;
+  readonly complete = false;
+  private client: pg.PoolClient;
+  private tenant: string;
+  private loaded = new Map<Collection, Map<string, string>>();
+  private flags = new Set<string>();
+  private epoch?: number;
+  private head = 0;
+  /** Every group of the tenant is loaded (principals); membership queries are then redundant. */
+  private allGroups = false;
+  constructor(client: pg.PoolClient, tenant: string, policyVersion: string) {
+    this.client = client; this.tenant = tenant;
+    this.state = { ...emptyState(), policyVersion };
+    for (const collection of Object.keys(TABLES) as Collection[]) this.loaded.set(collection, new Map());
+  }
+  /** Rows beyond `bound` abort. A row with a NULL id is a closure name without a record (LEFT JOIN) and counts toward the bound. */
+  private async rows(collection: Collection, sql: string, params: unknown[], bound?: number) {
+    const result = await this.client.query(sql, [this.tenant, ...params]);
+    if (bound !== undefined && result.rows.length > bound) throw new BudgetExceeded(`${collection} load`);
+    const target = this.state[collection] as Record<string, unknown>, seen = this.loaded.get(collection)!;
+    for (const row of result.rows) {
+      if (row.id === null || row.id === undefined) continue;
+      const record = fromRow(TABLES[collection].columns, row);
+      const id = record.id as string;
+      // Never overwrite a record this transaction already holds (it may be modified).
+      if (Object.hasOwn(target, id)) continue;
+      target[id] = record; seen.set(id, JSON.stringify(record));
+    }
+  }
+  private once(flag: string) { if (this.flags.has(flag)) return false; this.flags.add(flag); return true; }
+  async load(need: Need): Promise<void> {
+    const ids = (x?: string[]) => [...new Set((x ?? []).filter(validId))];
+    /** Requested ids beyond the bound abort before any query. */
+    const bounded = (x: string[] | undefined, bound: number, what: string) => {
+      const list = ids(x); if (list.length > bound) throw new BudgetExceeded(`${what} load`); return list;
+    };
+    if (need.epoch && this.once('epoch')) {
+      const row = (await this.client.query('SELECT epoch FROM akac_epochs WHERE tenant=$1', [this.tenant])).rows[0];
+      if (row) { this.epoch = Number(row.epoch); this.state.epochs[this.tenant] = this.epoch; }
+    }
+    if (need.audit && this.once('audit')) {
+      const row = (await this.client.query('SELECT a.* FROM akac_audit_head h JOIN akac_audit a ON a.tenant=h.tenant AND a.sequence=h.sequence WHERE h.tenant=$1', [this.tenant])).rows[0];
+      if (row) { const head = fromAudit(row); this.head = head.sequence; this.state.audits.push(head); }
+    }
+    if (need.constraints && this.once('constraints')) {
+      await this.rows('constraints', 'SELECT * FROM akac_constraints WHERE tenant=$1 ORDER BY id LIMIT $2', [BOUNDS.constraints + 1], BOUNDS.constraints);
+    }
+    if (need.principals && this.once('principals')) {
+      await this.rows('actors', 'SELECT * FROM akac_actors WHERE tenant=$1 AND active ORDER BY id LIMIT $2', [BOUNDS.principals + 1], BOUNDS.principals);
+      await this.rows('groups', 'SELECT * FROM akac_groups WHERE tenant=$1 ORDER BY id LIMIT $2', [BOUNDS.groups + 1], BOUNDS.groups);
+      this.allGroups = true;
+    }
+    if (need.actors?.length) await this.rows('actors', 'SELECT * FROM akac_actors WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.actors)]);
+    if (need.memberships?.length && !this.allGroups) {
+      await this.rows('groups', 'SELECT * FROM akac_groups WHERE tenant=$1 AND members && $2::text[] ORDER BY id LIMIT $3',
+        [ids(need.memberships), BOUNDS.memberships + 1], BOUNDS.memberships);
+    }
+    if (need.groups?.length) await this.rows('groups', 'SELECT * FROM akac_groups WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.groups)]);
+    // Closures return one row per NAME (LEFT JOIN), so a name without a record counts
+    // toward the bound: a truncated role closure could otherwise leave an inactive
+    // role unloaded, and an unloaded role name reads as a flat, active role (R22).
+    if (need.roles?.length) {
+      // Inactive roles are loaded (so they are not mistaken for flat roles) but not expanded.
+      await this.rows('roles', `WITH RECURSIVE r(id) AS (SELECT unnest($2::text[]) UNION SELECT unnest(x.inherits) FROM r JOIN akac_roles x ON x.id=r.id AND x.tenant=$1 AND x.active),
+        n AS (SELECT id FROM r LIMIT $3)
+        SELECT n.id AS akac_name, x.* FROM n LEFT JOIN akac_roles x ON x.tenant=$1 AND x.id=n.id`, [bounded(need.roles, BOUNDS.roles, 'roles'), BOUNDS.roles + 1], BOUNDS.roles);
+    }
+    if (need.grants?.length) {
+      await this.rows('grants', `WITH RECURSIVE g(id, depth) AS (SELECT unnest($2::text[]), 0 UNION SELECT x.parent, g.depth + 1 FROM g JOIN akac_grants x ON x.id=g.id AND x.tenant=$1 WHERE x.parent IS NOT NULL AND g.depth < 33),
+        n AS (SELECT DISTINCT id FROM g LIMIT $3)
+        SELECT n.id AS akac_name, x.* FROM n LEFT JOIN akac_grants x ON x.tenant=$1 AND x.id=n.id`, [bounded(need.grants, BOUNDS.grants, 'grants'), BOUNDS.grants + 1], BOUNDS.grants);
+    }
+    if (need.knowledge?.length) {
+      await this.rows('knowledge', `WITH RECURSIVE k(id) AS (SELECT unnest($2::text[]) UNION SELECT s->>'id' FROM k JOIN akac_knowledge x ON x.id=k.id AND x.tenant=$1 CROSS JOIN LATERAL jsonb_array_elements(x.sources) s),
+        n AS (SELECT id FROM k WHERE id IS NOT NULL LIMIT $3)
+        SELECT n.id AS akac_name, x.* FROM n LEFT JOIN akac_knowledge x ON x.tenant=$1 AND x.id=n.id`, [bounded(need.knowledge, BOUNDS.knowledge, 'knowledge'), BOUNDS.knowledge + 1], BOUNDS.knowledge);
+    }
+    if (need.containers?.length) {
+      await this.rows('containers', `WITH RECURSIVE c(id, depth) AS (SELECT unnest($2::text[]), 0 UNION SELECT x.parent, c.depth + 1 FROM c JOIN akac_containers x ON x.id=c.id AND x.tenant=$1 WHERE x.parent IS NOT NULL AND c.depth < 33),
+        n AS (SELECT DISTINCT id FROM c LIMIT $3)
+        SELECT n.id AS akac_name, x.* FROM n LEFT JOIN akac_containers x ON x.tenant=$1 AND x.id=n.id`, [bounded(need.containers, BOUNDS.containers, 'containers'), BOUNDS.containers + 1], BOUNDS.containers);
+    }
+    if (need.contexts?.length) await this.rows('contexts', 'SELECT * FROM akac_contexts WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.contexts)]);
+    const bindings = (need.bindings ?? []).filter(b => b.tenant === this.tenant);
+    if (bindings.length) {
+      // A run manifest MUST be complete; overflow aborts rather than omitting prior reads.
+      await this.rows('contexts', `SELECT c.* FROM akac_contexts c JOIN unnest($2::text[], $3::text[], $4::text[]) AS b(subject, agent, grant_id)
+        ON c.subject=b.subject AND c.agent=b.agent AND c.grant_id=b.grant_id WHERE c.tenant=$1 LIMIT $5`,
+        [bindings.map(b => b.subject), bindings.map(b => b.agent), bindings.map(b => b.grant), BOUNDS.contexts + 1], BOUNDS.contexts);
+    }
+    if (need.corpus) {
+      // Measure before transferring: an over-budget corpus is never loaded.
+      if (need.corpusBytes !== undefined) {
+        const bytes = (await this.client.query('SELECT COALESCE(sum(octet_length(content)), 0)::bigint AS n FROM (SELECT content FROM akac_knowledge WHERE tenant=$1 ORDER BY id LIMIT $2) c',
+          [this.tenant, need.corpus])).rows[0].n;
+        if (Number(bytes) > need.corpusBytes) throw new BudgetExceeded('retrieval content');
+      }
+      await this.rows('knowledge', 'SELECT * FROM akac_knowledge WHERE tenant=$1 ORDER BY id LIMIT $2', [need.corpus]);
+    }
+  }
+  async catalog(limit: number): Promise<KnowledgeMeta[]> {
+    const columns = TABLES.knowledge.columns.filter(c => c[0] !== 'content');
+    const result = await this.client.query(`SELECT ${columns.map(c => c[0]).join(',')} FROM akac_knowledge WHERE tenant=$1 AND kind='document' ORDER BY id LIMIT $2`, [this.tenant, limit]);
+    return result.rows.map(row => fromRow(columns, row) as KnowledgeMeta);
+  }
+  /**
+   * Holder count in SQL (recursive closure over the role hierarchy and active
+   * groups; semantics of policy `effectiveRoles`: inactive role records and inactive
+   * groups contribute nothing, a name without a record is a flat role). A closure
+   * path beyond 16 roles (which includes a cycle) or more than 64 roles for one
+   * principal cannot be established: 'unknown'.
+   */
+  async countSodHolders(query: HolderQuery): Promise<number | 'unknown'> {
+    const constraints = query.constraints.map(c => ({ roles: [...c.roles], cardinality: c.cardinality }));
+    if (!constraints.length) return 0;
+    const row = (await this.client.query(`WITH RECURSIVE
+      rl AS (
+        SELECT id, inherits, active FROM akac_roles WHERE tenant=$1 AND ($2::jsonb IS NULL OR id <> $2->>'id')
+        UNION ALL
+        SELECT $2->>'id', ARRAY(SELECT jsonb_array_elements_text($2->'inherits')), ($2->>'active')::boolean WHERE $2::jsonb IS NOT NULL
+      ),
+      who AS (SELECT id, roles FROM akac_actors WHERE tenant=$1 AND active),
+      seed AS (
+        SELECT w.id AS actor, r AS role FROM who w CROSS JOIN LATERAL unnest(w.roles) r
+        UNION
+        SELECT w.id, r FROM who w JOIN akac_groups g ON g.tenant=$1 AND g.active AND w.id = ANY(g.members) CROSS JOIN LATERAL unnest(g.roles) r
+      ),
+      c(actor, role, depth) AS (
+        SELECT s.actor, s.role, 1 FROM seed s LEFT JOIN rl ON rl.id=s.role WHERE rl.id IS NULL OR rl.active
+        UNION
+        SELECT c.actor, j.role, c.depth + 1 FROM c JOIN rl ON rl.id=c.role
+          CROSS JOIN LATERAL unnest(rl.inherits) AS j(role) LEFT JOIN rl jr ON jr.id=j.role
+          WHERE c.depth <= 16 AND (jr.id IS NULL OR jr.active)
+      ),
+      held AS (SELECT DISTINCT actor, role FROM c WHERE depth <= 16),
+      k AS (SELECT t.ord, ARRAY(SELECT jsonb_array_elements_text(t.e->'roles')) AS roles, (t.e->>'cardinality')::int AS cardinality
+        FROM jsonb_array_elements($3::jsonb) WITH ORDINALITY AS t(e, ord)),
+      viol AS (SELECT h.actor FROM held h JOIN k ON h.role = ANY(k.roles) GROUP BY h.actor, k.ord, k.cardinality HAVING count(*) >= k.cardinality)
+      SELECT (SELECT count(DISTINCT actor) FROM viol)::int AS holders,
+        (EXISTS (SELECT 1 FROM c WHERE depth > 16) OR EXISTS (SELECT 1 FROM held GROUP BY actor HAVING count(*) > 64)) AS unknown`,
+      [this.tenant, query.role ? JSON.stringify(query.role) : null, JSON.stringify(constraints)])).rows[0];
+    return row.unknown ? 'unknown' : Number(row.holders);
+  }
+  async flush(): Promise<void> {
+    if (this.state.schema !== 'akac-state/0.3') throw new Error('Unsupported state schema');
+    for (const collection of Object.keys(TABLES) as Collection[]) {
+      const seen = this.loaded.get(collection)!;
+      for (const [id, record] of Object.entries(this.state[collection] as Record<string, Record<string, unknown>>)) {
+        if (seen.get(id) === JSON.stringify(record)) continue;
+        if (record.tenant !== this.tenant || record.id !== id) throw new Error('Cross-tenant write');
+        await upsert(this.client, collection, record);
+      }
+    }
+    for (const [tenant, epoch] of Object.entries(this.state.epochs)) {
+      if (tenant !== this.tenant) throw new Error('Cross-tenant epoch write');
+      if (epoch !== this.epoch) {
+        await this.client.query('INSERT INTO akac_epochs (tenant, epoch) VALUES ($1,$2) ON CONFLICT (tenant) DO UPDATE SET epoch=EXCLUDED.epoch', [tenant, epoch]);
+      }
+    }
+    if (this.state.audits.some(a => a.tenant !== this.tenant)) throw new Error('Cross-tenant audit write');
+    await appendAudits(this.client, this.tenant, this.state.audits.filter(a => a.sequence > this.head));
+  }
+}
+
+export const MIGRATIONS = fileURLToPath(new URL('../migrations/', import.meta.url));
+const MIGRATION_LOCK = [1095450947, 3] as const;
+const checksum = (sql: string) => createHash('sha256').update(sql.replace(/\r\n/g, '\n')).digest('hex');
+function migrationFiles(directory: string) {
+  return readdirSync(directory).filter(f => /^\d{3}_[a-z0-9_]+\.sql$/.test(f)).sort()
+    .map(file => { const sql = readFileSync(join(directory, file), 'utf8'); return { version: file.slice(0, -4), sql, checksum: checksum(sql) }; });
+}
+export type PostgresOptions = { schema?: string };
+/** Tables that hold no tenant records and therefore carry no row-level security policy. */
+const UNPROTECTED = new Set(['akac_schema_migrations', 'akac_settings', 'akac_state_legacy']);
+/**
+ * Runtime-role posture: not a superuser, no BYPASSRLS, neither owner nor member of
+ * the owner role of any akac_* table (owners are exempt from plain RLS), and every
+ * tenant table has RLS enabled AND forced.
+ */
+async function rlsPosture(db: { query: (sql: string) => Promise<{ rows: Record<string, unknown>[] }> }): Promise<boolean> {
+  const role = (await db.query('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user')).rows[0];
+  if (!role || role.rolsuper || role.rolbypassrls) return false;
+  const tables = (await db.query(`SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity, pg_has_role(current_user, c.relowner, 'MEMBER') AS owns
+    FROM pg_class c WHERE c.relnamespace = current_schema()::regnamespace AND c.relkind IN ('r', 'p') AND c.relname LIKE 'akac\\_%'`)).rows;
+  return tables.length > 0 && tables.every(t => !t.owns && (UNPROTECTED.has(t.relname as string) || (t.relrowsecurity === true && t.relforcerowsecurity === true)));
+}
+function config(connectionString: string, options: PostgresOptions): pg.PoolConfig {
+  if (options.schema !== undefined && !/^[a-z_][a-z0-9_]{0,62}$/.test(options.schema)) throw new Error('Invalid schema name');
+  return { connectionString, connectionTimeoutMillis: 5000, statement_timeout: 10000, idle_in_transaction_session_timeout: 15000,
+    ...(options.schema ? { options: `-c search_path=${options.schema}` } : {}) };
+}
+
+/**
+ * Applies pending migrations in order inside one advisory-locked transaction.
+ * Applied migrations are verified by checksum; an edited, missing or unknown
+ * migration refuses to start. A 0.2 single-row `akac_state` is imported once and
+ * renamed `akac_state_legacy` (its global audit chain stays there, unmodified).
+ * Run with the schema owner, never with the runtime role.
+ */
+export async function migrate(connectionString: string, options: PostgresOptions & { directory?: string } = {}): Promise<string[]> {
+  const files = migrationFiles(options.directory ?? MIGRATIONS);
+  const client = new pg.Client(config(connectionString, options));
+  await client.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [...MIGRATION_LOCK]);
+    await client.query('CREATE TABLE IF NOT EXISTS akac_schema_migrations (version text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
+    const applied = new Map((await client.query('SELECT version, checksum FROM akac_schema_migrations')).rows.map(r => [r.version as string, r.checksum as string]));
+    for (const [version, sum] of applied) {
+      const file = files.find(f => f.version === version);
+      if (!file) throw new Error(`Unknown applied migration ${version}`);
+      if (file.checksum !== sum) throw new Error(`Migration checksum mismatch for ${version}`);
+    }
+    const pending = files.filter(f => !applied.has(f.version));
+    for (const file of pending) {
+      await client.query(file.sql);
+      await client.query('INSERT INTO akac_schema_migrations (version, checksum) VALUES ($1, $2)', [file.version, file.checksum]);
+    }
+    if ((await client.query("SELECT to_regclass('akac_state') AS t")).rows[0].t) await importLegacy(client);
+    await client.query('COMMIT');
+    return pending.map(f => f.version);
+  } catch (error) { await client.query('ROLLBACK'); throw error; }
+  finally { await client.end(); }
+}
+async function importLegacy(client: pg.Client) {
+  const row = (await client.query('SELECT body FROM akac_state WHERE id=1')).rows[0];
+  if (row) {
+    const state = upgradeState(row.body);
+    await client.query("UPDATE akac_settings SET value=$1 WHERE key='policyVersion'", [state.policyVersion]);
+    const tenants = new Set(Object.keys(state.epochs));
+    for (const collection of Object.keys(TABLES) as Collection[]) for (const r of Object.values(state[collection])) tenants.add(r.tenant);
+    for (const tenant of [...tenants].sort()) {
+      if (!validId(tenant)) throw new Error('Invalid legacy tenant');
+      await client.query("SELECT set_config('akac.tenant', $1, true)", [tenant]);
+      for (const collection of Object.keys(TABLES) as Collection[]) {
+        for (const record of Object.values(state[collection] as Record<string, Record<string, unknown>>)) if (record.tenant === tenant) await upsert(client, collection, record);
+      }
+      await client.query('INSERT INTO akac_epochs (tenant, epoch) VALUES ($1,$2) ON CONFLICT (tenant) DO UPDATE SET epoch=EXCLUDED.epoch', [tenant, state.epochs[tenant] ?? 0]);
+    }
+    await client.query("SELECT set_config('akac.tenant', '', true)");
+  }
+  await client.query('ALTER TABLE akac_state RENAME TO akac_state_legacy');
+}
+
+/**
+ * Normalized, tenant-partitioned store. Each transaction sets `akac.tenant`
+ * (SET LOCAL semantics) for row-level security and takes a per-tenant advisory
+ * lock, so one tenant's decisions are linearized while tenants run in parallel.
+ */
 export class PostgresStore implements Store {
   private pool: pg.Pool;
-  private ready: Promise<void>;
-  constructor(connectionString: string) {
-    this.pool = new pg.Pool({ connectionString, max: 5, connectionTimeoutMillis: 5000,
-      statement_timeout: 10000, idle_in_transaction_session_timeout: 15000 });
-    const pool = this.pool;
-    this.ready = (async () => {
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        // CREATE TABLE IF NOT EXISTS alone does not serialize concurrent DDL.
-        await client.query('SELECT pg_advisory_xact_lock(1095450947)');
-        await client.query('CREATE TABLE IF NOT EXISTS akac_state (id INTEGER PRIMARY KEY CHECK(id=1), body JSONB NOT NULL)');
-        await client.query('INSERT INTO akac_state(id,body) VALUES(1,$1) ON CONFLICT DO NOTHING', [JSON.stringify(emptyState())]);
-        await client.query('COMMIT');
-      } catch (error) { await client.query('ROLLBACK'); throw error; }
-      finally { client.release(); }
-    })();
+  private init: Promise<void>;
+  /** Migration, then (with requireRls) the runtime-role posture check. Transactions wait for both. */
+  private guard: Promise<void>;
+  private requireRls: boolean;
+  private expected: { version: string; checksum: string }[];
+  constructor(connectionString: string, options: PostgresOptions & {
+    /** true: migrate with this connection (development). A URL: migrate as that owner. false: verify only. */
+    migrate?: boolean | string; requireRls?: boolean; max?: number;
+  } = {}) {
+    this.pool = new pg.Pool({ ...config(connectionString, options), max: options.max ?? 10 });
+    this.requireRls = options.requireRls ?? false;
+    this.expected = migrationFiles(MIGRATIONS).map(({ version, checksum }) => ({ version, checksum }));
+    const migration = options.migrate ?? true;
+    this.init = migration === false ? Promise.resolve()
+      : migrate(migration === true ? connectionString : migration, { schema: options.schema }).then(() => {});
+    this.guard = this.init.then(() => this.requireRls ? this.checkRuntimeRole() : undefined);
     // Observe early rejection without hiding it from transaction()/close().
-    void this.ready.catch(() => {});
+    void this.init.catch(() => {}); void this.guard.catch(() => {});
   }
-  async transaction<T>(fn: (state: State) => Promise<T>): Promise<T> {
-    await this.ready;
+  private async checkRuntimeRole(): Promise<void> {
+    if (!await rlsPosture(this.pool)) throw new Error('The PostgreSQL runtime role is a superuser, bypasses row-level security, owns the tables, or a table lacks forced row-level security');
+  }
+  /** Resolves when migrations are verified and, with requireRls, the runtime role is subject to RLS; rejects otherwise (start-up gate). */
+  async verify(): Promise<void> { await this.guard; }
+  async transaction<T>(tenant: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+    if (!validId(tenant)) throw new Error('Invalid tenant');
+    await this.guard;
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const result = await client.query('SELECT body FROM akac_state WHERE id=1 FOR UPDATE');
-      const state = result.rows[0]?.body as State;
-      if (state?.schema !== 'akac-state/0.1') throw new Error('Unsupported state schema');
-      const value = await fn(state);
-      await client.query('UPDATE akac_state SET body=$1 WHERE id=1', [JSON.stringify(state)]);
+      const setup = await client.query(`SELECT set_config('akac.tenant', $1, true), pg_advisory_xact_lock(hashtextextended($1, 0)),
+        (SELECT value FROM akac_settings WHERE key='policyVersion') AS policy`, [tenant]);
+      const tx = new PgTx(client, tenant, setup.rows[0].policy);
+      const value = await fn(tx);
+      await tx.flush();
       await client.query('COMMIT'); return value;
-    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    } catch (error) { await client.query('ROLLBACK').catch(() => {}); throw error; }
     finally { client.release(); }
   }
-  async close() { try { await this.ready; } finally { await this.pool.end(); } }
+  /** Schema version and checksums, RLS posture and a bounded audit tail (256 entries) against the head row. */
+  async ready(tenant?: string): Promise<boolean> {
+    try {
+      await this.guard;
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+        const applied = (await client.query('SELECT version, checksum FROM akac_schema_migrations ORDER BY version')).rows;
+        if (applied.length !== this.expected.length || applied.some((r, i) => r.version !== this.expected[i]!.version || r.checksum !== this.expected[i]!.checksum)) return false;
+        if (this.requireRls) {
+          if (!await rlsPosture(client)) return false;
+        }
+        if (tenant === undefined) return true;
+        if (!validId(tenant)) return false;
+        await client.query("SELECT set_config('akac.tenant', $1, true)", [tenant]);
+        const head = (await client.query('SELECT sequence, hash FROM akac_audit_head WHERE tenant=$1', [tenant])).rows[0];
+        const tail = (await client.query('SELECT * FROM akac_audit WHERE tenant=$1 ORDER BY sequence DESC LIMIT 256', [tenant])).rows.map(fromAudit).reverse();
+        if (!head) return tail.length === 0;
+        return tail.length > 0 && verifyAudit(tail, { window: true }) && tail.at(-1)!.sequence === Number(head.sequence)
+          && tail.at(-1)!.hash === head.hash && (tail[0]!.sequence > 1 || tail[0]!.previous === '0'.repeat(64));
+      } finally { await client.query('ROLLBACK').catch(() => {}); client.release(); }
+    } catch { return false; }
+  }
+  async auditLog(tenant: string, after = 0, limit = 100_000): Promise<Audit[]> {
+    if (!validId(tenant)) throw new Error('Invalid tenant');
+    await this.guard;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await client.query("SELECT set_config('akac.tenant', $1, true)", [tenant]);
+      return (await client.query('SELECT * FROM akac_audit WHERE tenant=$1 AND sequence > $2 ORDER BY sequence LIMIT $3', [tenant, after, limit])).rows.map(fromAudit);
+    } finally { await client.query('ROLLBACK').catch(() => {}); client.release(); }
+  }
+  async close() { try { await this.init; } finally { await this.pool.end(); } }
 }

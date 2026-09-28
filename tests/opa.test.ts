@@ -20,9 +20,9 @@ test('real OPA server evaluates checked-in Rego', { skip: !process.env.OPA_BIN }
   const proc = spawn(process.env.OPA_BIN!, ['run', '--server', '--addr=127.0.0.1:18181', 'policies/'], { stdio: 'ignore' });
   try {
     let ready = false;
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       try { ready = (await fetch('http://127.0.0.1:18181/health')).ok; } catch {}
-      if (ready) break; await new Promise(resolve => setTimeout(resolve, 20));
+      if (ready) break; await new Promise(resolve => setTimeout(resolve, 50));
     }
     assert.ok(ready, 'OPA failed to start');
     const policy = new OpaPolicy('http://127.0.0.1:18181/v1/data/akac/decision');

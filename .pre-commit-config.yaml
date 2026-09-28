@@ -1,0 +1,7 @@
+# Local secret scanning before every commit: `pip install pre-commit && pre-commit install`.
+# CI runs the same pinned gitleaks release over the full history (secret-scan job).
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks

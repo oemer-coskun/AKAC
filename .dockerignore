@@ -1,6 +1,17 @@
 node_modules
 .git
+.github
 .env
+.env.*
+secrets
 data
 coverage
 test-results
+deploy
+docs
+*.md
+tests
+conformance/vectors
+.dockerignore
+Dockerfile
+compose.yaml

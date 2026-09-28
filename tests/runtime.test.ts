@@ -23,7 +23,7 @@ test('revocation while provider works blocks the final answer', async () => {
   const state = fixture(); state.actors.provider = { ...state.actors.chief!, id: 'provider', kind: 'service' };
   const engine = new Engine(new MemoryStore(state));
   const runtime = new ProtectedRuntime(engine, { principal: 'provider', generate: async () => {
-    await engine.revoke('admin', 'knowledge', 'strategy'); return 'Previously learned secret';
+    await engine.revoke('acme', 'admin', 'knowledge', 'strategy'); return 'Previously learned secret';
   } });
   assert.equal((await runtime.answer(bindings.chief, ['strategy'], 'work', 'Summarize')).ok, false);
 });

@@ -1,67 +1,163 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
     environment:
       POSTGRES_DB: akac
-      POSTGRES_USER: akac
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_USER: akac_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_owner_password
+      AKAC_APP_PASSWORD_FILE: /run/secrets/pg_app_password
+    secrets: [pg_owner_password, pg_app_password]
     volumes:
       - database:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    mem_limit: 1g
+    pids_limit: 256
     healthcheck:
-      test: [CMD-SHELL, "pg_isready -U akac -d akac"]
+      test: [CMD-SHELL, "pg_isready -U akac_owner -d akac"]
       interval: 5s
       timeout: 3s
       retries: 10
     networks: [backend]
+
   opa:
-    image: openpolicyagent/opa:1.9.0-static
+    image: openpolicyagent/opa:1.9.0-static@sha256:60b6af32b58377718546ac7d4634eecbfe50ec36f7d3ca3f8ebf515f9826c2ac
     command: [run, --server, --addr=0.0.0.0:8181, /policies]
     volumes:
       - ./policies:/policies:ro
     read_only: true
+    tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 64
     networks: [backend]
+
   seed:
     build: .
     command: [node, scripts/seed.ts]
     environment:
-      DATABASE_URL: postgresql://akac:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/akac
+      DATABASE_URL: postgresql://akac_app@postgres:5432/akac
+      AKAC_DATABASE_PASSWORD_FILE: /run/secrets/pg_app_password
+      AKAC_MIGRATION_DATABASE_URL: postgresql://akac_owner@postgres:5432/akac
+      AKAC_MIGRATION_DATABASE_PASSWORD_FILE: /run/secrets/pg_owner_password
       AKAC_CREDENTIALS_FILE: /app/data/credentials.json
+      AKAC_ADMIN_CREDENTIALS_FILE: /app/data/admin-credentials.json
+    secrets: [pg_owner_password, pg_app_password]
     volumes: [credentials:/app/data]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 64
     depends_on:
       postgres:
         condition: service_healthy
     profiles: [setup]
     networks: [backend]
-  gateway:
+
+  # Applies migrations as the schema owner, then exits. The gateway runs without DDL rights.
+  migrate:
     build: .
+    command: [node, scripts/migrate.ts]
     environment:
-      DATABASE_URL: postgresql://akac:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/akac
-      AKAC_CREDENTIALS_FILE: /app/data/credentials.json
-      OPA_URL: http://opa:8181/v1/data/akac/decision
-      OPA_REVISION: akac-company/0.2
-    volumes: [credentials:/app/data:ro]
-    ports: ["127.0.0.1:8787:8787"]
+      AKAC_MIGRATION_DATABASE_URL: postgresql://akac_owner@postgres:5432/akac
+      AKAC_MIGRATION_DATABASE_PASSWORD_FILE: /run/secrets/pg_owner_password
+    secrets: [pg_owner_password]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 64
     depends_on:
       postgres:
         condition: service_healthy
+    networks: [backend]
+
+  gateway:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://akac_app@postgres:5432/akac
+      AKAC_DATABASE_PASSWORD_FILE: /run/secrets/pg_app_password
+      AKAC_AUTO_MIGRATE: "false"
+      AKAC_CREDENTIALS_FILE: /app/data/credentials.json
+      AKAC_ADMIN_CREDENTIALS_FILE: /app/data/admin-credentials.json
+      AKAC_ADMIN_HOST: 0.0.0.0
+      AKAC_METRICS_HOST: 0.0.0.0
+      OPA_URL: http://opa:8181/v1/data/akac/decision
+      OPA_REVISION: akac-company/0.2
+      HOST: 0.0.0.0
+      PORT: "8787"
+      ADMIN_PORT: "8788"
+      METRICS_PORT: "9464"
+      # Permission-aware vector retrieval over pgvector (docs/RETRIEVAL.md).
+      AKAC_RETRIEVAL: vector
+      AKAC_VECTOR_BACKEND: pgvector
+      # Synthetic demo only: HashEmbedder is lexical feature hashing, not a semantic model.
+      # Set AKAC_EMBEDDINGS_URL (+ AKAC_EMBEDDINGS_MODEL) for a real provider; then drop the two hash lines.
+      AKAC_EMBEDDINGS: hash
+      AKAC_ALLOW_HASH_EMBEDDER: "true"
+      AKAC_EMBEDDINGS_URL: ${AKAC_EMBEDDINGS_URL:-}
+      AKAC_EMBEDDINGS_MODEL: ${AKAC_EMBEDDINGS_MODEL:-}
+    secrets: [pg_app_password]
+    volumes: [credentials:/app/data:ro]
+    ports:
+      - "127.0.0.1:8787:8787"
+      - "127.0.0.1:8788:8788"
+      - "127.0.0.1:9464:9464"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
       opa:
         condition: service_started
     read_only: true
+    tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    pids_limit: 128
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5
-    networks: [backend, ingress]
+    networks: [backend, ingress, admin]
+
+# Passwords are supplied as files, never embedded in connection URLs or the environment.
+# Create them once (untracked; see docs/DEPLOYMENT.md):
+#   umask 077 && mkdir -p secrets && openssl rand -hex 24 > secrets/pg_owner_password && openssl rand -hex 24 > secrets/pg_app_password
+#   chmod 0444 secrets/pg_*_password   # readable by the container users; the directory stays 0700
+# They are bind-mounted read-only under /run/secrets, which also works with read_only: true
+# services. If a file is missing Compose only warns and Docker mounts an empty directory,
+# so the affected service fails to start and reads no password.
+secrets:
+  pg_owner_password:
+    file: ./secrets/pg_owner_password
+  pg_app_password:
+    file: ./secrets/pg_app_password
+
 volumes:
   database:
   credentials:
+
 networks:
+  # Agent-facing API (8787). In production, expose only this network to the
+  # agent orchestrator ingress; never bridge it with the admin network.
   ingress:
     driver: bridge
+  # Postgres and OPA: never published to the host beyond loopback test binds.
   backend:
     internal: true
+  # Admin control plane (8788) and metrics (9464). Must never share an
+  # ingress/load balancer with the agent API network. Loopback-only here
+  # because this file is a local/CI demonstration, not a production topology;
+  # see deploy/helm for NetworkPolicy-enforced separation.
+  admin:
+    driver: bridge

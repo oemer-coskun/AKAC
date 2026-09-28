@@ -22,10 +22,36 @@ export function fixture(now = Date.now()): State {
     s.grants[g.id] = g;
   }
   const add = (id: string, content: string, classification: Knowledge['classification'], readerRoles: string[], projects: string[] = []) => {
-    s.knowledge[id] = { id, tenant: 'acme', version: 1, kind: 'document', content, classification, readerRoles, projects, readers: [], sources: [], active: true };
+    s.knowledge[id] = { id, tenant: 'acme', version: 1, kind: 'document', origin: 'system', content, classification, readerRoles, projects, readers: [], sources: [], active: true };
   };
   add('handbook', 'Product handbook: our public product is a notebook.', 'public', ['staff']);
   add('strategy', 'Product acquisition strategy: confidential purchase budget is 900000.', 'restricted', ['executive']);
   add('project-alpha', 'Product project alpha schedule: launch in November.', 'confidential', ['project', 'executive'], ['alpha']);
+  return s;
+}
+/**
+ * Fixture for the AKAC-KB/0.3 profile: a role hierarchy, an (inactive) group,
+ * separation-of-duty constraints and a knowledge base with nested folders.
+ * Base decisions of fixture() are unchanged.
+ */
+export function kbFixture(now = Date.now()): State {
+  const s = fixture(now);
+  const role = (id: string, inherits: string[]) => { s.roles[id] = { id, tenant: 'acme', inherits, active: true }; };
+  role('staff', []); role('executive', ['staff']); role('board', ['executive']);
+  s.groups.leadership = { id: 'leadership', tenant: 'acme', members: ['lead', 'lead-agent'], roles: ['board'], active: false };
+  s.constraints['ssd-payments'] = { id: 'ssd-payments', tenant: 'acme', kind: 'static', roles: ['requester', 'approver'], cardinality: 2 };
+  s.constraints['dsd-review'] = { id: 'dsd-review', tenant: 'acme', kind: 'dynamic', roles: ['auditor-role', 'project'], cardinality: 2 };
+  const container = (id: string, kind: 'knowledge-base' | 'folder', classification: Knowledge['classification'], readerRoles: string[], parent?: string) => {
+    s.containers[id] = { id, tenant: 'acme', kind, ...(parent ? { parent } : {}), classification, readerRoles, readers: [], projects: [], active: true };
+  };
+  container('kb-corporate', 'knowledge-base', 'internal', ['staff']);
+  container('f-executive', 'folder', 'confidential', ['executive'], 'kb-corporate');
+  container('f-vault', 'folder', 'restricted', ['executive'], 'f-executive');
+  const doc = (id: string, content: string, folder: string) => {
+    s.knowledge[id] = { ...structuredClone(s.knowledge.handbook!), id, content, container: folder };
+  };
+  doc('board-notes', 'Board notes: synthetic quarterly agenda.', 'f-executive');
+  doc('vault-memo', 'Vault memo: synthetic reserve figure 42.', 'f-vault');
+  doc('staff-faq', 'Staff FAQ: synthetic office hours.', 'kb-corporate');
   return s;
 }

@@ -37,6 +37,14 @@
         "artifact"
       ]
     },
+    "origin": {
+      "enum": [
+        "human",
+        "system",
+        "model"
+      ],
+      "description": "Provenance only, never authority. Memory and artifacts are always 'model'."
+    },
     "content": {
       "type": "string"
     },
@@ -116,6 +124,18 @@
       "minimum": 0,
       "maximum": 9007199254740991,
       "description": "Exclusive access expiry in Unix milliseconds. Does not erase stored bytes."
+    },
+    "container": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+      "not": {
+        "enum": [
+          "constructor",
+          "prototype",
+          "__proto__"
+        ]
+      },
+      "description": "Nearest knowledge base or folder; every ancestor's label also applies."
     }
   },
   "required": [
@@ -123,6 +143,7 @@
     "tenant",
     "version",
     "kind",
+    "origin",
     "content",
     "classification",
     "projects",
@@ -130,5 +151,22 @@
     "readers",
     "sources",
     "active"
-  ]
+  ],
+  "if": {
+    "properties": {
+      "kind": {
+        "enum": [
+          "memory",
+          "artifact"
+        ]
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "origin": {
+        "const": "model"
+      }
+    }
+  }
 }

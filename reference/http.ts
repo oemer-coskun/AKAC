@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto';
 import { Engine, validId } from './engine.ts';
 import type { Binding } from './types.ts';
 import type { Authenticator } from '../adapters/jwt.ts';
+import { observe } from './observe.ts';
+import type { Observability } from './observe.ts';
 
 export type Credential = { token: string; binding: Binding };
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -18,7 +20,7 @@ function send(res: ServerResponse, status: number, body: unknown) {
     'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" });
   res.end(JSON.stringify(body));
 }
-export function createGateway(engine: Engine, credentials: Credential[], options: { authenticator?: Authenticator } = {}) {
+export function createGateway(engine: Engine, credentials: Credential[], options: { authenticator?: Authenticator } & Observability = {}) {
   if (!credentials.length && !options.authenticator) throw new Error('Authentication is required');
   if (credentials.length && options.authenticator) throw new Error('Authentication modes cannot be mixed');
   const auth = new Map<string, Binding>();
@@ -30,11 +32,14 @@ export function createGateway(engine: Engine, credentials: Credential[], options
   }
   const buckets = new Map<string, { minute: number; count: number }>();
   let active = 0;
+  const routes = new Set(['/health', '/ready', '/v1/retrieve', '/v1/contexts', '/v1/derive', '/v1/release']);
   const server = createServer(async (req, res) => {
+    const obs = observe('agent', req, res, options);
+    obs.setRoute(routes.has(req.url ?? '') ? req.url! : 'unmatched');
     if (active >= 32) { req.resume(); send(res, 503, { error: 'BUSY' }); return; }
     active++;
     try {
-    if (req.url === '/health' && req.method === 'GET') { send(res, 200, { status: 'ok', specification: '0.2-draft' }); return; }
+    if (req.url === '/health' && req.method === 'GET') { send(res, 200, { status: 'ok', specification: '0.3-draft' }); return; }
     const header = req.headers.authorization;
     const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
     const binding = options.authenticator ? await options.authenticator.authenticate(token)
@@ -48,7 +53,7 @@ export function createGateway(engine: Engine, credentials: Credential[], options
     buckets.set(hash, bucket);
     if (++bucket.count > 120) { req.resume(); send(res, 429, { error: 'RATE_LIMITED' }); return; }
     if (req.url === '/ready' && req.method === 'GET') {
-      const ready = await engine.ready(); send(res, ready ? 200 : 503, { status: ready ? 'ready' : 'unavailable' }); return;
+      const ready = await engine.ready(binding.tenant); send(res, ready ? 200 : 503, { status: ready ? 'ready' : 'unavailable' }); return;
     }
     if (req.method !== 'POST' || req.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/json') {
       req.resume(); send(res, 400, { error: 'INVALID_REQUEST' }); return;

@@ -1,6 +1,6 @@
 {
   "name": "@akac/reference",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Agent Knowledge Access Control: draft specification, reference implementation and conformance suite",
   "type": "module",
@@ -16,6 +16,7 @@
     "demo": "node examples/demo.ts",
     "start": "node reference/server.ts",
     "seed": "node scripts/seed.ts",
+    "migrate": "node scripts/migrate.ts",
     "conformance": "node conformance/run.ts",
     "test:postgres": "node --test tests/postgres.test.ts"
   },

@@ -1,4 +1,4 @@
-"""AKAC Core 0.2, independent Python decision implementation (stdlib only).
+"""AKAC Core/KB 0.3, independent Python decision implementation (stdlib only).
 
 This implementation shares the specification and test data, not TypeScript code.
 It is produced by the same project; it is NOT an independent external audit.
@@ -10,6 +10,12 @@ import sys
 
 LEVELS = ["public", "internal", "confidential", "restricted"]
 ACTIONS = ["read", "derive", "write_memory", "share", "export", "declassify"]
+ORIGINS = ["human", "system", "model"]
+MAX_ROLES, MAX_ROLE_DEPTH, MAX_CONTAINER_DEPTH = 64, 16, 32
+
+
+class Unestablished(Exception):
+    """Role graph cannot be established (cycle, budget, malformed)."""
 
 
 def integer(x):
@@ -39,6 +45,10 @@ def valid_chain(state, grant, now):
             return False
         if not grant["actions"] or any(action not in ACTIONS for action in grant["actions"]):
             return False
+        if "activeRoles" in grant:
+            active = grant["activeRoles"]
+            if not isinstance(active, list) or len(active) > MAX_ROLES or any(not isinstance(r, str) or not r for r in active):
+                return False
         seen.add(grant["id"])
         if not grant.get("parent"):
             return True
@@ -49,10 +59,119 @@ def valid_chain(state, grant, now):
             return False
         if grant["notBefore"] < parent["notBefore"] or grant["expiresAt"] > parent["expiresAt"]:
             return False
+        if "activeRoles" in parent and ("activeRoles" not in grant or any(r not in parent["activeRoles"] for r in grant["activeRoles"])):
+            return False
         grant = parent
 
 
-def visible(state, actor, root, now):
+def close_roles(state, tenant, seeds):
+    # Recursive with memoized heights; order-independent result.
+    held, heights, path = set(), {}, set()
+
+    def visit(name):
+        if not isinstance(name, str) or not name:
+            raise Unestablished()
+        found = state["roles"].get(name)
+        role = found if found is not None and found["tenant"] == tenant else None
+        if role is not None and role["active"] is not True:
+            return 0
+        if name in path:
+            raise Unestablished()
+        if name in heights:
+            return heights[name]
+        held.add(name)
+        if len(held) > MAX_ROLES:
+            raise Unestablished()
+        path.add(name)
+        height = 1
+        if role is not None:
+            if not isinstance(role["inherits"], list):
+                raise Unestablished()
+            for junior in role["inherits"]:
+                height = max(height, 1 + visit(junior))
+        path.discard(name)
+        if height > MAX_ROLE_DEPTH:
+            raise Unestablished()
+        heights[name] = height
+        return height
+
+    try:
+        for seed in seeds:
+            visit(seed)
+        return held
+    except Unestablished:
+        return None
+
+
+def effective_roles(state, actor):
+    seeds = []
+    for group in state["groups"].values():
+        if group["tenant"] != actor["tenant"]:
+            continue
+        if not isinstance(group["members"], list) or not isinstance(group["roles"], list):
+            return None
+        if group["active"] is True and actor["id"] in group["members"]:
+            seeds.extend(group["roles"])
+    if not isinstance(actor["roles"], list):
+        return None
+    return close_roles(state, actor["tenant"], list(actor["roles"]) + seeds)
+
+
+def session_roles(state, user, held, grant):
+    if "activeRoles" not in grant:
+        return set(held)
+    active = grant["activeRoles"]
+    if not isinstance(active, list) or any(not isinstance(r, str) or r not in held for r in active):
+        return None
+    return close_roles(state, user["tenant"], active)
+
+
+def sod_violated(state, tenant, kind, roles):
+    for c in state["constraints"].values():
+        if c["tenant"] != tenant:
+            continue
+        cardinality = c["cardinality"]
+        if c["kind"] not in ("static", "dynamic") or type(cardinality) is not int or cardinality < 2 or not isinstance(c["roles"], list):
+            return True
+        if c["kind"] == kind and len({r for r in c["roles"] if r in roles}) >= cardinality:
+            return True
+    return False
+
+
+def container_chain(state, resource):
+    # Iterative walk to the knowledge-base root.
+    chain = []
+    if "container" not in resource:
+        return chain
+    name = resource["container"]
+    while True:
+        if not identifier(name) or len(chain) >= MAX_CONTAINER_DEPTH or any(c["id"] == name for c in chain):
+            return None
+        c = state["containers"].get(name)
+        if c is None or c["tenant"] != resource["tenant"] or c["id"] != name:
+            return None
+        if c["kind"] == "knowledge-base":
+            if "parent" in c:
+                return None
+        elif c["kind"] != "folder" or "parent" not in c:
+            return None
+        chain.append(c)
+        if "parent" not in c:
+            return chain
+        name = c["parent"]
+
+
+def admits(actor, roles, obj):
+    if not actor["active"] or actor["tenant"] != obj["tenant"] or actor["clearance"] not in LEVELS or obj["classification"] not in LEVELS:
+        return False
+    if LEVELS.index(actor["clearance"]) < LEVELS.index(obj["classification"]):
+        return False
+    if not all(project in actor["projects"] for project in obj["projects"]):
+        return False
+    return actor["id"] in obj["readers"] or bool(roles.intersection(obj["readerRoles"]))
+
+
+def visible(state, actor, root, now, roles):
     # Discover once, then peel leaves. This differs from the TypeScript DFS.
     pending = [root]
     graph = {}
@@ -66,13 +185,10 @@ def visible(state, actor, root, now):
             return False
         if "accessExpiresAt" in resource and (not integer(resource["accessExpiresAt"]) or now >= resource["accessExpiresAt"]):
             return False
-        if not actor["active"] or actor["tenant"] != resource["tenant"] or actor["clearance"] not in LEVELS or resource["classification"] not in LEVELS:
+        if resource.get("origin") not in ORIGINS or not admits(actor, roles, resource):
             return False
-        if LEVELS.index(actor["clearance"]) < LEVELS.index(resource["classification"]):
-            return False
-        if not all(project in actor["projects"] for project in resource["projects"]):
-            return False
-        if actor["id"] not in resource["readers"] and not set(actor["roles"]).intersection(resource["readerRoles"]):
+        chain = container_chain(state, resource)
+        if chain is None or not all(c["active"] is True and admits(actor, roles, c) for c in chain):
             return False
         graph[name] = []
         for ref in resource["sources"]:
@@ -102,22 +218,25 @@ def visible(state, actor, root, now):
 
 def decide(state, request):
     def deny(code):
-        return {"effect": "deny", "code": code}
+        return {"effect": "deny", "code": code, "category": "deny"}
+
+    def defer(code):
+        return {"effect": "deny", "code": code, "category": "defer"}
     try:
         if set(request) != {"binding", "action", "resource", "purpose", "now"}:
-            return deny("INVALID_REQUEST")
+            return defer("INVALID_REQUEST")
         binding = request["binding"]
         if set(binding) != {"tenant", "subject", "agent", "grant"} or not all(map(identifier, binding.values())):
-            return deny("INVALID_REQUEST")
+            return defer("INVALID_REQUEST")
         now = request["now"]
         if not identifier(request["resource"]) or request["action"] not in ACTIONS or not isinstance(request["purpose"], str) or not 1 <= len(request["purpose"]) <= 128 or not integer(now):
-            return deny("INVALID_REQUEST")
+            return defer("INVALID_REQUEST")
         user = state["actors"].get(binding["subject"])
         agent = state["actors"].get(binding["agent"])
         grant = state["grants"].get(binding["grant"])
         resource = state["knowledge"].get(request["resource"])
         if not all((user, agent, grant, resource)):
-            return deny("NOT_AUTHORIZED")
+            return defer("NOT_AUTHORIZED")
         if user["kind"] != "user" or agent["kind"] != "agent" or not user["active"] or not agent["active"] or any(obj["tenant"] != binding["tenant"] for obj in (user, agent, grant, resource)):
             return deny("IDENTITY_BOUNDARY")
         if grant["subject"] != user["id"] or grant["agent"] != agent["id"] or not valid_chain(state, grant, now):
@@ -126,11 +245,22 @@ def decide(state, request):
             return deny("OUT_OF_SCOPE")
         if request["action"] == "declassify":
             return deny("UNSUPPORTED_OBLIGATION")
-        if not visible(state, user, resource, now) or not visible(state, agent, resource, now):
+        user_roles, agent_roles = effective_roles(state, user), effective_roles(state, agent)
+        if user_roles is None or agent_roles is None:
+            return defer("INVALID_CONTEXT")
+        session = session_roles(state, user, user_roles, grant)
+        if session is None:
+            return deny("INVALID_DELEGATION")
+        tenant = binding["tenant"]
+        if sod_violated(state, tenant, "static", user_roles) or sod_violated(state, tenant, "static", agent_roles) or sod_violated(state, tenant, "dynamic", session):
+            return deny("SOD_VIOLATION")
+        if resource.get("origin") not in ORIGINS or container_chain(state, resource) is None:
+            return defer("INVALID_CONTEXT")
+        if not visible(state, user, resource, now, session) or not visible(state, agent, resource, now, agent_roles):
             return deny("KNOWLEDGE_BOUNDARY")
         return {"effect": "allow", "code": "AUTHORIZED"}
     except (KeyError, TypeError, ValueError, AttributeError, RecursionError):
-        return deny("INVALID_CONTEXT")
+        return defer("INVALID_CONTEXT")
 
 
 if __name__ == "__main__":

@@ -62,14 +62,14 @@ test('readiness verifies state audit and policy availability', async () => {
   const store = new MemoryStore(fixture(now));
   assert.equal(await new Engine(store).ready(), true);
   assert.equal(await new Engine(store, { policy: { revision: 'test-v1', check: async () => false, ready: async () => false } }).ready(), false);
-  await store.transaction(async s => { s.schema = 'unknown' as never; });
+  await store.transaction('acme', async ({ state: s }) => { s.schema = 'unknown' as never; });
   assert.equal(await new Engine(store).ready(), false);
 });
 test('signed external checkpoint detects rewrite, truncation, replay and key substitution', async () => {
   const store = new MemoryStore(fixture(now)); const engine = new Engine(store, { clock: () => now });
   await engine.openContext(bindings.intern, ['handbook'], 'work');
   await engine.openContext(bindings.intern, ['strategy'], 'work');
-  const entries = await store.transaction(async s => structuredClone(s.audits));
+  const entries = await store.transaction('acme', async ({ state: s }) => structuredClone(s.audits));
   const keys = generateKeyPairSync('ed25519');
   const privatePem = keys.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
   const publicPem = keys.publicKey.export({ type: 'spki', format: 'pem' }).toString();

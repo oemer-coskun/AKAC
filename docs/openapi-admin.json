@@ -1,0 +1,4898 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AKAC Reference Admin and SCIM API",
+    "version": "0.3.0",
+    "description": "Operator-facing API on its own listener (default port 8788). Credentials are administrator identities bound to a tenant and an admin actor; agent credentials are rejected and admin credentials are rejected on the agent listener. Authority is the admin actor's standing role (security-admin, kb-admin, auditor), enforced and audited on every call. The tenant always comes from the credential. Exactly one authentication mode is configured: opaque tokens (SHA-256 digested) or verified at+jwt with an audience distinct from the agent API. Limits are per process."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8788"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "adminHealth",
+        "summary": "Liveness of the admin listener",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "const": "ok"
+                    },
+                    "listener": {
+                      "const": "admin"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/actors/{id}": {
+      "put": {
+        "operationId": "putActor",
+        "summary": "Create or replace an actor",
+        "description": "Requires the standing role security-admin. Tenant comes from the credential; a body tenant or id, if present, must match.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActorBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/actors/{id}/roles": {
+      "put": {
+        "operationId": "putActorRoles",
+        "summary": "Replace an actor's direct roles (static separation of duty enforced)",
+        "description": "Requires the standing role security-admin. Tenant comes from the credential; a body tenant or id, if present, must match.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RolesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/roles/{id}": {
+      "put": {
+        "operationId": "putRole",
+        "summary": "Create or replace a role (acyclic hierarchy, depth limit)",
+        "description": "Requires the standing role security-admin. Tenant comes from the credential; a body tenant or id, if present, must match. A new role, new juniors or a reactivation that would put a currently valid active principal into a static separation-of-duty violation is 409 SOD_VIOLATION with `holders` (a count, never ids). Deactivation and removing juniors always succeed.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/groups/{id}": {
+      "put": {
+        "operationId": "putGroup",
+        "summary": "Create or replace a group",
+        "description": "Requires the standing role security-admin. Tenant comes from the credential; a body tenant or id, if present, must match.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/constraints/{id}": {
+      "put": {
+        "operationId": "putConstraint",
+        "summary": "Create or replace a separation-of-duty constraint",
+        "description": "Requires the standing role security-admin. Tenant comes from the credential; a body tenant or id, if present, must match. A static constraint that currently valid active principals would violate is 409 SOD_VIOLATION with `holders` (a count, never ids); resolve the assignments first. Dynamic constraints and relaxations are not checked against holders.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConstraintBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/containers/{id}": {
+      "put": {
+        "operationId": "putContainer",
+        "summary": "Create or replace a knowledge base or folder",
+        "description": "Requires the standing role kb-admin. Tenant comes from the credential; a body tenant or id, if present, must match.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContainerBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}": {
+      "put": {
+        "operationId": "putKnowledge",
+        "summary": "Ingest a document (origin human or system; version must be the next one)",
+        "description": "Requires the standing role kb-admin. Tenant comes from the credential; a body tenant or id, if present, must match. With vector retrieval enabled the document is also chunked, embedded and indexed (value.chunks).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative write succeeded but vector indexing lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INDEX_PENDING",
+                  "id": "handbook",
+                  "version": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteKnowledge",
+        "summary": "Retire a document (and remove its index entries when an ingestor is wired)",
+        "description": "Requires the standing role kb-admin (with or without an ingestor). Marks the document inactive and advances the tenant epoch, so running contexts that read it must re-establish authority. Only documents: memory and artifacts are revoked with POST /admin/v1/revocations (security-admin).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked; the tenant epoch advanced",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {}
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative write succeeded but vector indexing lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INDEX_PENDING",
+                  "id": "handbook",
+                  "version": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/grants": {
+      "post": {
+        "operationId": "issueGrant",
+        "summary": "Issue a root or attenuated run grant",
+        "description": "Requires security-admin. `Idempotency-Key` replays the stored response for an identical body; a different body under the same key is 422. The store is an in-memory LRU per administrator and per instance. A replay is re-authorized (403 if the administrator no longer holds security-admin) and audited as IDEMPOTENT_REPLAY; key reuse is audited as a denial.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Issued",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              },
+              "idempotent-replayed": {
+                "description": "true when replayed from the idempotency store",
+                "schema": {
+                  "const": "true"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key reused with a different body",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "IDEMPOTENCY_KEY_REUSED"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/revocations": {
+      "post": {
+        "operationId": "revoke",
+        "summary": "Revoke a grant, document or actor and advance the tenant epoch",
+        "description": "Requires security-admin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "id"
+                ],
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "grant",
+                      "knowledge",
+                      "actor"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Revoked",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "epoch": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/index/reconcile": {
+      "post": {
+        "operationId": "reconcileIndex",
+        "summary": "Repair drift between the store and the vector index for the caller's tenant",
+        "description": "Requires the standing role kb-admin (audited as index_reconcile). Re-indexes documents whose version, label digest or embedding model differs and removes chunks of inactive, expired or deleted documents. Scans at most 5000 documents; `truncated` reports a capped scan. Returns 404 when vector retrieval is not configured.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciled",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "indexed",
+                        "removed",
+                        "failed",
+                        "truncated"
+                      ],
+                      "properties": {
+                        "indexed": {
+                          "type": "integer"
+                        },
+                        "removed": {
+                          "type": "integer"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks kb-admin (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vector retrieval is not configured",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_FOUND"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/audit": {
+      "get": {
+        "operationId": "readAudit",
+        "summary": "Page of the tenant audit stream",
+        "description": "Requires auditor. Reading is itself audited.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entries in order; `next` is the last sequence or null",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "entries",
+                        "next"
+                      ],
+                      "properties": {
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AuditEntry"
+                          }
+                        },
+                        "next": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/audit/export": {
+      "get": {
+        "operationId": "exportAudit",
+        "summary": "Stream the tenant audit stream as NDJSON for a SIEM",
+        "description": "Requires auditor. One JSON audit entry per line, in sequence order, paged internally; each page read is audited. Verify the chain (`verifyAudit`) after export.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NDJSON stream",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scim/v2/ServiceProviderConfig": {
+      "get": {
+        "operationId": "scimServiceProviderConfig",
+        "summary": "SCIM service provider configuration",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scim/v2/ResourceTypes": {
+      "get": {
+        "operationId": "scimResourceTypes",
+        "summary": "SCIM resource types",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scim/v2/Schemas": {
+      "get": {
+        "operationId": "scimSchemas",
+        "summary": "SCIM schemas, including the AKAC extension",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scim/v2/Users": {
+      "post": {
+        "operationId": "scimCreateUser",
+        "summary": "Provision a user (Actor kind user)",
+        "description": "Requires security-admin. userName must be an AKAC identifier and becomes the id. roles, groups and entitlements are rejected (mutability).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimUserRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "scimFindUser",
+        "summary": "Find a user by userName",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "required": true,
+            "description": "Only userName eq \"value\" is supported; anything else is 400 invalidFilter.",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "userName eq \"example\""
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scim/v2/Users/{id}": {
+      "get": {
+        "operationId": "scimGetUser",
+        "summary": "Read a user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "scimReplaceUser",
+        "summary": "Replace a user",
+        "description": "Omitted clearance and projects fall back to public and none; an omitted active keeps the current value.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimUserRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "scimPatchUser",
+        "summary": "Patch a user (active, clearance, projects)",
+        "description": "Setting active to false deactivates the actor and advances the tenant epoch: authorization changes immediately.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimPatch"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "scimDeleteUser",
+        "summary": "Deactivate a user (no hard delete)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deactivated",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scim/v2/Groups": {
+      "post": {
+        "operationId": "scimCreateGroup",
+        "summary": "Create a group; roles via the AKAC extension",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimGroupRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimGroupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "scimFindGroup",
+        "summary": "Find a group by displayName",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "required": true,
+            "description": "Only displayName eq \"value\" is supported; anything else is 400 invalidFilter.",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "displayName eq \"example\""
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scim/v2/Groups/{id}": {
+      "get": {
+        "operationId": "scimGetGroup",
+        "summary": "Read a group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "scimReplaceGroup",
+        "summary": "Replace a group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimGroupRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimGroupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "scimPatchGroup",
+        "summary": "Patch a group (add, remove, replace members; roles)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/scim+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimPatch"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScimPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "scimDeleteGroup",
+        "summary": "Deactivate a group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deactivated",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "400": {
+            "description": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "400",
+                  "detail": "invalidValue, invalidSyntax, invalidFilter, invalidPath or mutability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "401",
+                  "detail": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the security-admin role",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "403",
+                  "detail": "The administrator lacks the security-admin role"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "404",
+                  "detail": "Not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "uniqueness, or separation-of-duty violation",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/scim+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScimError"
+                },
+                "example": {
+                  "schemas": [
+                    "urn:ietf:params:scim:api:messages:2.0:Error"
+                  ],
+                  "status": "409",
+                  "detail": "uniqueness, or separation-of-duty violation"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Opaque administrator token (at least 32 characters) or an at+jwt for the admin audience."
+      }
+    },
+    "headers": {
+      "XRequestId": {
+        "description": "Server-generated request id, also present in logs. A client-supplied value is ignored.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "Id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+      },
+      "Level": {
+        "enum": [
+          "public",
+          "internal",
+          "confidential",
+          "restricted"
+        ]
+      },
+      "Failure": {
+        "type": "object",
+        "required": [
+          "ok",
+          "code"
+        ],
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "code": {
+            "enum": [
+              "NOT_AUTHORIZED",
+              "INVALID_REQUEST",
+              "CONFLICT",
+              "SOD_VIOLATION",
+              "IDEMPOTENCY_KEY_REUSED",
+              "INDEX_PENDING",
+              "NOT_FOUND"
+            ]
+          },
+          "holders": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "SOD_VIOLATION from a role or constraint change only: how many currently valid principals the change would invalidate. Identities are never returned."
+          }
+        }
+      },
+      "ActorBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "roles",
+          "projects",
+          "clearance",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "kind": {
+            "enum": [
+              "user",
+              "agent",
+              "service"
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "projects": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "clearance": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RolesBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "roles"
+        ],
+        "properties": {
+          "roles": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        }
+      },
+      "RoleBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "inherits",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "inherits": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GroupBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "members",
+          "roles",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "members": {
+            "type": "array",
+            "maxItems": 1024,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ConstraintBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "roles",
+          "cardinality"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "kind": {
+            "enum": [
+              "static",
+              "dynamic"
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "cardinality": {
+            "type": "integer",
+            "minimum": 2
+          }
+        }
+      },
+      "ContainerBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "classification",
+          "readerRoles",
+          "readers",
+          "projects",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "kind": {
+            "enum": [
+              "knowledge-base",
+              "folder"
+            ]
+          },
+          "parent": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "readerRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "readers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DocumentBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "kind",
+          "origin",
+          "content",
+          "classification",
+          "projects",
+          "readerRoles",
+          "readers",
+          "sources",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "kind": {
+            "const": "document"
+          },
+          "origin": {
+            "enum": [
+              "human",
+              "system"
+            ],
+            "description": "Model-origin content enters only through derive()."
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000000
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "readerRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "readers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "version"
+              ],
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/Id"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "accessExpiresAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "container": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      },
+      "GrantBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "subject",
+          "agent",
+          "actions",
+          "resources",
+          "purposes",
+          "notBefore",
+          "expiresAt",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "actions": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "read",
+                "derive",
+                "write_memory",
+                "share",
+                "export",
+                "declassify"
+              ]
+            }
+          },
+          "resources": {
+            "type": "array",
+            "maxItems": 256,
+            "items": {
+              "type": "string"
+            }
+          },
+          "purposes": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "notBefore": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "parent": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "activeRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        }
+      },
+      "AuditEntry": {
+        "type": "object",
+        "required": [
+          "sequence",
+          "time",
+          "tenant",
+          "actor",
+          "operation",
+          "decision",
+          "reason",
+          "policyVersion",
+          "epoch",
+          "previous",
+          "hash"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "time": {
+            "type": "integer"
+          },
+          "tenant": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "integer"
+          },
+          "previous": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string"
+          }
+        }
+      },
+      "ScimError": {
+        "type": "object",
+        "required": [
+          "schemas",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "schemas": {
+            "type": "array",
+            "items": {
+              "const": "urn:ietf:params:scim:api:messages:2.0:Error"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "scimType": {
+            "enum": [
+              "invalidFilter",
+              "invalidValue",
+              "invalidSyntax",
+              "invalidPath",
+              "mutability",
+              "uniqueness"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "ScimObject": {
+        "type": "object"
+      },
+      "ScimList": {
+        "type": "object",
+        "required": [
+          "schemas",
+          "totalResults",
+          "Resources"
+        ],
+        "properties": {
+          "schemas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "totalResults": {
+            "type": "integer"
+          },
+          "startIndex": {
+            "type": "integer"
+          },
+          "itemsPerPage": {
+            "type": "integer"
+          },
+          "Resources": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "ScimExtension": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "urn:ietf:params:scim:schemas:extension:akac:2.0:User. clearance and projects apply to users; roles to groups.",
+        "properties": {
+          "clearance": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "projects": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        }
+      },
+      "ScimUserRequest": {
+        "type": "object",
+        "required": [
+          "userName"
+        ],
+        "description": "Profile attributes beyond those listed are accepted and discarded; roles, groups and entitlements are rejected.",
+        "properties": {
+          "schemas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "userName": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "urn:ietf:params:scim:schemas:extension:akac:2.0:User": {
+            "$ref": "#/components/schemas/ScimExtension"
+          }
+        }
+      },
+      "ScimUser": {
+        "type": "object",
+        "required": [
+          "schemas",
+          "id",
+          "userName",
+          "active",
+          "meta"
+        ],
+        "properties": {
+          "schemas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "userName": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "urn:ietf:params:scim:schemas:extension:akac:2.0:User": {
+            "$ref": "#/components/schemas/ScimExtension"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "resourceType": {
+                "const": "User"
+              },
+              "location": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ScimGroupRequest": {
+        "type": "object",
+        "required": [
+          "displayName"
+        ],
+        "properties": {
+          "schemas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "displayName": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "members": {
+            "type": "array",
+            "maxItems": 1024,
+            "items": {
+              "type": "object",
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          },
+          "urn:ietf:params:scim:schemas:extension:akac:2.0:User": {
+            "$ref": "#/components/schemas/ScimExtension"
+          }
+        }
+      },
+      "ScimGroup": {
+        "type": "object",
+        "required": [
+          "schemas",
+          "id",
+          "displayName",
+          "members",
+          "meta"
+        ],
+        "properties": {
+          "schemas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "displayName": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          },
+          "urn:ietf:params:scim:schemas:extension:akac:2.0:User": {
+            "$ref": "#/components/schemas/ScimExtension"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "resourceType": {
+                "const": "Group"
+              },
+              "location": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ScimPatch": {
+        "type": "object",
+        "required": [
+          "schemas",
+          "Operations"
+        ],
+        "properties": {
+          "schemas": {
+            "type": "array",
+            "contains": {
+              "const": "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+            }
+          },
+          "Operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "required": [
+                "op"
+              ],
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "description": "add, remove or replace (case-insensitive)"
+                },
+                "path": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "value": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

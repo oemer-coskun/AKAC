@@ -48,25 +48,60 @@
         },
         "responses": {
           "200": {
-            "description": "Authorized result; response body includes ok=true and value"
+            "description": "Authorized result; response body includes ok=true and value",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "400": {
-            "description": "Invalid closed request envelope"
+            "description": "Invalid closed request envelope",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "401": {
-            "description": "Missing or invalid credential"
+            "description": "Missing or invalid credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "403": {
-            "description": "No authorized result; same shape for hidden and nonexistent objects"
+            "description": "No authorized result; same shape for hidden and nonexistent objects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "413": {
-            "description": "Body exceeds 128 KiB"
+            "description": "Body exceeds 128 KiB",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "429": {
-            "description": "Rate limit"
+            "description": "Rate limit",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "503": {
-            "description": "Dependency or transaction failure; no result released"
+            "description": "Dependency or transaction failure; no result released",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           }
         }
       }
@@ -119,25 +154,60 @@
         },
         "responses": {
           "200": {
-            "description": "Authorized result; response body includes ok=true and value"
+            "description": "Authorized result; response body includes ok=true and value",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "400": {
-            "description": "Invalid closed request envelope"
+            "description": "Invalid closed request envelope",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "401": {
-            "description": "Missing or invalid credential"
+            "description": "Missing or invalid credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "403": {
-            "description": "No authorized result; same shape for hidden and nonexistent objects"
+            "description": "No authorized result; same shape for hidden and nonexistent objects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "413": {
-            "description": "Body exceeds 128 KiB"
+            "description": "Body exceeds 128 KiB",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "429": {
-            "description": "Rate limit"
+            "description": "Rate limit",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "503": {
-            "description": "Dependency or transaction failure; no result released"
+            "description": "Dependency or transaction failure; no result released",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           }
         }
       }
@@ -192,25 +262,60 @@
         },
         "responses": {
           "200": {
-            "description": "Authorized result; response body includes ok=true and value"
+            "description": "Authorized result; response body includes ok=true and value",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "400": {
-            "description": "Invalid closed request envelope"
+            "description": "Invalid closed request envelope",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "401": {
-            "description": "Missing or invalid credential"
+            "description": "Missing or invalid credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "403": {
-            "description": "No authorized result; same shape for hidden and nonexistent objects"
+            "description": "No authorized result; same shape for hidden and nonexistent objects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "413": {
-            "description": "Body exceeds 128 KiB"
+            "description": "Body exceeds 128 KiB",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "429": {
-            "description": "Rate limit"
+            "description": "Rate limit",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "503": {
-            "description": "Dependency or transaction failure; no result released"
+            "description": "Dependency or transaction failure; no result released",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           }
         }
       }
@@ -277,25 +382,60 @@
         },
         "responses": {
           "200": {
-            "description": "Authorized result; response body includes ok=true and value"
+            "description": "Authorized result; response body includes ok=true and value",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "400": {
-            "description": "Invalid closed request envelope"
+            "description": "Invalid closed request envelope",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "401": {
-            "description": "Missing or invalid credential"
+            "description": "Missing or invalid credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "403": {
-            "description": "No authorized result; same shape for hidden and nonexistent objects"
+            "description": "No authorized result; same shape for hidden and nonexistent objects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "413": {
-            "description": "Body exceeds 128 KiB"
+            "description": "Body exceeds 128 KiB",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "429": {
-            "description": "Rate limit"
+            "description": "Rate limit",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "503": {
-            "description": "Dependency or transaction failure; no result released"
+            "description": "Dependency or transaction failure; no result released",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           }
         }
       }
@@ -306,10 +446,20 @@
         "security": [],
         "responses": {
           "200": {
-            "description": "Process liveness; not authorization readiness"
+            "description": "Process liveness; not authorization readiness",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "503": {
-            "description": "Admission capacity exhausted"
+            "description": "Admission capacity exhausted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           }
         }
       }
@@ -324,16 +474,36 @@
         ],
         "responses": {
           "200": {
-            "description": "State schema, audit chain and configured policy revision ready"
+            "description": "State schema, audit chain and configured policy revision ready",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "401": {
-            "description": "Missing or invalid credential"
+            "description": "Missing or invalid credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "429": {
-            "description": "Per-binding rate limit"
+            "description": "Per-binding rate limit",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           },
           "503": {
-            "description": "State, audit, policy or capacity unavailable"
+            "description": "State, audit, policy or capacity unavailable",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
           }
         }
       }
@@ -344,6 +514,14 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer"
+      }
+    },
+    "headers": {
+      "XRequestId": {
+        "description": "Server-generated request id, also present in logs. A client-supplied value is ignored.",
+        "schema": {
+          "type": "string"
+        }
       }
     }
   }
