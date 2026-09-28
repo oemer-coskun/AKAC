@@ -17,7 +17,7 @@ export function runVectors() {
     return { id: vector.id, expected: vector.expected, actual: result.effect, pass: result.effect === vector.expected };
   });
 }
-if (process.argv[1]?.endsWith('/conformance/run.ts')) {
+if (/[\\/]conformance[\\/]run\.ts$/.test(process.argv[1] ?? '')) {
   const results = runVectors();
   console.log(JSON.stringify({ profile: 'AKAC-Core/0.1-draft', independentCertification: false, results }, null, 2));
   if (results.some(r => !r.pass)) process.exitCode = 1;

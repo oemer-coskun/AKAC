@@ -11,9 +11,19 @@ export class PostgresStore implements Store {
       statement_timeout: 10000, idle_in_transaction_session_timeout: 15000 });
     const pool = this.pool;
     this.ready = (async () => {
-      await pool.query('CREATE TABLE IF NOT EXISTS akac_state (id INTEGER PRIMARY KEY CHECK(id=1), body JSONB NOT NULL)');
-      await pool.query('INSERT INTO akac_state(id,body) VALUES(1,$1) ON CONFLICT DO NOTHING', [JSON.stringify(emptyState())]);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // CREATE TABLE IF NOT EXISTS alone does not serialize concurrent DDL.
+        await client.query('SELECT pg_advisory_xact_lock(1095450947)');
+        await client.query('CREATE TABLE IF NOT EXISTS akac_state (id INTEGER PRIMARY KEY CHECK(id=1), body JSONB NOT NULL)');
+        await client.query('INSERT INTO akac_state(id,body) VALUES(1,$1) ON CONFLICT DO NOTHING', [JSON.stringify(emptyState())]);
+        await client.query('COMMIT');
+      } catch (error) { await client.query('ROLLBACK'); throw error; }
+      finally { client.release(); }
     })();
+    // Observe early rejection without hiding it from transaction()/close().
+    void this.ready.catch(() => {});
   }
   async transaction<T>(fn: (state: State) => Promise<T>): Promise<T> {
     await this.ready;
@@ -29,5 +39,5 @@ export class PostgresStore implements Store {
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
   }
-  async close() { await this.ready; await this.pool.end(); }
+  async close() { try { await this.ready; } finally { await this.pool.end(); } }
 }
