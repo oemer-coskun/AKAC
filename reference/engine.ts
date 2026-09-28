@@ -2,13 +2,14 @@ import { createHash, randomUUID } from 'node:crypto';
 import { canDelegate, decide, visible } from './policy.ts';
 import { LEVELS } from './types.ts';
 import type { Action, Audit, Binding, Context, Grant, Knowledge, PolicyHook, Ref, State, Store } from './types.ts';
+import { validId } from './validation.ts';
+export { validId } from './validation.ts';
 
 export type Result<T> = { ok: true; value: T } | { ok: false; code: 'NOT_AUTHORIZED' };
 export type Projection = { context: string; expiresAt: number; documents: { id: string; version: number; content: string }[] };
 const good = <T>(value: T): Result<T> => ({ ok: true, value });
 const bad = <T>(): Result<T> => ({ ok: false, code: 'NOT_AUTHORIZED' });
 const same = (a: Binding, b: Binding) => a.tenant === b.tenant && a.subject === b.subject && a.agent === b.agent && a.grant === b.grant;
-export const validId = (s: unknown): s is string => typeof s === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(s) && !['constructor', 'prototype', '__proto__'].includes(s);
 export function auditHash(entry: Omit<Audit, 'hash'>): string {
   const ordered = Object.fromEntries(Object.entries(entry).sort(([a], [b]) => a.localeCompare(b, 'en')));
   return createHash('sha256').update(JSON.stringify(ordered)).digest('hex');
@@ -27,12 +28,20 @@ export class Engine {
   private hook?: PolicyHook;
   private clock: () => number;
   constructor(store: Store, options: { policy?: PolicyHook; clock?: () => number } = {}) {
+    if (options.policy && (!options.policy.revision || options.policy.revision.length > 128)) throw new Error('Policy revision required');
     this.store = store; this.hook = options.policy; this.clock = options.clock ?? Date.now;
+  }
+  private revision(s: State) { return `akac-reference/0.2.0|${s.policyVersion}|${this.hook?.revision ?? 'core-only'}`; }
+  async ready(): Promise<boolean> {
+    try {
+      const valid = await this.store.transaction(async s => s.schema === 'akac-state/0.1' && verifyAudit(s.audits));
+      return valid && (!this.hook?.ready || await this.hook.ready());
+    } catch { return false; }
   }
   private audit(s: State, b: Binding, operation: string, allowed: boolean, reason: string) {
     const entry: Omit<Audit, 'hash'> = { sequence: s.audits.length + 1, time: this.clock(), tenant: b.tenant,
       actor: b.subject, operation, decision: allowed ? 'allow' : 'deny', reason,
-      policyVersion: s.policyVersion, epoch: s.epoch, previous: s.audits.at(-1)?.hash ?? '0'.repeat(64) };
+      policyVersion: this.revision(s), epoch: s.epoch, previous: s.audits.at(-1)?.hash ?? '0'.repeat(64) };
     s.audits.push({ ...entry, hash: auditHash(entry) });
   }
   private async authorized(s: State, b: Binding, resource: string, action: Action, purpose: string): Promise<boolean> {
@@ -46,7 +55,7 @@ export class Engine {
   private async projection(s: State, b: Binding, ids: string[], purpose: string): Promise<Result<Projection>> {
     if (!ids.length || ids.length > 64) return bad();
     const existing = Object.values(s.contexts).filter(c => same(c, b));
-    if (existing.some(c => !c.active || c.epoch !== s.epoch || c.policyVersion !== s.policyVersion || c.expiresAt <= this.clock())) return bad();
+    if (existing.some(c => !c.active || c.epoch !== s.epoch || c.policyVersion !== this.revision(s) || c.expiresAt <= this.clock())) return bad();
     const all = new Set(ids);
     for (const c of existing) for (const ref of c.sources) {
       if (s.knowledge[ref.id]?.version !== ref.version) return bad();
@@ -58,7 +67,7 @@ export class Engine {
     const id = randomUUID();
     const context: Context = { ...b, id, purpose, sources: [...all].sort().map(key => ({ id: key, version: s.knowledge[key]!.version })),
       expiresAt: Math.min(grant.expiresAt, this.clock() + 300_000, ...existing.map(c => c.expiresAt)),
-      epoch: s.epoch, policyVersion: s.policyVersion, active: true };
+      epoch: s.epoch, policyVersion: this.revision(s), active: true };
     // OPA evaluation may have taken time; enforce freshness at the disclosure boundary.
     if (this.clock() >= context.expiresAt) return bad();
     for (const key of all) if (decide(s, { binding: b, resource: key, action: 'read', purpose, now: this.clock() }).effect !== 'allow') return bad();
@@ -76,7 +85,14 @@ export class Engine {
     return this.store.transaction(async s => {
       if (!query.trim() || query.length > 4096 || !Number.isInteger(limit) || limit < 1 || limit > 20) return bad();
       const eligible: Knowledge[] = [];
-      for (const r of Object.values(s.knowledge)) if (await this.authorized(s, b, r.id, 'read', purpose)) eligible.push(r);
+      const deadline = performance.now() + 5000;
+      const candidates = Object.values(s.knowledge).filter(r => r.tenant === b.tenant);
+      if (candidates.length > 1000) { this.audit(s, b, 'retrieve', false, 'BUDGET_EXCEEDED'); return bad(); }
+      for (const r of candidates) {
+        if (performance.now() >= deadline) { this.audit(s, b, 'retrieve', false, 'BUDGET_EXCEEDED'); return bad(); }
+        if (await this.authorized(s, b, r.id, 'read', purpose)) eligible.push(r);
+      }
+      if (performance.now() >= deadline) { this.audit(s, b, 'retrieve', false, 'BUDGET_EXCEEDED'); return bad(); }
       // No global document statistics. Unauthorized records never enter scoring.
       const terms = [...new Set(query.toLocaleLowerCase('en').split(/\s+/).filter(Boolean))];
       const ids = eligible.map(r => ({ r, score: terms.reduce((n, t) => n + Number(r.content.toLocaleLowerCase('en').includes(t)), 0) }))
@@ -92,7 +108,7 @@ export class Engine {
     if (!selected || !same(selected, b)) return null;
     const refs = new Map<string, Ref>();
     for (const c of Object.values(s.contexts).filter(c => same(c, b))) {
-      if (!c.active || c.epoch !== s.epoch || c.policyVersion !== s.policyVersion || c.expiresAt <= this.clock() || c.purpose !== selected.purpose) return null;
+      if (!c.active || c.epoch !== s.epoch || c.policyVersion !== this.revision(s) || c.expiresAt <= this.clock() || c.purpose !== selected.purpose) return null;
       for (const ref of c.sources) {
         if (s.knowledge[ref.id]?.version !== ref.version || !await this.authorized(s, b, ref.id, action, selected.purpose)) return null;
         refs.set(ref.id, ref);
@@ -126,7 +142,7 @@ export class Engine {
       const recipient = validId(recipientId) ? s.actors[recipientId] : undefined;
       const refs = await this.contextSources(s, b, contextId, action);
       if (!content || content.length > 100_000 || !recipient || recipient.tenant !== b.tenant || !refs
-        || refs.some(ref => !visible(s, recipient, s.knowledge[ref.id]!))) {
+        || refs.some(ref => !visible(s, recipient, s.knowledge[ref.id]!, this.clock()))) {
         this.audit(s, b, action, false, 'DENIED'); return bad();
       }
       this.audit(s, b, action, true, 'AUTHORIZED_RECIPIENT'); return good({ recipient: recipientId, content });

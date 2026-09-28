@@ -5,6 +5,9 @@ import rego.v1
 # Reference company policy. An allow here NEVER overrides the deterministic core.
 default allow := false
 
+# Immutable deployment revision. Changing rules requires a new revision.
+decision := {"allow": allow, "revision": "akac-company/0.2"}
+
 allow if {
     input.tenant == "acme"
     input.purpose == "work"

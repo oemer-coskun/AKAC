@@ -1,5 +1,6 @@
 import { ACTIONS, LEVELS } from './types.ts';
 import type { Actor, Decision, Grant, Knowledge, PolicyInput, State } from './types.ts';
+import { exactKeys, validId, safeNumber } from './validation.ts';
 
 const deny = (code: string): Decision => ({ effect: 'deny', code });
 const allow: Decision = { effect: 'allow', code: 'AUTHORIZED' };
@@ -30,20 +31,40 @@ function grantValid(state: State, grant: Grant, now: number, seen = new Set<stri
     && grant.expiresAt <= parent.expiresAt && grantValid(state, parent, now, seen);
 }
 
-/** Source ACLs are evaluated transitively, not flattened into an unsafe union. */
-export function visible(state: State, actor: Actor, r: Knowledge, seen = new Set<string>()): boolean {
-  if (!r.active || !Number.isSafeInteger(r.version) || r.version < 1 || seen.has(r.id) || seen.size >= 128 || !audience(actor, r)) return false;
-  const next = new Set(seen); next.add(r.id);
-  return r.sources.every(ref => {
-    const source = state.knowledge[ref.id];
-    return !!source && source.version === ref.version && visible(state, actor, source, next);
-  });
+/** Memoized DAG traversal: bounded nodes, edges and depth; cycles fail closed. */
+export function visible(state: State, actor: Actor, r: Knowledge, now: number): boolean {
+  const visiting = new Set<string>(), completed = new Map<string, number>();
+  let edges = 0, nodes = 0;
+  const visit = (resource: Knowledge, depth: number): boolean => {
+    if (depth >= 128 || visiting.has(resource.id)) return false;
+    if (completed.has(resource.id)) return depth + completed.get(resource.id)! <= 128;
+    if (++nodes > 1024 || !resource.active || !safeNumber(resource.version) || resource.version < 1
+      || (resource.accessExpiresAt !== undefined && (!safeNumber(resource.accessExpiresAt) || now >= resource.accessExpiresAt))
+      || !audience(actor, resource)) return false;
+    visiting.add(resource.id);
+    let height = 1;
+    for (const ref of resource.sources) {
+      if (++edges > 4096 || !validId(ref.id)) return false;
+      const source = state.knowledge[ref.id];
+      if (!source || source.version !== ref.version || !visit(source, depth + 1)) return false;
+      height = Math.max(height, 1 + completed.get(source.id)!);
+    }
+    visiting.delete(resource.id); completed.set(resource.id, height); return depth + height <= 128;
+  };
+  try { return safeNumber(now) && visit(r, 0); } catch { return false; }
 }
 
 /** No I/O and no model output: identical authoritative snapshots give identical decisions. */
 export function decide(state: State, input: PolicyInput): Decision {
+  try { return evaluate(state, input); } catch { return deny('INVALID_CONTEXT'); }
+}
+
+function evaluate(state: State, input: PolicyInput): Decision {
   const { binding: b, resource, action, purpose, now } = input;
-  if (!ACTIONS.includes(action) || !purpose || !Number.isSafeInteger(now)) return deny('INVALID_REQUEST');
+  if (!exactKeys(input, ['binding', 'resource', 'action', 'purpose', 'now'])
+    || !exactKeys(b, ['tenant', 'subject', 'agent', 'grant']) || !Object.values(b).every(validId)
+    || !validId(resource) || !ACTIONS.includes(action) || typeof purpose !== 'string' || !purpose || purpose.length > 128
+    || !safeNumber(now)) return deny('INVALID_REQUEST');
   const user = state.actors[b.subject], agent = state.actors[b.agent], grant = state.grants[b.grant];
   const r = state.knowledge[resource];
   if (!user || !agent || !grant || !r) return deny('NOT_AUTHORIZED');
@@ -54,7 +75,7 @@ export function decide(state: State, input: PolicyInput): Decision {
     || !subset([purpose], grant.purposes)) return deny('OUT_OF_SCOPE');
   // Declassification is intentionally not implemented in the reference profile.
   if (action === 'declassify') return deny('UNSUPPORTED_OBLIGATION');
-  if (!visible(state, user, r) || !visible(state, agent, r)) return deny('KNOWLEDGE_BOUNDARY');
+  if (!visible(state, user, r, now) || !visible(state, agent, r, now)) return deny('KNOWLEDGE_BOUNDARY');
   return allow;
 }
 

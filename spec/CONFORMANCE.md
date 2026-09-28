@@ -31,3 +31,22 @@ An implementation report records: specification version, profile, implementation
 | R14 | Audit verification and transactional persistence tests |
 | R15 | No declassification allow path; OPA and core deny |
 | R16 | Complete run manifest in gateway; external process/model isolation remains a deployment prerequisite |
+
+## AKAC-Hardened/0.2 draft profile
+
+Extends the 0.1 lifecycle requirements with R17–R21. Reference mechanisms are
+implemented; deployment conformance still depends on trusted identity provisioning,
+complete mediation, provider isolation and external operational controls.
+
+| Requirements | Evidence |
+|---|---|
+| R17 | `hardening.test.ts`: shared DAG, depth/node budgets and retrieval limits |
+| R18 | OPA contract tests and context policy-revision invalidation |
+| R19 | `jwt.test.ts`: valid binding, wrong issuer/audience/key/type, expiry, rotation and HTTP |
+| R20 | Transitive logical source expiry tests |
+| R21 | `runtime.test.ts`: provider denial, exact input and revocation during generation |
+| Checkpoints | Signature, tampering, wrong key/stream, truncation and rollback-floor tests |
+| Decision agreement | `interop.test.ts`: 1,001 TypeScript/Python cases and 500 clearance properties |
+
+The Python evaluator implements decisions only. Same-project differential tests
+do not satisfy an independent organizational implementation or security audit gate.

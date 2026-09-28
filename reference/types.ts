@@ -17,6 +17,7 @@ export type Knowledge = {
   kind: 'document' | 'memory' | 'artifact'; content: string;
   classification: Level; projects: string[]; readerRoles: string[];
   readers: string[]; sources: Ref[]; active: boolean;
+  accessExpiresAt?: number;
 };
 export type Binding = { tenant: string; subject: string; agent: string; grant: string };
 export type Context = Binding & {
@@ -43,9 +44,11 @@ export interface Store {
   close(): Promise<void>;
 }
 export interface PolicyHook {
+  readonly revision: string;
+  ready?(): Promise<boolean>;
   check(input: { action: Action; tenant: string; classification: Level; purpose: string }): Promise<boolean>;
 }
 export function emptyState(): State {
-  return { schema: 'akac-state/0.1', policyVersion: 'akac-reference/0.1.0', epoch: 0,
+  return { schema: 'akac-state/0.1', policyVersion: 'akac-reference/0.2.0', epoch: 0,
     actors: {}, grants: {}, knowledge: {}, contexts: {}, audits: [] };
 }

@@ -3,6 +3,7 @@ import type { ServerResponse } from 'node:http';
 import { createHash } from 'node:crypto';
 import { Engine, validId } from './engine.ts';
 import type { Binding } from './types.ts';
+import type { Authenticator } from '../adapters/jwt.ts';
 
 export type Credential = { token: string; binding: Binding };
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -17,8 +18,9 @@ function send(res: ServerResponse, status: number, body: unknown) {
     'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" });
   res.end(JSON.stringify(body));
 }
-export function createGateway(engine: Engine, credentials: Credential[]) {
-  if (!credentials.length) throw new Error('At least one credential is required');
+export function createGateway(engine: Engine, credentials: Credential[], options: { authenticator?: Authenticator } = {}) {
+  if (!credentials.length && !options.authenticator) throw new Error('Authentication is required');
+  if (credentials.length && options.authenticator) throw new Error('Authentication modes cannot be mixed');
   const auth = new Map<string, Binding>();
   for (const credential of credentials) {
     if (!text(credential.token, 512) || credential.token.length < 32
@@ -27,18 +29,28 @@ export function createGateway(engine: Engine, credentials: Credential[]) {
     auth.set(digest(credential.token), structuredClone(credential.binding));
   }
   const buckets = new Map<string, { minute: number; count: number }>();
+  let active = 0;
   const server = createServer(async (req, res) => {
-    if (req.url === '/health' && req.method === 'GET') { send(res, 200, { status: 'ok', specification: '0.1-draft' }); return; }
+    if (active >= 32) { req.resume(); send(res, 503, { error: 'BUSY' }); return; }
+    active++;
+    try {
+    if (req.url === '/health' && req.method === 'GET') { send(res, 200, { status: 'ok', specification: '0.2-draft' }); return; }
     const header = req.headers.authorization;
     const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
-    const hash = token.length <= 512 ? digest(token) : '';
-    const binding = auth.get(hash);
+    const binding = options.authenticator ? await options.authenticator.authenticate(token)
+      : auth.get(token.length <= 512 ? digest(token) : '');
     if (!binding) { req.resume(); send(res, 401, { error: 'UNAUTHENTICATED' }); return; }
+    const hash = digest(JSON.stringify(binding));
     const minute = Math.floor(Date.now() / 60000);
+    for (const [key, value] of buckets) if (value.minute !== minute) buckets.delete(key);
+    if (!buckets.has(hash) && buckets.size >= 10000) { req.resume(); send(res, 503, { error: 'BUSY' }); return; }
     const bucket = buckets.get(hash)?.minute === minute ? buckets.get(hash)! : { minute, count: 0 };
     buckets.set(hash, bucket);
     if (++bucket.count > 120) { req.resume(); send(res, 429, { error: 'RATE_LIMITED' }); return; }
-    if (req.method !== 'POST' || !req.headers['content-type']?.startsWith('application/json')) {
+    if (req.url === '/ready' && req.method === 'GET') {
+      const ready = await engine.ready(); send(res, ready ? 200 : 503, { status: ready ? 'ready' : 'unavailable' }); return;
+    }
+    if (req.method !== 'POST' || req.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/json') {
       req.resume(); send(res, 400, { error: 'INVALID_REQUEST' }); return;
     }
     try {
@@ -69,7 +81,9 @@ export function createGateway(engine: Engine, credentials: Credential[]) {
         result = await engine.release(binding, body.context, body.recipient, body.content as string, body.action as 'share' | 'export');
       } else { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
       send(res, result.ok ? 200 : 403, result);
-    } catch { send(res, 503, { error: 'UNAVAILABLE' }); }
+    } catch { if (!res.headersSent) send(res, 503, { error: 'UNAVAILABLE' }); }
+    } catch { if (!res.headersSent) send(res, 503, { error: 'UNAVAILABLE' }); }
+    finally { active--; }
   });
   server.requestTimeout = 10000; server.headersTimeout = 5000; server.timeout = 15000;
   server.maxHeadersCount = 32;

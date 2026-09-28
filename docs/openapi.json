@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AKAC Reference Gateway",
-    "version": "0.1.0",
-    "description": "Service-side API. Credentials bind tenant, user, agent and run grant."
+    "version": "0.2.0",
+    "description": "Service-side API. Credentials bind tenant, user, agent and run grant. Exactly one configured authentication mode: opaque service token or verified at+jwt access token; trusted mappings determine authority."
   },
   "paths": {
     "/v1/retrieve": {
@@ -296,6 +296,44 @@
           },
           "503": {
             "description": "Dependency or transaction failure; no result released"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Process liveness; not authorization readiness"
+          },
+          "503": {
+            "description": "Admission capacity exhausted"
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "ready",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "State schema, audit chain and configured policy revision ready"
+          },
+          "401": {
+            "description": "Missing or invalid credential"
+          },
+          "429": {
+            "description": "Per-binding rate limit"
+          },
+          "503": {
+            "description": "State, audit, policy or capacity unavailable"
           }
         }
       }

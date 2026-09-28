@@ -1,0 +1,17 @@
+{
+  "issuer": "https://identity.example.test",
+  "audience": "akac-gateway",
+  "jwksUrl": "https://identity.example.test/.well-known/jwks.json",
+  "algorithms": [
+    "RS256"
+  ],
+  "maxLifetimeSeconds": 300,
+  "subjects": {
+    "synthetic-run-subject": {
+      "tenant": "acme",
+      "subject": "intern",
+      "agent": "intern-agent",
+      "grant": "intern-run"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "@akac/reference",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Agent Knowledge Access Control: draft specification, reference implementation and conformance suite",
   "type": "module",
@@ -20,12 +20,14 @@
     "test:postgres": "node --test tests/postgres.test.ts"
   },
   "dependencies": {
+    "jose": "6.2.12",
     "pg": "8.16.3"
   },
   "devDependencies": {
     "@types/node": "24.19.0",
     "@types/pg": "8.23.1",
     "ajv": "8.20.0",
+    "fast-check": "4.10.2",
     "typescript": "5.9.3"
   }
 }

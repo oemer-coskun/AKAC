@@ -39,7 +39,8 @@ services:
     environment:
       DATABASE_URL: postgresql://akac:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/akac
       AKAC_CREDENTIALS_FILE: /app/data/credentials.json
-      OPA_URL: http://opa:8181/v1/data/akac/allow
+      OPA_URL: http://opa:8181/v1/data/akac/decision
+      OPA_REVISION: akac-company/0.2
     volumes: [credentials:/app/data:ro]
     ports: ["127.0.0.1:8787:8787"]
     depends_on:

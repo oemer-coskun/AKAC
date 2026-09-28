@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: "Coşkun"
     given-names: "Ömer Hüseyin"
-version: 0.1.0
+version: 0.2.0
 date-released: 2026-09-28
 url: "https://github.com/WestMoneyDE/AKAC"
 repository-code: "https://github.com/WestMoneyDE/AKAC"

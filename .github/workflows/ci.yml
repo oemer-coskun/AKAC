@@ -28,6 +28,7 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - run: python3 --version
       - run: npm ci --ignore-scripts
       - name: Install pinned OPA binary
         run: |
@@ -59,6 +60,8 @@ jobs:
           docker compose exec -T gateway node --input-type=module -e '
           import {readFileSync} from "node:fs";
           const c=JSON.parse(readFileSync("data/credentials.json","utf8")).find(x=>x.binding.subject==="intern");
+          const readiness=await fetch("http://127.0.0.1:8787/ready",{headers:{authorization:`Bearer ${c.token}`}});
+          if(readiness.status!==200) throw new Error("Gateway not ready");
           for(const [id,status] of [["handbook",200],["strategy",403]]) {
             const r=await fetch("http://127.0.0.1:8787/v1/contexts",{method:"POST",headers:{authorization:`Bearer ${c.token}`,"content-type":"application/json"},body:JSON.stringify({resources:[id],purpose:"work"})});
             if(r.status!==status) throw new Error(`Expected ${status}, got ${r.status}`);

@@ -130,15 +130,15 @@ test('write_memory is independently authorized', async () => {
 });
 test('policy allow cannot widen core; errors and deny fail closed', async () => {
   const s = new MemoryStore(fixture(now));
-  const allow = new Engine(s, { clock: () => now, policy: { check: async () => true } });
+  const allow = new Engine(s, { clock: () => now, policy: { revision: 'test-v1', check: async () => true } });
   assert.equal((await allow.openContext(bindings.intern, ['strategy'], 'work')).ok, false);
   for (const check of [async () => false, async () => { throw new Error('offline'); }]) {
-    assert.equal((await new Engine(s, { clock: () => now, policy: { check } }).openContext(bindings.chief, ['strategy'], 'work')).ok, false);
+    assert.equal((await new Engine(s, { clock: () => now, policy: { revision: 'test-v1', check } }).openContext(bindings.chief, ['strategy'], 'work')).ok, false);
   }
 });
 test('grant expiring during a policy call never discloses', async () => {
   let tick = now;
-  const engine = new Engine(new MemoryStore(fixture(now)), { clock: () => tick, policy: { check: async () => { tick += 4_000_000; return true; } } });
+  const engine = new Engine(new MemoryStore(fixture(now)), { clock: () => tick, policy: { revision: 'test-v1', check: async () => { tick += 4_000_000; return true; } } });
   assert.equal((await engine.openContext(bindings.chief, ['strategy'], 'work')).ok, false);
 });
 test('delegation attenuates and respects parent revocation', async () => {
