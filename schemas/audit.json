@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/oemer-coskun/AKAC/schemas/audit.json",
-  "description": "One entry of a tenant audit stream. Format 1 (no formatVersion): hash = SHA-256 of sorted-key JSON of the other members. Format 2: hash = SHA-256 of the RFC 8785 (JCS) form of the other members. Both: previous = hash of the preceding entry of the stream (GENESIS = 64 zeros); RFC 9162 leaf = SHA-256(0x00 || JCS(entry)).",
+  "description": "One entry of a tenant audit stream. Format 1 (no formatVersion): hash = SHA-256 of sorted-key JSON of the other members. Format 2: hash = SHA-256 of the RFC 8785 (JCS) form of the other members. Format 2 members runId, traceId, executionId and runtimeRevision are optional; executionId and runtimeRevision were added by 0.5 (ADR-012) and are absent from earlier entries. Both: previous = hash of the preceding entry of the stream (GENESIS = 64 zeros); RFC 9162 leaf = SHA-256(0x00 || JCS(entry)).",
   "oneOf": [
     {
       "type": "object",
@@ -228,6 +228,30 @@
           "type": "string",
           "pattern": "^(?!0{32}$)[0-9a-f]{32}$",
           "description": "W3C Trace Context trace-id"
+        },
+        "executionId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          },
+          "description": "Agent execution (sandbox, job) supplied by the caller (0.5, ADR-012); correlation only"
+        },
+        "runtimeRevision": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          },
+          "description": "Runtime policy revision a trusted runtime enforcer applied (0.5, ADR-012); never taken from an agent over HTTP"
         }
       }
     }

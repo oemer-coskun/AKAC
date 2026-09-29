@@ -7,10 +7,10 @@ import { treeFromEntries } from './evidence.ts';
 import type { NodeKey } from './merkle.ts';
 import { validId } from './validation.ts';
 
-const COLLECTIONS = ['actors', 'grants', 'knowledge', 'contexts', 'roles', 'groups', 'containers', 'constraints', 'destinations'] as const;
-/** A collection of a snapshot; `destinations` (0.4) is absent from 0.3 snapshots. */
+const COLLECTIONS = ['actors', 'grants', 'knowledge', 'contexts', 'roles', 'groups', 'containers', 'constraints', 'destinations', 'runtimeProfiles'] as const;
+/** A collection of a snapshot; `destinations` (0.4) is absent from 0.3 snapshots, `runtimeProfiles` (0.5) from 0.4 ones. */
 const records = (s: State, collection: typeof COLLECTIONS[number]): Record<string, { id?: unknown; tenant?: unknown }> => (s[collection] ?? {}) as Record<string, { id?: unknown; tenant?: unknown }>;
-const complete = (state: State, tenant: string): Tx => (state.destinations ??= {}, { state, complete: true, load: async () => {},
+const complete = (state: State, tenant: string): Tx => (state.destinations ??= {}, state.runtimeProfiles ??= {}, { state, complete: true, load: async () => {},
   countSodHolders: async query => countSodHolders(state, tenant, query) });
 const blank = (policyVersion: string): State => ({ ...emptyState(), policyVersion });
 const sound = (shard: State) => shard.schema === SCHEMA && verifyAudit(shard.audits);

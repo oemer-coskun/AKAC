@@ -14,6 +14,7 @@ All names below are draft project profiles, not external certifications.
 | AKAC-Destinations/0.4 | Evidence/0.4 plus R60–R71 (destination profiles, run result limit) | Implemented as decisions; egress enforcement belongs to the integration; draft |
 | AKAC-AuthZEN/0.4 | Evidence/0.4 plus R79–R90 (optional PDP facade; R72–R78 when DPoP is enabled) | Implemented; not tested against third-party enforcement points; draft |
 | AKAC-RedTeam/0.4 | R100–R108 (runner semantics, adversarial vectors); checks on the implementation, adds no access rule | Implemented; draft |
+| AKAC-RuntimeContainment/0.5 | Evidence/0.4 plus R109–R120 of [AKAC 0.5](AKAC-0.5.md) (runtime profile obligations, runtime enforcer contract, evidence correlation) | Implemented as decisions and the `ProtectedRuntime` enforcer seam; sandboxing and non-bypassability belong to the runtime and operator; draft |
 
 Sections R72–R78 (token binding, optional) and R91–R99 (cache isolation, operator obligations) of [AKAC 0.4](AKAC-0.4.md) are not separate profiles. The token binding requirements apply to a listener that enables DPoP and are covered by `tests/dpop.test.ts`; the cache isolation requirements are deployment obligations that the reference cannot enforce and no vector covers. The bonus modules under [bonus/](../bonus/README.md) are not part of any profile.
 
@@ -24,8 +25,8 @@ No profile claim implies automatic SSO, network sandboxing or provider-side dele
 `npm run conformance` emits JSON containing each portable vector and the actual/expected result. The fixture is defined in `examples/fixture.ts`; clock and mutations are in `conformance/vectors.json`. Other implementations can reproduce this fixture without using the reference engine. Follow with `npm test` for behavioral and transport checks.
 
 Since 0.4 the runner covers every vector file (`vectors.json`, `vectors-0.3.json`,
-`vectors-0.4.json`, `vectors-authzen.json`, `vectors-destinations.json` and the scenario vectors
-`vectors-redteam.json`), classifies each vector with one of the four outcome classes SUCCESS,
+`vectors-0.4.json`, `vectors-authzen.json`, `vectors-destinations.json`, the scenario vectors
+`vectors-redteam.json` and, for 0.5, `vectors-runtime.json`), classifies each vector with one of the four outcome classes SUCCESS,
 SAFE_BLOCK, FAILURE and UNSAFE_SUCCESS, and applies the same hard gates to all profiles:
 no UNSAFE_SUCCESS, no FAILURE, and no UNSAFE_SUCCESS among (at least one) tenant-boundary vectors
 ([R104–R108](AKAC-0.4.md), details in the AKAC-RedTeam/0.4 section below). A non-zero exit code
@@ -159,6 +160,33 @@ member is a draft-aligned AKAC extension.
 | R82–R84 | `authzen.test.ts`, AuthZEN vectors: mapping, message handling, parity with `decide()` over 400 generated requests |
 | R85–R88 | `authzen.test.ts`: audit of every evaluation, response minimization, obligations, batch semantics |
 | R72–R78 | `dpop.test.ts`, `dpop-postgres.test.ts` (PostgreSQL required) |
+
+## AKAC-RuntimeContainment/0.5 draft profile
+
+Requirements R109–R120 of [AKAC 0.5](AKAC-0.5.md)
+([ADR-012](../governance/ADR-012-runtime-containment-contract.md)). Vectors:
+`conformance/vectors-runtime.json`, run by `conformance/run-runtime.ts`, with the same
+four outcome classes and gates. `profiles` vectors exercise the pure derivation
+(classification thresholds, destination narrowing, conflicts, no policy, malformed
+records, another tenant's policies); `engine` vectors the same through the engine
+gates; `enforcer` vectors the `ProtectedRuntime` enforcer contract. An allow that
+drops, changes or lowers an expected runtime obligation is UNSAFE_SUCCESS, and so is a
+provider call where a denial before the provider is required.
+
+| Requirements | Evidence |
+|---|---|
+| R109–R111 | Vectors RTC-P01..P19, RTC-E01..E13 (E09..E13: unknown destination merged over the run's classes, `internal-user` for users); `runtime-containment.test.ts` (supplemental policy conflicts, obligation merge, share/export without destination) |
+| R112, R113 | Vectors RTC-R01..R12 (R08: provider-gate precedence; R10: same-tier conflict; R11, R12: revision drift, failed lease release); `runtime-containment.test.ts` (apply order, exact profiles, enforcer timeout, serialized sandbox-wide executions, per-execution revision check) |
+| R114, R115 | `runtime-containment.test.ts` (security-admin only, validation, epoch advance, bound, admin routes), `runtime-postgres.test.ts` (checks, forced RLS) |
+| R117 | `runtime-containment.test.ts` (execution header, audit members, hash coverage, schemas, policy digest over the active set), `authzen.test.ts` (AuthZEN execution header), `runtime-postgres.test.ts` |
+| R119 | `runtime-containment.test.ts` (a policy change ends open contexts) |
+| R120 | `runtime-containment.test.ts` (AuthZEN `context.obligations`) |
+| R116, R118 | Operator obligations; the checklist in [RUNTIME-CONTAINMENT.md](../docs/RUNTIME-CONTAINMENT.md); no vector can show them |
+
+Broken-oracle evidence: `runtime-containment.test.ts` injects a derivation that drops
+every profile, one that lowers the output label, and a runtime that calls the provider
+without its enforcer, and asserts UNSAFE_SUCCESS and a non-zero exit code; a blanket-deny
+derivation is FAILURE.
 
 ## AKAC-RedTeam/0.4 draft profile
 

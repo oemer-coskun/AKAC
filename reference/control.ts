@@ -2,12 +2,13 @@ import { appendAudit } from './audit.ts';
 import { BudgetExceeded, hydrate } from './hydrate.ts';
 import type { Seed } from './hydrate.ts';
 import { containerChain, effectiveLabel, effectiveRoles, sessionRoles, sodViolated, standingRoles, transitiveClassification, validGrantChain } from './policy.ts';
-import { ACTIONS, CORE_VERSION, DESTINATION_CLASSES, LEVELS, MAX_RESULTS, QUARANTINE_REASONS } from './types.ts';
-import type { Actor, Audit, Container, Destination, Grant, Group, Knowledge, QuarantineReason, Role, SodConstraint, State, Store, Tx } from './types.ts';
+import { ACTIONS, CORE_VERSION, DESTINATION_CLASSES, LEVELS, MAX_RESULTS, QUARANTINE_REASONS, RUNTIME_PROFILE_LIMIT } from './types.ts';
+import type { Actor, Audit, Container, Destination, Grant, Group, Knowledge, QuarantineReason, Role, RuntimeProfilePolicy, SodConstraint, State, Store, Tx } from './types.ts';
+import { validRuntimeProfile } from './containment.ts';
 import { held, LIFECYCLE, lineage, lineageRecord, materialize, retentionDue, tombstone } from './lifecycle.ts';
 import type { LineageRecord } from './lifecycle.ts';
 import { exactKeys, safeNumber, validId } from './validation.ts';
-import { classify, newDecisionId, policyDigest, traceOf } from './decision.ts';
+import { classify, executionOf, newDecisionId, policyDigest, traceOf } from './decision.ts';
 import type { Call } from './decision.ts';
 import { consistencyProof, inclusionProof, treeHead } from './evidence.ts';
 import type { ConsistencyProof, InclusionProof, TreeHead } from './evidence.ts';
@@ -26,8 +27,8 @@ export type AdminRole = 'security-admin' | 'kb-admin' | 'auditor';
 type Failure = Exclude<ControlResult<never>, { ok: true }>['code'];
 /** `audit` overrides the recorded decision and reason (attempts handled outside the control plane). */
 type Refusal = { ok: false; code: Failure; holders?: number; held?: number };
-/** One audited control-plane decision. */
-type Op = { id: string; trace?: string };
+/** One audited control-plane decision and its correlation fields (never authority). */
+type Op = { id: string; trace?: string; execution?: string };
 type Checked<T> = { ok: true; value: T; audit?: { allowed: boolean; reason: string } } | Refusal;
 const refuse = (code: Failure): Refusal => ({ ok: false, code });
 const within = (small: readonly string[], large: readonly string[]) => small.every(x => large.includes(x));
@@ -54,6 +55,8 @@ export const shapes = {
     && destinationId(d.id) && validId(d.tenant) && DESTINATION_CLASSES.includes(d.class as never) && level(d.maxClassification)
     && Array.isArray(d.purposes) && d.purposes.length <= 64 && d.purposes.every(p => typeof p === 'string' && p.length > 0 && p.length <= 128)
     && new Set(d.purposes).size === d.purposes.length && bool(d.active),
+  /** Runtime profile policy (0.5, ADR-012): profile ids only, never runtime policy text. */
+  runtimeProfile: (p: unknown): p is RuntimeProfilePolicy => validRuntimeProfile(p),
   role: (r: unknown): r is Role => exactKeys(r, ['id', 'tenant', 'inherits', 'active'])
     && validId(r.id) && validId(r.tenant) && ids(r.inherits, 64) && !(r.inherits as string[]).includes(r.id) && bool(r.active),
   group: (g: unknown): g is Group => exactKeys(g, ['id', 'tenant', 'members', 'roles', 'active'])
@@ -102,13 +105,19 @@ export class ControlPlane {
   private clock: () => number;
   private signer?: { privatePem: string; keyId: string };
   private trace?: string;
+  private execution?: string;
   constructor(store: Store, options: ControlOptions = {}) {
     this.store = store; this.clock = options.clock ?? Date.now; this.signer = options.checkpoint;
   }
-  /** The same control plane, recording this W3C trace id (when valid) with every decision. */
+  /**
+   * The same control plane, recording this W3C trace id and execution id (when
+   * valid) with every decision. A runtime revision is never taken from here:
+   * administrative calls do not act through a runtime enforcer.
+   */
   traced(trace?: Call['trace']): ControlPlane {
     const next = new ControlPlane(this.store, { clock: this.clock, ...(this.signer ? { checkpoint: this.signer } : {}) });
     next.trace = traceOf(trace ? { trace } : {}) ?? this.trace;
+    next.execution = executionOf(trace ? { trace } : {}) ?? this.execution;
     return next;
   }
   private record(s: State, tenant: string, adminId: string, o: Op, operation: string, allowed: boolean, reason: string) {
@@ -117,7 +126,7 @@ export class ControlPlane {
     appendAudit(s, { time: this.clock(), tenant, actor: validId(adminId) ? adminId : 'invalid', operation,
       decision: allowed ? 'allow' : 'deny', reason, policyVersion: `${CORE_VERSION}|${s.policyVersion}|control-plane`, epoch: s.epochs[tenant] ?? 0,
       decisionId: o.id, reasonCode: code.code, policyDigest: policyDigest([CORE_VERSION, s.policyVersion, 'control-plane']), obligations: [],
-      ...(o.trace ? { traceId: o.trace } : {}) });
+      ...(o.trace ? { traceId: o.trace } : {}), ...(o.execution ? { executionId: o.execution } : {}) });
   }
   /**
    * Authorizes, runs and audits one operation in one tenant transaction. If the
@@ -127,7 +136,7 @@ export class ControlPlane {
    */
   private async run<T>(tenant: string, adminId: string, role: AdminRole | readonly AdminRole[], operation: string, seed: Seed,
     body: (s: State, tx: Tx) => Checked<T> | Promise<Checked<T>>): Promise<ControlResult<T>> {
-    const o: Op = { id: newDecisionId(), ...(this.trace ? { trace: this.trace } : {}) };
+    const o: Op = { id: newDecisionId(), ...(this.trace ? { trace: this.trace } : {}), ...(this.execution ? { execution: this.execution } : {}) };
     if (!validId(tenant)) return { ok: false, code: 'NOT_AUTHORIZED', decisionId: o.id };
     try {
       return await this.store.transaction(tenant, async tx => {
@@ -365,6 +374,27 @@ export class ControlPlane {
       return { ok: true, value: { id: destination.id } };
     });
   }
+  /**
+   * Runtime profile policy (security-admin, 0.5, ADR-012). The control plane
+   * requires a standing security-admin user, so a change that widens runtime
+   * authority (deactivation, a lower tier, a different profile) is always a
+   * privileged, human-authorized and audited decision; agents and model output
+   * never reach it (R31). Every accepted change, including creation, advances the
+   * tenant epoch: open contexts end and re-establish authority under the new
+   * obligations. At most RUNTIME_PROFILE_LIMIT records per tenant (CONFLICT above).
+   */
+  upsertRuntimeProfile(tenant: string, adminId: string, policy: RuntimeProfilePolicy) {
+    return this.run(tenant, adminId, 'security-admin', 'upsert_runtime_profile', { runtimeProfiles: true }, s => {
+      if (!shapes.runtimeProfile(policy) || policy.tenant !== tenant) return refuse('INVALID_REQUEST');
+      const records = s.runtimeProfiles ??= {};
+      const existing = Object.hasOwn(records, policy.id) ? records[policy.id] : undefined;
+      if (existing && existing.tenant !== tenant) return refuse('CONFLICT');
+      if (!existing && Object.values(records).filter(p => p?.tenant === tenant).length >= RUNTIME_PROFILE_LIMIT) return refuse('CONFLICT');
+      records[policy.id] = structuredClone(policy);
+      this.bump(s, tenant);
+      return { ok: true, value: { id: policy.id, epoch: s.epochs[tenant]! } };
+    });
+  }
   /** Issues a root or attenuated grant. Session activation must be held by the subject and satisfy dynamic SoD. */
   issueGrant(tenant: string, adminId: string, grant: Grant) {
     return this.run(tenant, adminId, 'security-admin', 'issue_grant', { grants: shapes.grant(grant) ? [grant.id, ...(grant.parent ? [grant.parent] : [])] : [],
@@ -600,6 +630,12 @@ export class ControlPlane {
     return this.run(tenant, adminId, ['security-admin', 'auditor'], 'read_destination', { destinations: validId(id) ? [id] : [] }, s => {
       const d = validId(id) && s.destinations && Object.hasOwn(s.destinations, id) ? s.destinations[id] : undefined;
       return { ok: true, value: d && d.tenant === tenant ? structuredClone(d) : null };
+    });
+  }
+  readRuntimeProfile(tenant: string, adminId: string, id: string): Promise<ControlResult<RuntimeProfilePolicy | null>> {
+    return this.run(tenant, adminId, ['security-admin', 'auditor'], 'read_runtime_profile', { runtimeProfiles: true }, s => {
+      const p = validId(id) && s.runtimeProfiles && Object.hasOwn(s.runtimeProfiles, id) ? s.runtimeProfiles[id] : undefined;
+      return { ok: true, value: p && p.tenant === tenant ? structuredClone(p) : null };
     });
   }
   /** Audited role check for operations executed outside the control plane (for example index maintenance). */

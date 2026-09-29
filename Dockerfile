@@ -10,7 +10,7 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 FROM base AS runtime
 ARG BUILD_DATE
 ARG VCS_REF
-ARG VERSION=0.4.0
+ARG VERSION=0.5.0
 LABEL org.opencontainers.image.title="AKAC gateway" \
       org.opencontainers.image.description="Agent Knowledge Access Control reference gateway" \
       org.opencontainers.image.source="https://github.com/oemer-coskun/AKAC" \

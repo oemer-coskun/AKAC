@@ -10,6 +10,20 @@ import { observe } from './observe.ts';
 import type { Observability } from './observe.ts';
 
 export type Credential = { token: string; binding: Binding };
+/**
+ * Optional `x-akac-execution-id` request header (0.5, ADR-012): the agent
+ * execution (sandbox, job) the request belongs to, recorded as `executionId` with
+ * the audited decision. Correlation only, never authority; a malformed or repeated
+ * header is a 400. A runtime revision is never accepted over HTTP: an agent could
+ * claim any revision, so only a trusted in-process runtime enforcer path
+ * (ProtectedRuntime) records one.
+ */
+export const EXECUTION_HEADER = 'x-akac-execution-id';
+/** undefined: absent; null: malformed (the request is refused). */
+export function executionHeader(value: string | string[] | undefined): string | undefined | null {
+  if (value === undefined) return undefined;
+  return typeof value === 'string' && validId(value) ? value : null;
+}
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 const text = (v: unknown, max: number) => typeof v === 'string' && v.length > 0 && v.length <= max;
 function keys(value: unknown, required: string[], optional: string[] = []): value is Record<string, unknown> {
@@ -80,7 +94,9 @@ export function createGateway(engine: Engine, credentials: Credential[], options
     if (active >= 32) { req.resume(); send(res, 503, { error: 'BUSY' }); return; }
     active++;
     try {
-    if (req.url === '/health' && req.method === 'GET') { send(res, 200, { status: 'ok', specification: '0.4-draft' }); return; }
+    if (req.url === '/health' && req.method === 'GET') { send(res, 200, { status: 'ok', specification: '0.5-draft' }); return; }
+    const executionId = executionHeader(req.headers[EXECUTION_HEADER]);
+    if (executionId === null) { req.resume(); send(res, 400, { error: 'INVALID_REQUEST' }); return; }
     let binding: Binding | null | undefined;
     if (dpop) {
       const outcome = await dpop.authorize(req, (t, proof) => options.authenticator!.authenticate(t, proof));
@@ -120,8 +136,8 @@ export function createGateway(engine: Engine, credentials: Credential[], options
       try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
       catch { send(res, 400, { error: 'INVALID_JSON' }); return; }
       let result;
-      // The W3C trace id of the request (valid traceparent, else fresh) is recorded with the audited decision; it never carries authority.
-      const call = { trace: { traceId: obs.traceId } };
+      // The W3C trace id of the request (valid traceparent, else fresh) and the execution id are recorded with the audited decision; neither carries authority.
+      const call = { trace: { traceId: obs.traceId, ...(executionId ? { executionId } : {}) } };
       if (req.url === '/v1/retrieve' && keys(body, ['query', 'purpose'], ['limit'])
         && text(body.query, 4096) && text(body.purpose, 128)
         && (body.limit === undefined || (Number.isInteger(body.limit) && Number(body.limit) >= 1 && Number(body.limit) <= 20))) {

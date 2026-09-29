@@ -117,7 +117,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/v1/contexts": {
@@ -237,7 +249,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/v1/derive": {
@@ -359,7 +383,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/v1/release": {
@@ -493,7 +529,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/health": {
@@ -662,6 +710,62 @@
                     ]
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "domain",
+              "profile"
+            ],
+            "description": "0.5 (ADR-012): the runtime holding the content MUST apply this operator-reviewed profile for the domain. At most one profile per domain; different profiles for one domain are unsatisfiable (deny).",
+            "properties": {
+              "type": {
+                "const": "runtime_profile"
+              },
+              "domain": {
+                "enum": [
+                  "network",
+                  "filesystem",
+                  "tool",
+                  "credential"
+                ]
+              },
+              "profile": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "description": "0.5 (ADR-012): every output derived from the content MUST carry at least this classification outside AKAC (the transitive classification of the decision).",
+            "properties": {
+              "type": {
+                "const": "max_output_classification"
+              },
+              "value": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
               }
             }
           }

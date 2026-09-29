@@ -50,7 +50,7 @@ never read from a request.
 | purpose | `context.purpose` | Required string of 1 to 128 characters (longer: `decision:false`). |
 | destination | `context.destination` | Optional Destination profile id (ADR-008), for `share` and `export`; applies R62/R63. Present but not a valid identifier: `decision:false`. |
 | decision id | response `context.id` | UUIDv4 of the audit entry. |
-| obligations | response `context.obligations` | AKAC extension, only on an allow. |
+| obligations | response `context.obligations` | AKAC extension, only on an allow. Includes `runtime_profile` (one per domain) and `max_output_classification` when the tenant has an active runtime profile policy (0.5, [RUNTIME-CONTAINMENT.md](RUNTIME-CONTAINMENT.md)). |
 | reason code | response `context.reason_admin.code` | Only with `AKAC_AUTHZEN_REASONS=admin`. |
 
 Handling of malformed input follows AuthZEN 1.0: unknown members are ignored (section 10.1.1); a
@@ -82,7 +82,11 @@ Short-circuited requests omit the remaining evaluations.
 2. On an allow, enforce every entry of `context.obligations` or treat the decision as a deny:
    `audit_level full` (log `context.id` with every downstream use), `no_persist` (do not persist the
    content or anything derived from it outside AKAC), `max_context_ttl_ms` (not issued by this
-   facade), `destination_restricted` (only listed destination profiles may receive the content).
+   facade), `destination_restricted` (only listed destination profiles may receive the content),
+   `runtime_profile` (0.5: apply the operator-reviewed profile named for the domain in the runtime
+   that holds the content, before using it; no enforcer or no template for the profile is a deny; two
+   different profiles for one domain never occur in one decision) and `max_output_classification`
+   (0.5: label every output derived from the content at least this high).
    An obligation of an unknown type is a deny. The core provides `enforceable(obligations, supported)`
    (`reference/decision.ts`); `ProtectedRuntime` and the passages bonus runtime show the pattern.
 3. A PEP that does not understand `context.obligations` at all must not be used for records that can

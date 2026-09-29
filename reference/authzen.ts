@@ -5,7 +5,8 @@ import { appendAudit } from './audit.ts';
 import { CORE_VERSION } from './types.ts';
 import type { Action, Binding, PolicyHook, State, Store } from './types.ts';
 import { validId } from './validation.ts';
-import { classify, newDecisionId, policyDigest, traceOf } from './decision.ts';
+import { classify, executionOf, newDecisionId, policyDigest, traceOf } from './decision.ts';
+import type { Call } from './decision.ts';
 import type { Obligation, ReasonCode } from './decision.ts';
 import { Engine } from './engine.ts';
 import type { EngineEvent } from './engine.ts';
@@ -13,6 +14,7 @@ import type { PepAuthenticator, PepIdentity } from '../adapters/jwt.ts';
 import { DpopGuard } from '../adapters/dpop.ts';
 import type { DpopOptions } from '../adapters/dpop.ts';
 import { observe } from './observe.ts';
+import { EXECUTION_HEADER, executionHeader } from './http.ts';
 import type { Observability } from './observe.ts';
 
 /**
@@ -97,22 +99,23 @@ export class AuthzenPdp {
     const listener = options.onEvent;
     this.emit = event => { try { listener?.(event); } catch { /* metrics never affect decisions */ } };
   }
-  private record(s: State, tenant: string, actor: string, id: string, trace: string | undefined, runId: string | undefined, allowed: boolean, reason: string, obligations: Obligation[]) {
+  private record(s: State, tenant: string, actor: string, id: string, trace: string | undefined, runId: string | undefined, allowed: boolean, reason: string, obligations: Obligation[], execution?: string) {
     const code = classify(reason);
     if (!code || !code.category !== allowed) throw new Error('Unclassified decision reason');
     const parts = [CORE_VERSION, s.policyVersion, this.hook?.revision ?? 'core-only'];
     appendAudit(s, { time: this.clock(), tenant, actor: validId(actor) ? actor : 'invalid', operation: 'authzen_evaluate', decision: allowed ? 'allow' : 'deny',
       reason, policyVersion: parts.join('|'), epoch: s.epochs[tenant] ?? 0, decisionId: id, reasonCode: code.code, policyDigest: policyDigest(parts),
-      obligations: allowed ? obligations : [], ...(runId && validId(runId) ? { runId } : {}), ...(trace ? { traceId: trace } : {}) });
+      obligations: allowed ? obligations : [], ...(runId && validId(runId) ? { runId } : {}), ...(trace ? { traceId: trace } : {}),
+      ...(execution ? { executionId: execution } : {}) });
     this.emit({ type: 'decision', tenant, operation: 'authzen_evaluate', allowed, reason, decisionId: id, code: code.code });
     return code.code;
   }
   /** Audits an evaluation that could not be mapped to a policy input (a denial, DEFERRED:INVALID_REQUEST). */
-  async refuse(tenant: string, mapped: Extract<Mapped, { ok: false }>, call?: { trace?: { traceId: string } }): Promise<Evaluation> {
-    const id = newDecisionId(), trace = traceOf(call);
+  async refuse(tenant: string, mapped: Extract<Mapped, { ok: false }>, call?: Call): Promise<Evaluation> {
+    const id = newDecisionId(), trace = traceOf(call), execution = executionOf(call);
     const actor = mapped.kind === 'unsupported' ? mapped.actor ?? 'invalid' : 'invalid';
     const runId = mapped.kind === 'unsupported' ? mapped.grant : undefined;
-    return this.audited(tenant, actor, id, s => this.record(s, tenant, actor, id, trace, runId, false, 'DEFERRED:INVALID_REQUEST', []))
+    return this.audited(tenant, actor, id, s => this.record(s, tenant, actor, id, trace, runId, false, 'DEFERRED:INVALID_REQUEST', [], execution))
       .then(code => ({ decision: false, id, code, obligations: [] as Obligation[] }));
   }
   private async audited(tenant: string, actor: string, id: string, fn: (s: State) => ReasonCode): Promise<ReasonCode> {
@@ -130,7 +133,7 @@ export class AuthzenPdp {
    * confidential, no_persist from restricted), in one tenant transaction, with no
    * context and no disclosure. A tenant beyond the load budget is a deferred denial.
    */
-  async evaluate(tenant: string, mapped: Extract<Mapped, { ok: true }>, call?: { trace?: { traceId: string } }): Promise<Evaluation> {
+  async evaluate(tenant: string, mapped: Extract<Mapped, { ok: true }>, call?: Call): Promise<Evaluation> {
     const b = mapped.binding;
     if (b.tenant !== tenant) throw new Error('Binding tenant differs from the PEP tenant');
     const v = await this.engine.evaluate(b, mapped.resource, mapped.action, mapped.purpose,
@@ -229,7 +232,10 @@ export function createAuthzenGateway(store: Store, options: AuthzenOptions = {})
       let body: unknown;
       try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { send(res, 400, { error: 'INVALID_JSON' }); return; }
       if (!plain(body)) { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
-      const call = { trace: { traceId: obs.traceId } };
+      // The agent execution the PEP evaluates for (0.5, R117): recorded with every evaluation, correlation only; malformed is a 400.
+      const executionId = executionHeader(req.headers[EXECUTION_HEADER]);
+      if (executionId === null) { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
+      const call: Call = { trace: { traceId: obs.traceId, ...(executionId ? { executionId } : {}) } };
       if (single) {
         const mapped = mapEvaluation(pep.tenant, body);
         // A missing or mistyped required member is a protocol error (400); nothing was evaluated.

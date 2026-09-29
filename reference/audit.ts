@@ -16,7 +16,12 @@ export function auditHash(entry: Omit<Audit, 'hash'>): string {
 }
 const V1 = ['sequence', 'time', 'tenant', 'actor', 'operation', 'decision', 'reason', 'policyVersion', 'epoch', 'previous'];
 const V2 = [...V1, 'formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations'];
-const V2_OPTIONAL = ['runId', 'traceId'];
+/**
+ * Optional format 2 members. `executionId` and `runtimeRevision` (0.5, ADR-012)
+ * are absent from every earlier entry, so earlier entries hash and verify unchanged;
+ * a verifier that predates them rejects an entry carrying them (closed shape, fail closed).
+ */
+const V2_OPTIONAL = ['runId', 'traceId', 'executionId', 'runtimeRevision'];
 /** Closed shape of a format 2 body (without `hash`). */
 function v2Shape(body: Record<string, unknown>): boolean {
   const keys = Object.keys(body);
@@ -27,7 +32,8 @@ function v2Shape(body: Record<string, unknown>): boolean {
     && typeof body.policyDigest === 'string' && /^[a-f0-9]{64}$/.test(body.policyDigest)
     && Array.isArray(body.obligations) && body.obligations.length <= 16 && body.obligations.every(validObligation)
     && (body.decision === 'allow' || body.obligations.length === 0)
-    && (body.runId === undefined || validId(body.runId)) && (body.traceId === undefined || validTraceId(body.traceId));
+    && (body.runId === undefined || validId(body.runId)) && (body.traceId === undefined || validTraceId(body.traceId))
+    && (body.executionId === undefined || validId(body.executionId)) && (body.runtimeRevision === undefined || validId(body.runtimeRevision));
 }
 /** Format 2: SHA-256 over the RFC 8785 (JCS) form of the body, which includes `formatVersion: 2`. */
 export function auditHashV2(entry: Omit<Audit, 'hash'>): string {
@@ -78,7 +84,7 @@ export function verifyLegacyAudit(entries: Audit[]): boolean {
 export type AuditFields = {
   time: number; tenant: string; actor: string; operation: string; decision: 'allow' | 'deny'; reason: string;
   policyVersion: string; epoch: number; decisionId: string; reasonCode: ReasonCode; policyDigest: string;
-  obligations: Obligation[]; runId?: string; traceId?: string;
+  obligations: Obligation[]; runId?: string; traceId?: string; executionId?: string; runtimeRevision?: string;
 };
 /**
  * Appends a format 2 entry to the tenant stream. A partial snapshot MUST contain
@@ -87,9 +93,10 @@ export type AuditFields = {
 export function appendAudit(s: State, fields: AuditFields): Audit {
   let head: Audit | undefined;
   for (let i = s.audits.length - 1; i >= 0; i--) if (s.audits[i]!.tenant === fields.tenant) { head = s.audits[i]; break; }
-  const { runId, traceId, ...required } = fields;
+  const { runId, traceId, executionId, runtimeRevision, ...required } = fields;
   const entry: Omit<Audit, 'hash'> = { ...required, obligations: structuredClone(fields.obligations),
     ...(runId !== undefined ? { runId } : {}), ...(traceId !== undefined ? { traceId } : {}),
+    ...(executionId !== undefined ? { executionId } : {}), ...(runtimeRevision !== undefined ? { runtimeRevision } : {}),
     formatVersion: AUDIT_FORMAT, sequence: (head?.sequence ?? 0) + 1, previous: head?.hash ?? GENESIS };
   const hash = entryHash(entry);
   if (!hash) throw new Error('Malformed audit entry');

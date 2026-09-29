@@ -12,6 +12,7 @@ import type { QuarantineReason } from './types.ts';
 import { observe } from './observe.ts';
 import type { Observability } from './observe.ts';
 import { createScim, scimError } from './scim.ts';
+import { EXECUTION_HEADER, executionHeader } from './http.ts';
 
 /** The authoritative write succeeded but the index lagged: 202, and reconcile repairs it. */
 type Pending = { ok: false; code: 'INDEX_PENDING'; id: string; version: number; decisionId?: string };
@@ -156,6 +157,12 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
         const r = await ctx.control.readDestination(ctx.tenant, ctx.admin, ctx.params[0]!);
         return r.ok && r.value === null ? { status: 404, body: { ok: false, code: 'NOT_FOUND', decisionId: r.decisionId } } : result(r);
       } },
+    put('runtime-profiles', 'put_runtime_profile', (x, p) => x.control.upsertRuntimeProfile(x.tenant, x.admin, p)),
+    { method: 'GET', pattern: /^\/admin\/v1\/runtime-profiles\/([^/]+)$/, label: '/admin/v1/runtime-profiles/{id}', operation: 'read_runtime_profile', body: 'none',
+      run: async ctx => {
+        const r = await ctx.control.readRuntimeProfile(ctx.tenant, ctx.admin, ctx.params[0]!);
+        return r.ok && r.value === null ? { status: 404, body: { ok: false, code: 'NOT_FOUND', decisionId: r.decisionId } } : result(r);
+      } },
     { method: 'POST', pattern: /^\/admin\/v1\/index\/reconcile$/, label: '/admin/v1/index/reconcile', operation: 'index_reconcile', body: 'none',
       run: async ctx => {
         if (!ingestor?.reconcile) return { status: 404, body: { ok: false, code: 'NOT_FOUND' } };
@@ -247,8 +254,10 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
       buckets.set(bucketKey, bucket);
       if (++bucket.count > ADMIN_LIMITS.perMinute) { refuse(429, 'RATE_LIMITED'); return; }
 
-      // The W3C trace id of the request (a valid traceparent, else a fresh one) is recorded with every audited decision.
-      const traced = control.traced({ traceId: obs.traceId });
+      // The W3C trace id of the request (a valid traceparent, else a fresh one) and the execution id are recorded with every audited decision.
+      const executionId = executionHeader(req.headers[EXECUTION_HEADER]);
+      if (executionId === null) { refuse(400, 'INVALID_REQUEST'); return; }
+      const traced = control.traced({ traceId: obs.traceId, ...(executionId ? { executionId } : {}) });
       let label = 'unmatched', operation = 'unknown', bodyKind: Route['body'] = 'none', params: string[] = [];
       let run: ((ctx: Ctx) => Promise<Out>) | undefined;
       let type = 'application/json';

@@ -3,10 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { appendAudit } from './audit.ts';
 import { BudgetExceeded, hydrate } from './hydrate.ts';
 import { ControlPlane } from './control.ts';
-import { CORE_VERSION, LEVELS } from './types.ts';
+import { CORE_VERSION, DESTINATION_CLASSES, LEVELS } from './types.ts';
 import type { Action, Binding, Context, Decision, DestinationClass, Grant, Knowledge, Level, PolicyHook, Ref, State, Store, Tx } from './types.ts';
 import { validId } from './validation.ts';
-import { classify, merge, newDecisionId, parseObligations, policyDigest, traceOf } from './decision.ts';
+import { classify, executionOf, merge, newDecisionId, parseObligations, policyDigest, runtimeRevisionOf, traceOf, unsatisfiable } from './decision.ts';
+import { containment, containmentAcross, runtimeSetDigest } from './containment.ts';
 import type { Call, Obligation, ReasonCode } from './decision.ts';
 export { validId } from './validation.ts';
 export { auditHash, verifyAudit } from './audit.ts';
@@ -55,9 +56,13 @@ export type EngineOptions = {
 export type MemoryReview = 'none' | 'quarantine';
 /** An allow may name its audit reason (default AUTHORIZED) and carries its obligations. */
 type Outcome<T> = { ok: true; value: T; obligations: Obligation[]; reason?: string } | { ok: false; reason: string };
-/** One audited operation: its decision id and, when valid, the caller's trace id. */
-type Op = { id: string; trace?: string };
-const op = (call?: Call): Op => { const trace = traceOf(call); return { id: newDecisionId(), ...(trace ? { trace } : {}) }; };
+/** One audited operation: its decision id and, when valid, the caller's correlation fields (never authority). */
+/** `contained`: the tenant's runtime profile policies were loaded for this operation (their active set enters the policy digest). */
+type Op = { id: string; trace?: string; execution?: string; runtime?: string; contained?: boolean };
+const op = (call?: Call): Op => {
+  const trace = traceOf(call), execution = executionOf(call), runtime = runtimeRevisionOf(call);
+  return { id: newDecisionId(), ...(trace ? { trace } : {}), ...(execution ? { execution } : {}), ...(runtime ? { runtime } : {}) };
+};
 const bad = <T>(o: Op): Result<T> => ({ ok: false, code: 'NOT_AUTHORIZED', decisionId: o.id });
 const fail = <T>(reason: string): Outcome<T> => ({ ok: false, reason });
 /** Internal audit reason; HTTP responses never carry it. */
@@ -74,8 +79,6 @@ const restrictTo = (obligations: Obligation[], restrict?: string[]): Obligation[
   const merged = merge(obligations, [{ type: 'destination_restricted', value: restrict }]);
   return unsatisfiable(merged) ? null : merged;
 };
-/** A merged destination_restricted with no destination left: no enforcement point can satisfy it (R37, R66). */
-const unsatisfiable = (obligations: Obligation[]) => obligations.some(o => o.type === 'destination_restricted' && !o.value.length);
 /**
  * R66: every destination_restricted obligation of a release must admit the actual
  * recipient, by the class or id of its profile, or `internal-user` for a user
@@ -114,8 +117,16 @@ export class Engine {
   }
   stats() { return { ...this.counters }; }
   private revision(s: State) { return `${CORE_VERSION}|${s.policyVersion}|${this.hook?.revision ?? 'core-only'}`; }
-  /** Digest of the same material as revision(), over its JCS array form (unambiguous). */
-  private digest(s: State) { return policyDigest([CORE_VERSION, s.policyVersion, this.hook?.revision ?? 'core-only']); }
+  /**
+   * Digest of the same material as revision(), over its JCS array form (unambiguous);
+   * for an operation that loaded the tenant's runtime profile policies, also of its
+   * active set (runtimeSetDigest; absent when there is none, so 0.4 digests are unchanged).
+   */
+  private digest(s: State, tenant: string, o: Op) {
+    const parts = [CORE_VERSION, s.policyVersion, this.hook?.revision ?? 'core-only'];
+    const runtime = o.contained ? runtimeSetDigest(s, tenant) : undefined;
+    return policyDigest(runtime ? [...parts, runtime] : parts);
+  }
   async ready(tenant?: string): Promise<boolean> {
     try { return await this.store.ready(tenant) && (!this.hook?.ready || await this.hook.ready()); }
     catch { return false; }
@@ -125,7 +136,8 @@ export class Engine {
     if (!code || !code.category !== allowed) throw new Error('Unclassified decision reason');
     appendAudit(s, { time: this.clock(), tenant: b.tenant, actor: b.subject, operation, decision: allowed ? 'allow' : 'deny',
       reason, policyVersion: this.revision(s), epoch: s.epochs[b.tenant] ?? 0, decisionId: o.id, reasonCode: code.code,
-      policyDigest: this.digest(s), obligations: allowed ? obligations : [], runId: b.grant, ...(o.trace ? { traceId: o.trace } : {}) });
+      policyDigest: this.digest(s, b.tenant, o), obligations: allowed ? obligations : [], runId: b.grant, ...(o.trace ? { traceId: o.trace } : {}),
+      ...(o.execution ? { executionId: o.execution } : {}), ...(o.runtime ? { runtimeRevision: o.runtime } : {}) });
     this.counters.decisions++; if (!allowed) this.counters.denials++;
     this.emit({ type: 'decision', tenant: b.tenant, operation, allowed, reason, decisionId: o.id, code: code.code });
   }
@@ -207,6 +219,38 @@ export class Engine {
     }
     return LEVELS[top]!;
   }
+  /**
+   * Adds the runtime containment obligations (0.5, ADR-012) of these records
+   * for a decision towards `destination`: a class, none (read, derive), or a list
+   * of the classes a share/export of unknown destination may reach (merged,
+   * containmentAcross). A conflict between runtime profiles, from the tenant's
+   * policies or together with the supplemental policy's obligations, denies with
+   * UNSUPPORTED_OBLIGATION.
+   */
+  private contain(s: State, tenant: string, ids: Iterable<string>, obligations: Obligation[], destination?: DestinationClass | readonly DestinationClass[]): Outcome<Obligation[]> {
+    const level = this.top(s, ids);
+    const c = Array.isArray(destination) ? containmentAcross(s, tenant, level, destination) : containment(s, tenant, level, destination as DestinationClass | undefined);
+    if (!c.ok) return fail(c.reason);
+    const merged = merge(obligations, c.obligations);
+    return unsatisfiable(merged) ? fail('DENIED:UNSUPPORTED_OBLIGATION') : { ok: true, value: merged, obligations: merged };
+  }
+  /**
+   * Destination classes a share/export may reach when its destination is not known
+   * (R109): the run's restriction resolved to classes (a Destination id by its
+   * active profile of this tenant; an id that resolves to nothing can receive
+   * nothing), or every class for an unrestricted run.
+   */
+  private reachable(s: State, b: Binding): DestinationClass[] {
+    const restrict = s.grants[b.grant]?.destinations;
+    if (restrict === undefined) return [...DESTINATION_CLASSES];
+    const classes = new Set<DestinationClass>();
+    for (const v of restrict) {
+      if ((DESTINATION_CLASSES as readonly string[]).includes(v)) { classes.add(v as DestinationClass); continue; }
+      const d = s.destinations && Object.hasOwn(s.destinations, v) ? s.destinations[v] : undefined;
+      if (d && d.id === v && d.tenant === b.tenant && d.active === true && DESTINATION_CLASSES.includes(d.class)) classes.add(d.class);
+    }
+    return [...classes];
+  }
   /** Capture every read in this credential-bound run. A new run needs a new grant. */
   private async projection(s: State, b: Binding, ids: string[], purpose: string): Promise<Outcome<Projection>> {
     if (!ids.length || ids.length > 64) return fail('DEFERRED:INVALID_REQUEST');
@@ -237,8 +281,11 @@ export class Engine {
       const decision = decide(s, { binding: b, resource: key, action: 'read', purpose, now: this.clock() });
       if (decision.effect !== 'allow') return fail(reasonOf(decision));
     }
-    const obligations = this.obligations(s, all, policy, context.expiresAt - this.clock());
-    if (!obligations) return fail('DEFERRED:INVALID_CONTEXT');
+    const core = this.obligations(s, all, policy, context.expiresAt - this.clock());
+    if (!core) return fail('DEFERRED:INVALID_CONTEXT');
+    const contained = this.contain(s, b.tenant, all, core);
+    if (!contained.ok) return fail(contained.reason);
+    const obligations = contained.value;
     s.contexts[id] = context;
     return { ok: true, obligations, value: { context: id, expiresAt: context.expiresAt,
       documents: [...new Set(ids)].map(key => { const r = s.knowledge[key]!; return { id: r.id, version: r.version, content: r.content }; }) } };
@@ -251,7 +298,7 @@ export class Engine {
     const o = op(call);
     if (!bindingValid(b) || !Array.isArray(ids) || ids.length > 64 || !ids.every(validId)) return bad(o);
     return this.run(b, o, 'read', async tx => {
-      await hydrate(tx, { bindings: [b], knowledge: ids });
+      await hydrate(tx, { bindings: [b], knowledge: ids, runtimeProfiles: true }); o.contained = true;
       return this.finish(tx.state, b, o, 'read', await this.projection(tx.state, b, ids, purpose));
     });
   }
@@ -267,7 +314,7 @@ export class Engine {
    */
   private async lexical(b: Binding, o: Op, query: string, purpose: string, limit: number): Promise<Result<Projection>> {
     return this.run(b, o, 'retrieve', async tx => {
-      await hydrate(tx, { bindings: [b] });
+      await hydrate(tx, { bindings: [b], runtimeProfiles: true }); o.contained = true;
       const s = tx.state;
       if (!query) return this.finish(s, b, o, 'retrieve', fail('DEFERRED:INVALID_REQUEST'));
       limit = capped(s, b, limit);
@@ -316,7 +363,7 @@ export class Engine {
       finally { if (timer) clearTimeout(timer); }
     }
     return this.run(b, o, 'retrieve', async tx => {
-      await hydrate(tx, { bindings: [b], knowledge: ids });
+      await hydrate(tx, { bindings: [b], knowledge: ids, runtimeProfiles: true }); o.contained = true;
       const s = tx.state;
       if (!query) return this.finish(s, b, o, 'retrieve', fail('DEFERRED:INVALID_REQUEST'));
       if (unavailable) return this.finish(s, b, o, 'retrieve', fail('DEFERRED:CANDIDATES_UNAVAILABLE'));
@@ -357,7 +404,7 @@ export class Engine {
     const o = op(call);
     if (!bindingValid(b)) return bad(o);
     return this.run(b, o, 'derive', async tx => {
-      await hydrate(tx, { bindings: [b], contexts: validId(contextId) ? [contextId] : [] });
+      await hydrate(tx, { bindings: [b], contexts: validId(contextId) ? [contextId] : [], runtimeProfiles: true }); o.contained = true;
       const s = tx.state;
       if (!content || content.length > 100_000 || !['memory', 'artifact'].includes(kind)) return this.finish(s, b, o, 'derive', fail('DEFERRED:INVALID_REQUEST'));
       const refs = await this.contextSources(s, b, contextId, 'derive');
@@ -369,6 +416,9 @@ export class Engine {
         obligations = merge(obligations, memory.obligations);
         if (unsatisfiable(obligations)) return this.finish(s, b, o, 'derive', fail('DENIED:UNSUPPORTED_OBLIGATION'));
       }
+      const contained = this.contain(s, b.tenant, refs.value.map(r => r.id), obligations);
+      if (!contained.ok) return this.finish(s, b, o, 'derive', fail(contained.reason));
+      obligations = contained.value;
       const labels = refs.value.map(r => ({ source: s.knowledge[r.id]!, label: effectiveLabel(s, s.knowledge[r.id]!), top: transitiveClassification(s, s.knowledge[r.id]!) }));
       if (labels.some(x => !x.label || !x.top)) return this.finish(s, b, o, 'derive', fail('DEFERRED:INVALID_CONTEXT'));
       const id = randomUUID();
@@ -398,7 +448,7 @@ export class Engine {
     const o = op(call);
     if (!bindingValid(b)) return bad(o);
     return this.run(b, o, action === 'export' ? 'export' : 'share', async tx => {
-      await hydrate(tx, { bindings: [b], contexts: validId(contextId) ? [contextId] : [], actors: validId(recipientId) ? [recipientId] : [] });
+      await hydrate(tx, { bindings: [b], contexts: validId(contextId) ? [contextId] : [], actors: validId(recipientId) ? [recipientId] : [], runtimeProfiles: true, grantDestinations: true }); o.contained = true;
       const s = tx.state;
       const recipient = validId(recipientId) && Object.hasOwn(s.actors, recipientId) ? s.actors[recipientId] : undefined;
       const refs = await this.contextSources(s, b, contextId, action);
@@ -418,8 +468,13 @@ export class Engine {
       const names = destination ? [destination.class, ...(destination.id !== undefined ? [destination.id] : [])] : [];
       if (!obligations || !admits(obligations, names)) return this.finish(s, b, o, action, fail('DENIED:RECIPIENT'));
       const restricted = obligations.some(x => x.type === 'destination_restricted');
+      // Runtime profiles narrowed to a destination class apply to the class this release goes to: the
+      // recipient's Destination, internal-user for a user without one (R109). A principal without a
+      // Destination profile may forward to any class the run allows: never weaker than any of them.
+      const contained = this.contain(s, b.tenant, refs.value.map(r => r.id), obligations, destination?.class ?? this.reachable(s, b));
+      if (!contained.ok) return this.finish(s, b, o, action, fail(contained.reason));
       return this.finish(s, b, o, action, { ok: true, value: { recipient: recipientId, content, ...(destination && (gate.destination || restricted) ? { destination } : {}) },
-        obligations, reason: 'AUTHORIZED_RECIPIENT' });
+        obligations: contained.value, reason: 'AUTHORIZED_RECIPIENT' });
     });
   }
   /**
@@ -436,7 +491,7 @@ export class Engine {
     if (!bindingValid(b)) return { decision: false, decisionId: o.id, code: 'INVALID_REQUEST', obligations: [] };
     let reason: string | undefined;
     const result = await this.run<true>(b, o, operation, async tx => {
-      await hydrate(tx, { bindings: [b], knowledge: validId(resource) ? [resource] : [], destinations: validId(options.destination) ? [options.destination] : [] });
+      await hydrate(tx, { bindings: [b], knowledge: validId(resource) ? [resource] : [], destinations: validId(options.destination) ? [options.destination] : [], runtimeProfiles: true, grantDestinations: true }); o.contained = true;
       const s = tx.state, outcome = await this.evaluation(s, b, resource, action, purpose, options.destination);
       reason = outcome.ok ? 'AUTHORIZED' : outcome.reason;
       return this.finish(s, b, o, operation, outcome);
@@ -452,11 +507,18 @@ export class Engine {
     if (decision.effect !== 'allow') return fail(reasonOf(decision));
     const obligations = this.obligations(s, [resource], policy);
     if (!obligations) return fail('DEFERRED:INVALID_CONTEXT');
-    if (action !== 'share' && action !== 'export' && destination === undefined) return { ok: true, value: true, obligations };
+    if (action !== 'share' && action !== 'export' && destination === undefined) {
+      const contained = this.contain(s, b.tenant, [resource], obligations);
+      return contained.ok ? { ok: true, value: true, obligations: contained.value } : fail(contained.reason);
+    }
     const gate = destinationGate(s, s.grants[b.grant]!, destination !== undefined ? { kind: 'profile', id: destination } : { kind: 'unspecified' },
       b.tenant, this.top(s, [resource]), purpose);
     const restricted = gate.ok && restrictTo(obligations, gate.restrict);
-    return restricted ? { ok: true, value: true, obligations: restricted } : fail('DENIED:RECIPIENT');
+    if (!restricted) return fail('DENIED:RECIPIENT');
+    // Without a named destination the content may reach any class the run allows: the profiles are those of
+    // every such class merged (never weaker than for a specific allowed destination), a conflict denies (R109).
+    const contained = this.contain(s, b.tenant, [resource], restricted, (gate.ok ? gate.destination?.class : undefined) ?? this.reachable(s, b));
+    return contained.ok ? { ok: true, value: true, obligations: contained.value } : fail(contained.reason);
   }
   async delegate(b: Binding, child: Grant, call?: Call): Promise<Result<{ id: string }>> {
     const o = op(call);

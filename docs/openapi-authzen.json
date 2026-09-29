@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AKAC AuthZEN PDP facade",
-    "version": "0.4.0-draft",
+    "version": "0.5.0-draft",
     "description": "Optional listener (AKAC_AUTHZEN_PORT, default off, loopback) implementing the OpenID AuthZEN Authorization API 1.0 (Final, 11 January 2026) Access Evaluation and Access Evaluations endpoints for trusted policy enforcement points. It is a read-only, audited policy decision point: it never discloses content. The tenant comes from the PEP credential only. Unknown request members are ignored (AuthZEN 1.0 section 10.1.1). This is an implementation profile, not a claim of AuthZEN interoperability certification. Mapping: docs/AUTHZEN.md."
   },
   "servers": [
@@ -37,6 +37,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/XRequestIdIn"
+          },
+          {
+            "$ref": "#/components/parameters/XAkacExecutionId"
           }
         ],
         "responses": {
@@ -189,6 +192,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/XRequestIdIn"
+          },
+          {
+            "$ref": "#/components/parameters/XAkacExecutionId"
           }
         ],
         "responses": {
@@ -419,6 +425,16 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9._:-]{1,128}$"
         }
+      },
+      "XAkacExecutionId": {
+        "name": "x-akac-execution-id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+        },
+        "description": "Optional agent execution id (0.5, ADR-012, R117) the enforcement point evaluates for, recorded as executionId with every audited evaluation of the request. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
       }
     },
     "schemas": {
@@ -677,6 +693,62 @@
                 "items": {
                   "$ref": "#/components/schemas/Id"
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "domain",
+              "profile"
+            ],
+            "description": "0.5 (ADR-012): the runtime holding the content MUST apply this operator-reviewed profile for the domain. At most one profile per domain; different profiles for one domain are unsatisfiable (deny).",
+            "properties": {
+              "type": {
+                "const": "runtime_profile"
+              },
+              "domain": {
+                "enum": [
+                  "network",
+                  "filesystem",
+                  "tool",
+                  "credential"
+                ]
+              },
+              "profile": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "description": "0.5 (ADR-012): every output derived from the content MUST carry at least this classification outside AKAC (the transitive classification of the decision).",
+            "properties": {
+              "type": {
+                "const": "max_output_classification"
+              },
+              "value": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
               }
             }
           }

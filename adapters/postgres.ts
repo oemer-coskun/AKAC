@@ -12,10 +12,11 @@ import { validId } from '../reference/validation.ts';
 import { BudgetExceeded } from '../reference/hydrate.ts';
 import { LIFECYCLE } from '../reference/lifecycle.ts';
 import { LIMITS } from '../reference/policy.ts';
+import { RUNTIME_PROFILE_LIMIT } from '../reference/types.ts';
 
 type Kind = 'text' | 'int' | 'bool' | 'list' | 'json';
 type Column = [column: string, field: string, kind: Kind, optional?: true];
-type Collection = 'actors' | 'roles' | 'groups' | 'constraints' | 'containers' | 'knowledge' | 'grants' | 'contexts' | 'destinations';
+type Collection = 'actors' | 'roles' | 'groups' | 'constraints' | 'containers' | 'knowledge' | 'grants' | 'contexts' | 'destinations' | 'runtimeProfiles';
 const common: Column[] = [['id', 'id', 'text'], ['tenant', 'tenant', 'text']];
 /** Real columns for identifiers, tenant, lifecycle, versions, parents, labels and expiry. JSONB only for source references. */
 const TABLES: Record<Collection, { table: string; columns: Column[] }> = {
@@ -46,13 +47,20 @@ const TABLES: Record<Collection, { table: string; columns: Column[] }> = {
     ['epoch', 'epoch', 'int'], ['active', 'active', 'bool']] },
   // Destination profiles (migration 006, ADR-008).
   destinations: { table: 'akac_destinations', columns: [...common, ['class', 'class', 'text'], ['max_classification', 'maxClassification', 'text'],
-    ['purposes', 'purposes', 'list'], ['active', 'active', 'bool']] }
+    ['purposes', 'purposes', 'list'], ['active', 'active', 'bool']] },
+  // Runtime profile policies (migration 008, ADR-012). One real column per domain; `profiles.x` maps to record.profiles.x.
+  runtimeProfiles: { table: 'akac_runtime_profiles', columns: [...common, ['classification', 'classification', 'text'],
+    ['destination_class', 'destinationClass', 'text', true], ['profile_network', 'profiles.network', 'text', true],
+    ['profile_filesystem', 'profiles.filesystem', 'text', true], ['profile_tool', 'profiles.tool', 'text', true],
+    ['profile_credential', 'profiles.credential', 'text', true], ['active', 'active', 'bool']] }
 };
 const AUDIT: (keyof Audit)[] = ['tenant', 'sequence', 'time', 'actor', 'operation', 'decision', 'reason', 'policyVersion', 'epoch', 'previous', 'hash',
-  'formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId'];
+  'formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId',
+  // Evidence correlation (migration 008, ADR-012).
+  'executionId', 'runtimeRevision'];
 const AUDIT_COLUMNS = AUDIT.map(f => f.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`));
 /** Format 2 evidence columns (migration 004); NULL for format 1 entries, which then omit the field. */
-const OPTIONAL_AUDIT = new Set<keyof Audit>(['formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId']);
+const OPTIONAL_AUDIT = new Set<keyof Audit>(['formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId', 'executionId', 'runtimeRevision']);
 /**
  * Per-load bounds. A load never truncates: when a request or its closure exceeds
  * the bound, the load throws BudgetExceeded and the caller denies (deferred).
@@ -60,20 +68,24 @@ const OPTIONAL_AUDIT = new Set<keyof Audit>(['formatVersion', 'decisionId', 'rea
  * chain stays incomplete, which the decision treats as a missing record (deny).
  */
 export const BOUNDS = { contexts: 512, memberships: 256, constraints: 1024, roles: 512, grants: 64, knowledge: 1100, containers: 256,
-  principals: 2048, groups: 1024 } as const;
+  principals: 2048, groups: 1024, runtimeProfiles: RUNTIME_PROFILE_LIMIT } as const;
 
+/** `a.b` addresses member b of the object member a (created, possibly empty, for every loaded row). */
+const nested = (field: string) => { const dot = field.indexOf('.'); return dot < 0 ? null : [field.slice(0, dot), field.slice(dot + 1)] as const; };
 function fromRow(columns: Column[], row: Record<string, unknown>): Record<string, unknown> {
   const record: Record<string, unknown> = {};
   for (const [column, field, kind] of columns) {
-    const value = row[column];
+    const value = row[column], path = nested(field);
+    const target = path ? (record[path[0]] ??= {}) as Record<string, unknown> : record;
     if (value === null || value === undefined) continue;
-    record[field] = kind === 'int' ? Number(value) : value;
+    target[path ? path[1] : field] = kind === 'int' ? Number(value) : value;
   }
   return record;
 }
 function toParams(columns: Column[], record: Record<string, unknown>): unknown[] {
   return columns.map(([, field, kind, optional]) => {
-    const value = record[field];
+    const path = nested(field), parent = path ? record[path[0]] : undefined;
+    const value = path ? (parent && typeof parent === 'object' ? (parent as Record<string, unknown>)[path[1]] : undefined) : record[field];
     if (value === undefined && optional) return null;
     if (value === undefined) throw new Error(`Missing ${field}`);
     return kind === 'json' ? JSON.stringify(value) : value;
@@ -215,6 +227,9 @@ class PgTx implements Tx {
       await this.rows('containers', `WITH RECURSIVE c(id, depth) AS (SELECT unnest($2::text[]), 0 UNION SELECT x.parent, c.depth + 1 FROM c JOIN akac_containers x ON x.id=c.id AND x.tenant=$1 WHERE x.parent IS NOT NULL AND c.depth < 33),
         n AS (SELECT DISTINCT id FROM c LIMIT $3)
         SELECT n.id AS akac_name, x.* FROM n LEFT JOIN akac_containers x ON x.tenant=$1 AND x.id=n.id`, [bounded(need.containers, BOUNDS.containers, 'containers'), BOUNDS.containers + 1], BOUNDS.containers);
+    }
+    if (need.runtimeProfiles && this.once('runtimeProfiles')) {
+      await this.rows('runtimeProfiles', 'SELECT * FROM akac_runtime_profiles WHERE tenant=$1 ORDER BY id LIMIT $2', [BOUNDS.runtimeProfiles + 1], BOUNDS.runtimeProfiles);
     }
     if (need.destinations?.length) await this.rows('destinations', 'SELECT * FROM akac_destinations WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.destinations)]);
     if (need.contexts?.length) await this.rows('contexts', 'SELECT * FROM akac_contexts WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.contexts)]);

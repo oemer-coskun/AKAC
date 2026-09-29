@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/oemer-coskun/AKAC/schemas/obligation.json",
-  "description": "Closed AKAC 0.4 obligation set (draft-aligned with the AuthZEN obligations working-group draft; not a conformance claim). A PEP that cannot enforce every obligation of an allow MUST treat it as a deny.",
+  "description": "Closed AKAC obligation set: 0.4 (audit_level, max_context_ttl_ms, no_persist, destination_restricted) plus 0.5 runtime containment obligations (runtime_profile, max_output_classification). Draft-aligned with the AuthZEN obligations working-group draft; not a conformance claim. A PEP that cannot enforce every obligation of an allow MUST treat it as a deny.",
   "oneOf": [
     {
       "type": "object",
@@ -76,6 +76,62 @@
               ]
             }
           }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "domain",
+        "profile"
+      ],
+      "description": "0.5 (ADR-012): the runtime holding the content MUST apply this operator-reviewed profile for the domain. At most one profile per domain; different profiles for one domain are unsatisfiable (deny).",
+      "properties": {
+        "type": {
+          "const": "runtime_profile"
+        },
+        "domain": {
+          "enum": [
+            "network",
+            "filesystem",
+            "tool",
+            "credential"
+          ]
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "value"
+      ],
+      "description": "0.5 (ADR-012): every output derived from the content MUST carry at least this classification outside AKAC (the transitive classification of the decision).",
+      "properties": {
+        "type": {
+          "const": "max_output_classification"
+        },
+        "value": {
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ]
         }
       }
     }

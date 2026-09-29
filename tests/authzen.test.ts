@@ -274,3 +274,18 @@ test('SDK client for PEPs and the published OpenAPI document match the listener'
     assert.deepEqual(Object.keys(doc.paths).sort(), ['/.well-known/authzen-configuration', '/access/v1/evaluation', '/access/v1/evaluations', '/health']);
   } finally { await t.stop(); }
 });
+
+// Regression (0.5 review): the AuthZEN listener validates and records x-akac-execution-id like the agent and admin gateways (R117).
+test('x-akac-execution-id is recorded on AuthZEN evaluations; a malformed one is a 400', async () => {
+  const t = await setup();
+  try {
+    assert.equal((await t.post('/access/v1/evaluation', chief('handbook'), pepToken, { 'x-akac-execution-id': 'job-9' })).status, 200);
+    assert.equal((await t.store.auditLog('acme')).at(-1)!.executionId, 'job-9');
+    assert.equal((await t.post('/access/v1/evaluation', { subject: 1 }, pepToken, { 'x-akac-execution-id': 'job-10' })).status, 400);
+    assert.equal((await t.post('/access/v1/evaluations', { evaluations: [{ subject: 1 }] }, pepToken, { 'x-akac-execution-id': 'job-11' })).status, 200);
+    assert.equal((await t.store.auditLog('acme')).at(-1)!.executionId, 'job-11', 'a refused evaluation carries it too');
+    const before = (await t.store.auditLog('acme')).length;
+    for (const bad of ['has space', '../x', '']) assert.equal((await t.post('/access/v1/evaluation', chief('handbook'), pepToken, { 'x-akac-execution-id': bad })).status, 400, bad);
+    assert.equal((await t.store.auditLog('acme')).length, before, 'nothing evaluated');
+  } finally { await t.stop(); }
+});

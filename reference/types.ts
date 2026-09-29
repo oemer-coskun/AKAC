@@ -1,4 +1,4 @@
-import type { Obligation } from './decision.ts';
+import type { Obligation, RuntimeDomain } from './decision.ts';
 import type { NodeKey } from './merkle.ts';
 export const ACTIONS = ['read', 'derive', 'write_memory', 'share', 'export', 'declassify'] as const;
 export type Action = typeof ACTIONS[number];
@@ -8,7 +8,7 @@ export type Level = typeof LEVELS[number];
 export const ORIGINS = ['human', 'system', 'model'] as const;
 export type Origin = typeof ORIGINS[number];
 export const SCHEMA = 'akac-state/0.3';
-export const CORE_VERSION = 'akac-reference/0.4.0';
+export const CORE_VERSION = 'akac-reference/0.5.0';
 export type Ref = { id: string; version: number };
 export type Actor = {
   id: string; tenant: string; kind: 'user' | 'agent' | 'service';
@@ -34,6 +34,20 @@ export type Destination = {
   id: string; tenant: string; class: DestinationClass;
   maxClassification: Level; purposes: string[]; active: boolean;
 };
+/**
+ * Runtime profile policy (0.5, ADR-012): per tenant, which operator-reviewed
+ * runtime profile (by id, per domain) a runtime that holds released content must
+ * apply. It applies to decisions whose highest transitive classification is at least
+ * `classification` and, when `destinationClass` is set, only to decisions whose
+ * destination has that class. Profile ids name templates reviewed by the operator;
+ * AKAC never generates or interprets runtime policy.
+ */
+export type RuntimeProfilePolicy = {
+  id: string; tenant: string; classification: Level; destinationClass?: DestinationClass;
+  profiles: Partial<Record<RuntimeDomain, string>>; active: boolean;
+};
+/** Most runtime profile policies one tenant may hold (a larger set is refused, and a load beyond it defers). */
+export const RUNTIME_PROFILE_LIMIT = 256;
 /** NIST hierarchical RBAC: a role includes every (transitively) inherited junior role. */
 export type Role = { id: string; tenant: string; inherits: string[]; active: boolean };
 /** SCIM-style group: members receive the group's roles while both are active. */
@@ -126,6 +140,10 @@ export type Audit = {
   runId?: string;
   /** W3C trace-id supplied by the caller, when valid. */
   traceId?: string;
+  /** Agent execution (sandbox, job) the decision belongs to, when supplied and valid (0.5). */
+  executionId?: string;
+  /** Runtime policy revision a trusted runtime enforcer applied before this decision's effect (0.5). */
+  runtimeRevision?: string;
 };
 /**
  * Stores MAY hand the engine a partial snapshot of one tenant (see Tx). Every
@@ -141,6 +159,8 @@ export type State = {
   containers: Record<string, Container>; constraints: Record<string, SodConstraint>;
   /** Destination profiles (0.4, ADR-008). Optional so that 0.3 snapshots stay valid; absent means none. */
   destinations?: Record<string, Destination>;
+  /** Runtime profile policies (0.5, ADR-012). Optional so that 0.4 snapshots stay valid; absent means none. */
+  runtimeProfiles?: Record<string, RuntimeProfilePolicy>;
   /** Per-tenant hash-chained streams; a partial snapshot holds only the tenant head. */
   audits: Audit[];
   /** A 0.1 global chain retained verbatim after upgrade; verified with its original rules. */
@@ -174,6 +194,8 @@ export type Need = {
   principals?: boolean;
   /** Destination profiles by id (0.4). */
   destinations?: string[];
+  /** Every runtime profile policy of the tenant (0.5; bounded by RUNTIME_PROFILE_LIMIT, BudgetExceeded above it). */
+  runtimeProfiles?: boolean;
 };
 /** Knowledge without its content: what index maintenance needs to plan work. */
 export type KnowledgeMeta = Omit<Knowledge, 'content'>;
@@ -245,7 +267,7 @@ export interface PolicyHook {
 export type PolicyVerdict = { allow: boolean; obligations?: unknown[] };
 export function emptyState(): State {
   return { schema: SCHEMA, policyVersion: CORE_VERSION, epochs: {},
-    actors: {}, grants: {}, knowledge: {}, contexts: {}, roles: {}, groups: {}, containers: {}, constraints: {}, destinations: {}, audits: [] };
+    actors: {}, grants: {}, knowledge: {}, contexts: {}, roles: {}, groups: {}, containers: {}, constraints: {}, destinations: {}, runtimeProfiles: {}, audits: [] };
 }
 type LegacyState = {
   schema: 'akac-state/0.1'; policyVersion: string; epoch: number; audits: Audit[];

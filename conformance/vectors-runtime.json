@@ -1,0 +1,3689 @@
+{
+  "description": "AKAC 0.5 draft runtime containment vectors (ADR-012, spec/drafts/0.5-runtime-containment.md). Synthetic data. kind 'profiles': the pure derivation containment(state, 'acme', level, destinationClass) over kbFixture(clock) with patches, level = highest transitive classification of `sources`; expected {ok, obligations} or {ok: false, reason}. kind 'engine': Engine over the same state; openContext, release (after openContext) to `recipient`, evaluate or derive (after openContext); only runtime_profile and max_output_classification obligations are compared; `code` is the reason code of the last audit entry. kind 'enforcer': ProtectedRuntime.answer with a scripted enforcer (`supports` lists domain/profile pairs it has templates for; `fail` makes apply reject, supports throw, the execution's current revision drift or the lease release reject) or none; the scripted enforcer is execution-scoped (apply returns a lease, current(executionId) reports its revision); `runtimeRevision` is the value recorded on the last audit entry of an allowed answer; `applied` lists the profiles passed to apply(). Profile ids are opaque examples of operator-reviewed templates.",
+  "profile": "AKAC-RuntimeContainment/0.5-draft",
+  "fixture": "kbFixture",
+  "clock": 1800000000000,
+  "cases": [
+    {
+      "id": "RTC-P01",
+      "kind": "profiles",
+      "description": "No runtime profile policy: no runtime obligation, exactly the 0.4 behaviour",
+      "patch": [],
+      "sources": [
+        "strategy"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": []
+      }
+    },
+    {
+      "id": "RTC-P02",
+      "kind": "profiles",
+      "description": "Only inactive policies: no runtime obligation",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": false
+          }
+        ]
+      ],
+      "sources": [
+        "strategy"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": []
+      }
+    },
+    {
+      "id": "RTC-P03",
+      "kind": "profiles",
+      "description": "Public material: only the public tier applies; the output label is public",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "public"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P04",
+      "kind": "profiles",
+      "description": "Confidential material: public and confidential tiers apply, restricted does not",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P05",
+      "kind": "profiles",
+      "description": "Restricted material: the higher tier wins per domain (deny-all over internal-only)",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "strategy"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "workspace-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "credential",
+            "profile": "none"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "restricted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P06",
+      "kind": "profiles",
+      "description": "A public document in a restricted folder is restricted (container floor, R25)",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "vault-memo"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "workspace-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "credential",
+            "profile": "none"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "restricted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P07",
+      "kind": "profiles",
+      "description": "max_output_classification is the transitive classification: a public-labelled artifact derived from restricted material is restricted",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "digest",
+          {
+            "id": "digest",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "artifact",
+            "origin": "model",
+            "content": "Synthetic digest.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "strategy",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "digest"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "workspace-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "credential",
+            "profile": "none"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "restricted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P08",
+      "kind": "profiles",
+      "description": "Mixed sources: the highest classification of all sources selects the tier",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook",
+        "project-alpha"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P09",
+      "kind": "profiles",
+      "description": "Destination narrowing: towards a model provider the narrowed policy wins at equal tier",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "destinationClass": "model-provider",
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "model-provider-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P10",
+      "kind": "profiles",
+      "description": "Destination narrowing does not apply to another destination class",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "destinationClass": "tool",
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P11",
+      "kind": "profiles",
+      "description": "Destination narrowing does not apply to a decision without destination (read)",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P12",
+      "kind": "profiles",
+      "description": "A narrowed policy above the material classification does not apply",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "restricted",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "destinationClass": "model-provider",
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P13",
+      "kind": "profiles",
+      "description": "Conflict: two policies of the same tier name different network profiles: deny, never a guess",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential-2",
+          {
+            "id": "rt-confidential-2",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DENIED:UNSUPPORTED_OBLIGATION"
+      }
+    },
+    {
+      "id": "RTC-P14",
+      "kind": "profiles",
+      "description": "Two policies of the same tier naming the same profile are no conflict",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential-2",
+          {
+            "id": "rt-confidential-2",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P15",
+      "kind": "profiles",
+      "description": "Conflict between two narrowed policies for the same destination class: deny",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider-2",
+          {
+            "id": "rt-model-provider-2",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "destinationClass": "model-provider",
+      "expected": {
+        "ok": false,
+        "reason": "DENIED:UNSUPPORTED_OBLIGATION"
+      }
+    },
+    {
+      "id": "RTC-P16",
+      "kind": "profiles",
+      "description": "A conflict in a tier that does not apply does not affect lower material",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted-2",
+          {
+            "id": "rt-restricted-2",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "internal-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "public"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P17",
+      "kind": "profiles",
+      "description": "A malformed stored policy (no profile) defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-empty",
+          {
+            "id": "rt-empty",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {},
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P18",
+      "kind": "profiles",
+      "description": "A policy that names a model-generated or free-text profile (not an identifier) is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-bad",
+          {
+            "id": "rt-bad",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "allow * to any host"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P19",
+      "kind": "profiles",
+      "description": "Another tenant's conflicting policies neither apply nor deny",
+      "tags": [
+        "cross-tenant"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "other-a",
+          {
+            "id": "other-a",
+            "tenant": "other",
+            "classification": "public",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "other-b",
+          {
+            "id": "other-b",
+            "tenant": "other",
+            "classification": "public",
+            "profiles": {
+              "network": "internal-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "strategy"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": []
+      }
+    },
+    {
+      "id": "RTC-E01",
+      "kind": "engine",
+      "description": "openContext on restricted material carries the restricted runtime profiles",
+      "binding": "chief",
+      "operation": "openContext",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "workspace-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "credential",
+            "profile": "none"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "restricted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-E02",
+      "kind": "engine",
+      "description": "openContext without policies: no runtime obligation (0.4 behaviour)",
+      "binding": "chief",
+      "operation": "openContext",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [],
+      "expected": {
+        "effect": "allow",
+        "obligations": []
+      }
+    },
+    {
+      "id": "RTC-E03",
+      "kind": "engine",
+      "description": "openContext with conflicting policies denies with UNSUPPORTED_OBLIGATION",
+      "binding": "lead",
+      "operation": "openContext",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential-2",
+          {
+            "id": "rt-confidential-2",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "filesystem": "workspace-only"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "UNSUPPORTED_OBLIGATION"
+      }
+    },
+    {
+      "id": "RTC-E04",
+      "kind": "engine",
+      "description": "A release to a model provider applies the policy narrowed to model-provider",
+      "binding": "chief",
+      "operation": "release",
+      "resources": [
+        "project-alpha"
+      ],
+      "recipient": "provider",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "model-provider-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-E05",
+      "kind": "engine",
+      "description": "A read-only evaluation naming the model-provider destination applies the narrowed policy",
+      "binding": "chief",
+      "operation": "evaluate",
+      "action": "share",
+      "destination": "llm-eu",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "model-provider-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-E06",
+      "kind": "engine",
+      "description": "A read evaluation of public material carries the public tier",
+      "binding": "intern",
+      "operation": "evaluate",
+      "action": "read",
+      "resources": [
+        "handbook"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "public"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-E07",
+      "kind": "engine",
+      "description": "Runtime policies never widen access: an uncleared reader is still denied",
+      "binding": "intern",
+      "operation": "openContext",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "RTC-E08",
+      "kind": "engine",
+      "description": "derive from restricted material carries the restricted runtime profiles",
+      "binding": "chief",
+      "operation": "derive",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "workspace-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "credential",
+            "profile": "none"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "restricted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-E09",
+      "kind": "engine",
+      "description": "A share evaluation naming no destination in an unrestricted run: an external-narrowed profile that differs from the other classes is a conflict, never the weaker unnarrowed profile (R109)",
+      "binding": "chief",
+      "operation": "evaluate",
+      "action": "share",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "ext-partner",
+          {
+            "id": "ext-partner",
+            "tenant": "acme",
+            "class": "external",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "UNSUPPORTED_OBLIGATION"
+      }
+    },
+    {
+      "id": "RTC-E10",
+      "kind": "engine",
+      "description": "A share evaluation naming no destination in a run restricted to one Destination id applies the profile narrowed to that destination class (R109)",
+      "binding": "chief",
+      "operation": "evaluate",
+      "action": "share",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "ext-partner",
+          {
+            "id": "ext-partner",
+            "tenant": "acme",
+            "class": "external",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "ext-partner"
+          ]
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-E11",
+      "kind": "engine",
+      "description": "A share evaluation naming no destination in a run restricted to internal users keeps the unnarrowed profile (R109)",
+      "binding": "chief",
+      "operation": "evaluate",
+      "action": "share",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "ext-partner",
+          {
+            "id": "ext-partner",
+            "tenant": "acme",
+            "class": "external",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "internal-user"
+          ]
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-E12",
+      "kind": "engine",
+      "description": "A release to a service principal without a Destination profile in an unrestricted run is contained for every class it could forward to: a differing external-narrowed profile denies (R109)",
+      "binding": "chief",
+      "operation": "release",
+      "resources": [
+        "project-alpha"
+      ],
+      "recipient": "svc-bot",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "svc-bot",
+          {
+            "id": "svc-bot",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "UNSUPPORTED_OBLIGATION"
+      }
+    },
+    {
+      "id": "RTC-E13",
+      "kind": "engine",
+      "description": "A release to a user without a Destination profile applies the policy narrowed to internal-user (D = internal-user, R109)",
+      "binding": "chief",
+      "operation": "release",
+      "resources": [
+        "project-alpha"
+      ],
+      "recipient": "lead",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-internal-user",
+          {
+            "id": "rt-internal-user",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "internal-user",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-R01",
+      "kind": "enforcer",
+      "description": "Runtime profile obligations and no enforcer: deny before the provider",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": null,
+      "expected": {
+        "effect": "deny",
+        "providerCalled": false
+      }
+    },
+    {
+      "id": "RTC-R02",
+      "kind": "enforcer",
+      "description": "Enforcer without a template for one profile: deny before the provider",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http"
+        ],
+        "revision": "sandbox-rev-7"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": false
+      }
+    },
+    {
+      "id": "RTC-R03",
+      "kind": "enforcer",
+      "description": "Enforcer supports and applies every profile: allow; its revision is recorded on the answer",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http",
+          "credential/none"
+        ],
+        "revision": "sandbox-rev-7"
+      },
+      "expected": {
+        "effect": "allow",
+        "providerCalled": true,
+        "runtimeRevision": "sandbox-rev-7"
+      }
+    },
+    {
+      "id": "RTC-R04",
+      "kind": "enforcer",
+      "description": "Enforcer apply fails: deny before the provider",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http",
+          "credential/none"
+        ],
+        "fail": "reject"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": false
+      }
+    },
+    {
+      "id": "RTC-R05",
+      "kind": "enforcer",
+      "description": "Enforcer reports a malformed revision: deny before the provider",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http",
+          "credential/none"
+        ],
+        "revision": "not a revision!"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": false
+      }
+    },
+    {
+      "id": "RTC-R06",
+      "kind": "enforcer",
+      "description": "Enforcer supports() throws: deny before the provider",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http",
+          "credential/none"
+        ],
+        "fail": "throw-supports"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": false
+      }
+    },
+    {
+      "id": "RTC-R07",
+      "kind": "enforcer",
+      "description": "No policy and no enforcer: allowed exactly as in 0.4, nothing recorded",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": null,
+      "expected": {
+        "effect": "allow",
+        "providerCalled": true
+      }
+    },
+    {
+      "id": "RTC-R08",
+      "kind": "enforcer",
+      "description": "A model-provider-narrowed policy supersedes the context profile for the provider hop (R112): the provider gate profile is applied, not a conflict",
+      "binding": "chief",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/model-provider-only",
+          "filesystem/read-only-workspace",
+          "tool/read-only-http"
+        ],
+        "revision": "sandbox-rev-7"
+      },
+      "expected": {
+        "effect": "allow",
+        "providerCalled": true,
+        "runtimeRevision": "sandbox-rev-7",
+        "applied": [
+          {
+            "domain": "network",
+            "profile": "model-provider-only"
+          },
+          {
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "domain": "tool",
+            "profile": "read-only-http"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-R09",
+      "kind": "enforcer",
+      "description": "A caller-supplied runtime revision is never recorded",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": null,
+      "callRevision": "forged-rev",
+      "expected": {
+        "effect": "allow",
+        "providerCalled": true
+      }
+    },
+    {
+      "id": "RTC-R10",
+      "kind": "enforcer",
+      "description": "Two model-provider-narrowed policies of the same tier name different network profiles: a genuine conflict denies before the provider (R110)",
+      "binding": "chief",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider",
+          {
+            "id": "rt-model-provider",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-model-provider-2",
+          {
+            "id": "rt-model-provider-2",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "model-provider",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/model-provider-only",
+          "network/deny-all",
+          "network/internal-only",
+          "filesystem/read-only-workspace",
+          "tool/read-only-http"
+        ],
+        "revision": "sandbox-rev-7"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": false
+      }
+    },
+    {
+      "id": "RTC-R11",
+      "kind": "enforcer",
+      "description": "The enforcer reports another revision for the execution after the provider call: the answer is denied (R112)",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http",
+          "credential/none"
+        ],
+        "revision": "sandbox-rev-7",
+        "fail": "drift"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": true
+      }
+    },
+    {
+      "id": "RTC-R12",
+      "kind": "enforcer",
+      "description": "The lease release fails: the answer is denied (R112)",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http",
+          "credential/none"
+        ],
+        "revision": "sandbox-rev-7",
+        "fail": "release"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": true
+      }
+    }
+  ]
+}

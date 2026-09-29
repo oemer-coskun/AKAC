@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AKAC Reference Admin and SCIM API",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "description": "Operator-facing API on its own listener (default port 8788). Credentials are administrator identities bound to a tenant and an admin actor; agent credentials are rejected and admin credentials are rejected on the agent listener. Authority is the admin actor's standing role (security-admin, kb-admin, auditor), enforced and audited on every call. The tenant always comes from the credential. Exactly one authentication mode is configured: opaque tokens (SHA-256 digested) or verified at+jwt with an audience distinct from the agent API. Limits are per process. Every failure that reached the control plane carries the audited `decisionId`. A valid W3C `traceparent` request header is recorded (its trace id only) with the audited decision."
   },
   "servers": [
@@ -62,6 +62,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -226,6 +236,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -390,6 +410,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -554,6 +584,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -718,6 +758,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -882,6 +932,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -1046,6 +1106,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -1249,6 +1319,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -1418,6 +1498,16 @@
               "type": "string",
               "pattern": "^[A-Za-z0-9._:-]{1,128}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -1736,7 +1826,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/admin/v1/index/reconcile": {
@@ -1855,7 +1957,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/admin/v1/audit": {
@@ -1887,6 +2001,16 @@
               "maximum": 10000,
               "default": 1000
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -2035,6 +2159,16 @@
               "minimum": 0,
               "default": 0
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -2185,7 +2319,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/scim/v2/ResourceTypes": {
@@ -2235,7 +2381,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/scim/v2/Schemas": {
@@ -2285,7 +2443,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       }
     },
     "/scim/v2/Users": {
@@ -2439,7 +2609,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       },
       "get": {
         "operationId": "scimFindUser",
@@ -2461,6 +2643,16 @@
                 "userName eq \"example\""
               ]
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -2609,6 +2801,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -2756,6 +2958,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -2918,6 +3130,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -3079,6 +3301,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -3353,7 +3585,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ]
       },
       "get": {
         "operationId": "scimFindGroup",
@@ -3375,6 +3619,16 @@
                 "displayName eq \"example\""
               ]
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -3523,6 +3777,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -3669,6 +3933,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -3830,6 +4104,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -3991,6 +4275,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -4128,7 +4422,18 @@
             "dpopAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Current tree head and, when a checkpoint key is configured, its format 2 signature",
@@ -4272,6 +4577,16 @@
               "minimum": 1,
               "maximum": 999999999999999
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -4417,6 +4732,16 @@
               "minimum": 1,
               "maximum": 999999999999999
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -4547,6 +4872,16 @@
             "schema": {
               "$ref": "#/components/schemas/Id"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -4772,6 +5107,16 @@
             "schema": {
               "$ref": "#/components/schemas/Id"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -4989,6 +5334,16 @@
               "maximum": 1000,
               "default": 100
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -5141,6 +5496,16 @@
             "schema": {
               "$ref": "#/components/schemas/Id"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -5332,6 +5697,16 @@
             "schema": {
               "$ref": "#/components/schemas/Id"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -5546,6 +5921,16 @@
             "schema": {
               "$ref": "#/components/schemas/Id"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -5720,6 +6105,16 @@
             "schema": {
               "$ref": "#/components/schemas/Id"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -5888,6 +6283,16 @@
             "schema": {
               "$ref": "#/components/schemas/Id"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -6109,7 +6514,18 @@
             "bearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6328,6 +6744,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "requestBody": {
@@ -6498,6 +6924,16 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
             }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
           }
         ],
         "responses": {
@@ -6522,6 +6958,317 @@
                     },
                     "value": {
                       "$ref": "#/components/schemas/DestinationBody"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found in this tenant",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_FOUND"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/runtime-profiles/{id}": {
+      "put": {
+        "operationId": "putRuntimeProfile",
+        "summary": "Create or replace a runtime profile policy (0.5)",
+        "description": "Requires security-admin (a standing, human administrator; audited). Tenant comes from the credential; a body tenant or id, if present, must match. Every accepted change, including creation, advances the tenant epoch. At most 256 policies per tenant (409 CONFLICT above). Profile ids name operator-reviewed runtime templates; AKAC never accepts runtime policy text.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeProfileBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Destination profiles are not implemented by this control plane",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getRuntimeProfile",
+        "summary": "Read a runtime profile policy (0.5)",
+        "description": "Requires security-admin or auditor (audited). 404 NOT_FOUND when the id is absent in this tenant.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          },
+          {
+            "name": "x-akac-execution-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            },
+            "description": "Optional agent execution id (0.5, ADR-012), recorded as executionId with the audited decision. Correlation only, never authority; a malformed value is a 400. A runtime revision is never accepted over HTTP."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The policy",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "$ref": "#/components/schemas/RuntimeProfileBody"
                     }
                   }
                 }
@@ -7290,6 +8037,16 @@
                 "type": "string",
                 "pattern": "^(?!0{32}$)[0-9a-f]{32}$",
                 "description": "W3C Trace Context trace-id"
+              },
+              "executionId": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "description": "Agent execution id (0.5); correlation only"
+              },
+              "runtimeRevision": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "description": "Runtime policy revision applied by a trusted runtime enforcer (0.5); never from an agent over HTTP"
               }
             }
           }
@@ -7651,6 +8408,62 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "domain",
+              "profile"
+            ],
+            "description": "0.5 (ADR-012): the runtime holding the content MUST apply this operator-reviewed profile for the domain. At most one profile per domain; different profiles for one domain are unsatisfiable (deny).",
+            "properties": {
+              "type": {
+                "const": "runtime_profile"
+              },
+              "domain": {
+                "enum": [
+                  "network",
+                  "filesystem",
+                  "tool",
+                  "credential"
+                ]
+              },
+              "profile": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "description": "0.5 (ADR-012): every output derived from the content MUST carry at least this classification outside AKAC (the transitive classification of the decision).",
+            "properties": {
+              "type": {
+                "const": "max_output_classification"
+              },
+              "value": {
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            }
           }
         ]
       },
@@ -7973,6 +8786,58 @@
           }
         },
         "description": "The id must not equal a destination class name."
+      },
+      "RuntimeProfileBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "classification",
+          "profiles",
+          "active"
+        ],
+        "description": "Runtime profile policy (0.5, ADR-012). Applies to decisions whose transitive classification is at least `classification` and, with `destinationClass`, only towards that destination class. Profile ids name operator-reviewed runtime templates; never runtime policy text.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "destinationClass": {
+            "enum": [
+              "internal-user",
+              "internal-service",
+              "model-provider",
+              "tool",
+              "external"
+            ]
+          },
+          "profiles": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "network": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "filesystem": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "tool": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "credential": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }
