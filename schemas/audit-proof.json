@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/audit-proof.json",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/audit-proof.json",
   "description": "RFC 9162 audit proofs of one tenant stream. Leaf index = sequence - 1. Verify against a trusted checkpoint, never against the rootHash returned with the proof alone.",
   "oneOf": [
     {

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/obligation.json",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/obligation.json",
   "description": "Closed AKAC 0.4 obligation set (draft-aligned with the AuthZEN obligations working-group draft; not a conformance claim). A PEP that cannot enforce every obligation of an allow MUST treat it as a deny.",
   "oneOf": [
     {

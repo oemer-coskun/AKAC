@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/decision.json",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/decision.json",
   "description": "A decision. decide() returns effect, code and category; the engine adds decisionId, policyRevision, policyDigest and obligations (in-process and in audit). HTTP denials never carry code or category.",
   "type": "object",
   "additionalProperties": false,

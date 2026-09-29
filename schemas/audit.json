@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/audit.json",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/audit.json",
   "description": "One entry of a tenant audit stream. Format 1 (no formatVersion): hash = SHA-256 of sorted-key JSON of the other members. Format 2: hash = SHA-256 of the RFC 8785 (JCS) form of the other members. Both: previous = hash of the preceding entry of the stream (GENESIS = 64 zeros); RFC 9162 leaf = SHA-256(0x00 || JCS(entry)).",
   "oneOf": [
     {

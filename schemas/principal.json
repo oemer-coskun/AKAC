@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/principal.json",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/principal.json",
   "type": "object",
   "additionalProperties": false,
   "properties": {

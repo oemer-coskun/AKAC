@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/destination.json",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/destination.json",
   "description": "Destination profile (AKAC 0.4, ADR-008): a tenant-scoped egress target class.",
   "type": "object",
   "additionalProperties": false,

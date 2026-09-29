@@ -13,7 +13,7 @@ ARG VCS_REF
 ARG VERSION=0.4.0
 LABEL org.opencontainers.image.title="AKAC gateway" \
       org.opencontainers.image.description="Agent Knowledge Access Control reference gateway" \
-      org.opencontainers.image.source="https://github.com/WestMoneyDE/AKAC" \
+      org.opencontainers.image.source="https://github.com/oemer-coskun/AKAC" \
       org.opencontainers.image.licenses="MIT-0" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
