@@ -14,7 +14,8 @@ import { Ingestor } from '../reference/ingest.ts';
 import { HashEmbedder } from '../reference/embedding.ts';
 import { MemoryVectorIndex } from '../reference/vector.ts';
 import { MemoryStore, SqliteStore, importState } from '../reference/store.ts';
-import { decide } from '../reference/policy.ts';
+import { decide, visible } from '../reference/policy.ts';
+import { tombstone } from '../reference/lifecycle.ts';
 import { bindings } from '../examples/fixture.ts';
 import type { Knowledge, State, Store } from '../reference/types.ts';
 
@@ -139,10 +140,11 @@ test('erase cascades to every descendant, removes content and chunks, denies for
   for (const id of ['handbook', ...LINEAGE]) {
     const k = (await record(store, id))!;
     assert.equal(k.content, '', id); assert.equal(k.lifecycle, 'erased'); assert.equal(k.active, false); assert.deepEqual(k.readers, []);
+    assert.deepEqual(k.readerRoles, [], `${id}: no reader role (R125)`);
     assert.equal(await readable(engine, id), false, id);
   }
   assert.equal((await engine.derive(bindings.chief, ctx.value.context, 'after erasure')).ok, false);
-  assert.deepEqual((await retrieved(engine, 'Product handbook notebook Derived')).filter(id => ['handbook', ...LINEAGE].includes(id)), []);
+  assert.deepEqual((await retrieved(engine, 'Product handbook laptop Derived')).filter(id => ['handbook', ...LINEAGE].includes(id)), []);
   const again = await control.erase('acme', 'sec', 'handbook');
   assert.ok(again.ok); assert.equal(again.value.erased, 0);
   const revived = await control.upsertKnowledge('acme', 'kbadm', { ...lifecycleWorld().knowledge.handbook!, version: 2, content: 'New text.' });
@@ -191,7 +193,7 @@ test('a new document version never lifts a quarantine or a legal hold', async ()
   // Under a legal hold the content is frozen (R55): only a metadata version is accepted.
   const rewrite = await control.upsertKnowledge('acme', 'kbadm', { ...lifecycleWorld().knowledge['staff-faq']!, version: 2, content: 'Cleaned text.' });
   assert.deepEqual([rewrite.ok, !rewrite.ok && rewrite.code, !rewrite.ok && rewrite.held], [false, 'CONFLICT', 1]);
-  const next = await control.upsertKnowledge('acme', 'kbadm', { ...lifecycleWorld().knowledge['staff-faq']!, version: 2, readers: ['chief'] });
+  const next = await control.upsertKnowledge('acme', 'kbadm', { ...lifecycleWorld().knowledge['staff-faq']!, version: 2, classification: 'internal' });
   assert.ok(next.ok); assert.equal(next.value.quarantined, true);
   const k = (await record(store, 'staff-faq'))!;
   assert.equal(k.lifecycle, 'quarantined'); assert.deepEqual(k.legalHolds, ['m1']); assert.equal(k.quarantineReason, 'suspected_poisoning');
@@ -367,4 +369,21 @@ test('lifecycle fields validate against the closed knowledge schema', async () =
   assert.ok(validate({ ...base, content: '', readers: [], active: false, lifecycle: 'erased', lifecycleAt: now }));
   assert.equal(validate({ ...base, lifecycle: 'archived' }), false);
   assert.equal(validate({ ...base, quarantineReason: 'free text' }), false);
+});
+
+test('regression: a tombstone names no audience and stays unreadable even if the lifecycle were ignored (R125)', () => {
+  const s = lifecycleWorld();
+  const k = s.knowledge.handbook!;
+  const projects = [...k.projects];
+  assert.ok(k.readerRoles.length > 0);
+  assert.equal(tombstone(k, now), true);
+  assert.deepEqual(k.readers, []); assert.deepEqual(k.readerRoles, []);
+  assert.deepEqual(k.projects, projects, 'projects stay: clearing a conjunctive restriction would widen the label');
+  const ignoringLifecycle = { ...structuredClone(k), active: true } as Knowledge;
+  delete ignoringLifecycle.lifecycle;
+  for (const actor of Object.values(s.actors)) assert.equal(visible(s, actor, ignoringLifecycle, now), false, actor.id);
+  assert.equal(tombstone(k, now + 1), false, 'idempotent'); assert.equal(k.lifecycleAt, now);
+  // A pre-0.6 tombstone that still names reader roles is cleaned without changing its erasure time.
+  k.readerRoles = ['staff'];
+  assert.equal(tombstone(k, now + 2), true); assert.deepEqual(k.readerRoles, []); assert.equal(k.lifecycleAt, now);
 });

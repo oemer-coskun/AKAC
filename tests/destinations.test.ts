@@ -212,9 +212,13 @@ test('Engine.evaluate and AuthZEN context.destination apply the destination gate
   assert.ok(read.decision && !read.obligations.some(o => o.type === 'destination_restricted'));
   await store.transaction('acme', async tx => { assert.equal(Object.keys(tx.state.contexts).length, 0, 'no context was created'); });
   const restricted = setup(destinationWorld(s => restrictedTo(s, 'internal-user', 'tool')));
+  // R121: a share/export evaluation that names no Destination is denied, restricted run or not.
   const unnamed = await restricted.engine.evaluate(chief, 'handbook', 'export', 'work');
-  assert.equal(unnamed.decision, true);
-  assert.deepEqual(unnamed.obligations.find(o => o.type === 'destination_restricted')?.value, ['internal-user', 'tool'], 'the PEP must keep to the run');
+  assert.equal(unnamed.decision, false); assert.equal(unnamed.code, 'RECIPIENT');
+  assert.equal((await engine.evaluate(chief, 'handbook', 'share', 'work')).code, 'RECIPIENT');
+  const named = await restricted.engine.evaluate(chief, 'handbook', 'export', 'work', { destination: 'crm-tool' });
+  assert.equal(named.decision, true);
+  assert.deepEqual(named.obligations.find(o => o.type === 'destination_restricted')?.value, ['tool', 'crm-tool'], 'the PEP must keep to the named destination');
   assert.equal((await restricted.engine.evaluate(chief, 'handbook', 'share', 'work', { destination: 'eu-llm' })).decision, false);
   // AuthZEN profile mapping.
   const ask = (dest?: unknown) => ({ subject: { type: 'user', id: 'chief', properties: { agent: 'chief-agent', grant: 'chief-run' } },

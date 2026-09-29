@@ -1,5 +1,5 @@
 {
-  "description": "AKAC 0.5 draft runtime containment vectors (ADR-012, spec/drafts/0.5-runtime-containment.md). Synthetic data. kind 'profiles': the pure derivation containment(state, 'acme', level, destinationClass) over kbFixture(clock) with patches, level = highest transitive classification of `sources`; expected {ok, obligations} or {ok: false, reason}. kind 'engine': Engine over the same state; openContext, release (after openContext) to `recipient`, evaluate or derive (after openContext); only runtime_profile and max_output_classification obligations are compared; `code` is the reason code of the last audit entry. kind 'enforcer': ProtectedRuntime.answer with a scripted enforcer (`supports` lists domain/profile pairs it has templates for; `fail` makes apply reject, supports throw, the execution's current revision drift or the lease release reject) or none; the scripted enforcer is execution-scoped (apply returns a lease, current(executionId) reports its revision); `runtimeRevision` is the value recorded on the last audit entry of an allowed answer; `applied` lists the profiles passed to apply(). Profile ids are opaque examples of operator-reviewed templates.",
+  "description": "AKAC 0.5 draft runtime containment vectors (ADR-012, spec/drafts/0.5-runtime-containment.md). Synthetic data. kind 'profiles': the pure derivation containment(state, 'acme', level, destinationClass) over kbFixture(clock) with patches, level = highest transitive classification of `sources`; expected {ok, obligations} or {ok: false, reason}; with `destinationClasses` the merged derivation containmentAcross(state, 'acme', level, destinationClasses) is used instead. kind 'engine': Engine over the same state; openContext, release (after openContext) to `recipient`, evaluate or derive (after openContext); only runtime_profile and max_output_classification obligations are compared; `code` is the reason code of the last audit entry. kind 'enforcer': ProtectedRuntime.answer with a scripted enforcer (`supports` lists domain/profile pairs it has templates for; `fail` makes apply reject, supports throw, the execution's current revision drift, drift only after the final release (late-drift) or the lease release reject) or none; the scripted enforcer is execution-scoped (apply returns a lease, current(executionId) reports its revision); `runtimeRevision` is the value recorded on the last audit entry of an allowed answer; `applied` lists the profiles passed to apply(). Profile ids are opaque examples of operator-reviewed templates.",
   "profile": "AKAC-RuntimeContainment/0.5-draft",
   "fixture": "kbFixture",
   "clock": 1800000000000,
@@ -1398,6 +1398,170 @@
       }
     },
     {
+      "id": "RTC-P20",
+      "kind": "profiles",
+      "description": "No reachable destination class (a run restricted to Destination ids that resolve to nothing): containmentAcross denies instead of falling back to the unnarrowed derivation (R122)",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "destinationClasses": [],
+      "expected": {
+        "ok": false,
+        "reason": "DENIED:RECIPIENT"
+      }
+    },
+    {
+      "id": "RTC-P21",
+      "kind": "profiles",
+      "description": "containmentAcross over one reachable class equals the derivation for that class (external-narrowed profile wins)",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "project-alpha"
+      ],
+      "destinationClasses": [
+        "external"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      }
+    },
+    {
       "id": "RTC-E01",
       "kind": "engine",
       "description": "openContext on restricted material carries the restricted runtime profiles",
@@ -2034,7 +2198,7 @@
     {
       "id": "RTC-E09",
       "kind": "engine",
-      "description": "A share evaluation naming no destination in an unrestricted run: an external-narrowed profile that differs from the other classes is a conflict, never the weaker unnarrowed profile (R109)",
+      "description": "A share evaluation naming no destination in an unrestricted run is denied (RECIPIENT, R121): never allowed without a recipient check, never the weaker unnarrowed profile (R109)",
       "binding": "chief",
       "operation": "evaluate",
       "action": "share",
@@ -2115,13 +2279,13 @@
       ],
       "expected": {
         "effect": "deny",
-        "code": "UNSUPPORTED_OBLIGATION"
+        "code": "RECIPIENT"
       }
     },
     {
       "id": "RTC-E10",
       "kind": "engine",
-      "description": "A share evaluation naming no destination in a run restricted to one Destination id applies the profile narrowed to that destination class (R109)",
+      "description": "A share evaluation naming no destination in a run restricted to one Destination id is denied (RECIPIENT, R121); 0.5 allowed it with destination_restricted",
       "binding": "chief",
       "operation": "evaluate",
       "action": "share",
@@ -2209,34 +2373,14 @@
         ]
       ],
       "expected": {
-        "effect": "allow",
-        "obligations": [
-          {
-            "type": "runtime_profile",
-            "domain": "network",
-            "profile": "deny-all"
-          },
-          {
-            "type": "runtime_profile",
-            "domain": "filesystem",
-            "profile": "read-only-workspace"
-          },
-          {
-            "type": "runtime_profile",
-            "domain": "tool",
-            "profile": "read-only-http"
-          },
-          {
-            "type": "max_output_classification",
-            "value": "confidential"
-          }
-        ]
+        "effect": "deny",
+        "code": "RECIPIENT"
       }
     },
     {
       "id": "RTC-E11",
       "kind": "engine",
-      "description": "A share evaluation naming no destination in a run restricted to internal users keeps the unnarrowed profile (R109)",
+      "description": "A share evaluation naming no destination in a run restricted to internal users is denied (RECIPIENT, R121)",
       "binding": "chief",
       "operation": "evaluate",
       "action": "share",
@@ -2324,28 +2468,8 @@
         ]
       ],
       "expected": {
-        "effect": "allow",
-        "obligations": [
-          {
-            "type": "runtime_profile",
-            "domain": "network",
-            "profile": "internal-only"
-          },
-          {
-            "type": "runtime_profile",
-            "domain": "filesystem",
-            "profile": "read-only-workspace"
-          },
-          {
-            "type": "runtime_profile",
-            "domain": "tool",
-            "profile": "read-only-http"
-          },
-          {
-            "type": "max_output_classification",
-            "value": "confidential"
-          }
-        ]
+        "effect": "deny",
+        "code": "RECIPIENT"
       }
     },
     {
@@ -2532,6 +2656,218 @@
           }
         ]
       }
+    },
+    {
+      "id": "RTC-E14",
+      "kind": "engine",
+      "description": "A share evaluation naming the Destination of a run restricted to it applies the profile narrowed to that destination class (R109)",
+      "binding": "chief",
+      "operation": "evaluate",
+      "action": "share",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "ext-partner",
+          {
+            "id": "ext-partner",
+            "tenant": "acme",
+            "class": "external",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "ext-partner"
+          ]
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "filesystem",
+            "profile": "read-only-workspace"
+          },
+          {
+            "type": "runtime_profile",
+            "domain": "tool",
+            "profile": "read-only-http"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "confidential"
+          }
+        ]
+      },
+      "destination": "ext-partner"
+    },
+    {
+      "id": "RTC-E15",
+      "kind": "engine",
+      "description": "A share evaluation naming an inactive Destination of a run restricted to it is denied (RECIPIENT); no fallback to the unnarrowed profile (R122)",
+      "binding": "chief",
+      "operation": "evaluate",
+      "action": "share",
+      "resources": [
+        "project-alpha"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-external",
+          {
+            "id": "rt-external",
+            "tenant": "acme",
+            "classification": "confidential",
+            "destinationClass": "external",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "ext-partner",
+          {
+            "id": "ext-partner",
+            "tenant": "acme",
+            "class": "external",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": false
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "ext-partner"
+          ]
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RECIPIENT"
+      },
+      "destination": "ext-partner"
     },
     {
       "id": "RTC-R01",
@@ -3683,6 +4019,440 @@
       "expected": {
         "effect": "deny",
         "providerCalled": true
+      }
+    },
+    {
+      "id": "RTC-R13",
+      "kind": "enforcer",
+      "description": "The runtime revision changes after the final release but before the answer is returned: the answer is withheld and the denial audited (R124)",
+      "binding": "chief",
+      "resources": [
+        "strategy"
+      ],
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-public",
+          {
+            "id": "rt-public",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "tool": "read-only-http"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-confidential",
+          {
+            "id": "rt-confidential",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only",
+              "filesystem": "read-only-workspace"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all",
+              "filesystem": "workspace-only",
+              "credential": "none"
+            },
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "llm-eu",
+          {
+            "id": "llm-eu",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "provider",
+          {
+            "id": "provider",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "llm-eu"
+          }
+        ]
+      ],
+      "enforcer": {
+        "supports": [
+          "network/deny-all",
+          "filesystem/workspace-only",
+          "tool/read-only-http",
+          "credential/none"
+        ],
+        "revision": "sandbox-rev-7",
+        "fail": "late-drift"
+      },
+      "expected": {
+        "effect": "deny",
+        "providerCalled": true
+      }
+    },
+    {
+      "id": "RTC-P22",
+      "kind": "profiles",
+      "description": "A higher tier that is not narrowed beats a lower tier that is narrowed to the destination class",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-conf-model",
+          {
+            "id": "rt-conf-model",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "model-provider-only"
+            },
+            "active": true,
+            "destinationClass": "model-provider"
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "strategy"
+      ],
+      "destinationClass": "model-provider",
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "deny-all"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "restricted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P23",
+      "kind": "profiles",
+      "description": "An inactive policy of a higher tier does not apply",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-conf",
+          {
+            "id": "rt-conf",
+            "tenant": "acme",
+            "classification": "confidential",
+            "profiles": {
+              "network": "internal-only"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-restricted",
+          {
+            "id": "rt-restricted",
+            "tenant": "acme",
+            "classification": "restricted",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": false
+          }
+        ]
+      ],
+      "sources": [
+        "strategy"
+      ],
+      "expected": {
+        "ok": true,
+        "obligations": [
+          {
+            "type": "runtime_profile",
+            "domain": "network",
+            "profile": "internal-only"
+          },
+          {
+            "type": "max_output_classification",
+            "value": "restricted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RTC-P24",
+      "kind": "profiles",
+      "description": "A stored policy with an extra member is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-a",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true,
+            "note": "x"
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P25",
+      "kind": "profiles",
+      "description": "A stored policy with a classification outside the closed set is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-a",
+            "tenant": "acme",
+            "classification": "secret",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P26",
+      "kind": "profiles",
+      "description": "A stored policy narrowed to an unknown destination class is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-a",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true,
+            "destinationClass": "moon-base"
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P27",
+      "kind": "profiles",
+      "description": "A stored policy with a profile that is not an identifier is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-a",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "bad id"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P28",
+      "kind": "profiles",
+      "description": "A stored policy whose active flag is not a boolean is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-a",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": "yes"
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P29",
+      "kind": "profiles",
+      "description": "A stored policy filed under another id than its own is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-b",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P30",
+      "kind": "profiles",
+      "description": "An inactive malformed policy still defers: the tenant set must be well formed",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-a",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "deny-all"
+            },
+            "active": true
+          }
+        ],
+        [
+          "runtimeProfiles",
+          "rt-b",
+          {
+            "id": "rt-b",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "network": "bad id"
+            },
+            "active": false
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "RTC-P31",
+      "kind": "profiles",
+      "description": "A stored policy naming an unknown domain is malformed and defers",
+      "patch": [
+        [
+          "runtimeProfiles",
+          "rt-a",
+          {
+            "id": "rt-a",
+            "tenant": "acme",
+            "classification": "public",
+            "profiles": {
+              "gpu": "deny-all"
+            },
+            "active": true
+          }
+        ]
+      ],
+      "sources": [
+        "handbook"
+      ],
+      "expected": {
+        "ok": false,
+        "reason": "DEFERRED:INVALID_CONTEXT"
       }
     }
   ]

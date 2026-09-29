@@ -1,6 +1,6 @@
 {
   "name": "@akac/reference",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Agent Knowledge Access Control: draft specification, reference implementation and conformance suite",
   "type": "module",
@@ -18,8 +18,13 @@
     "seed": "node scripts/seed.ts",
     "migrate": "node scripts/migrate.ts",
     "conformance": "node conformance/run.ts",
+    "coverage:matrix": "node scripts/coverage-matrix.ts",
+    "test:mutation": "stryker run",
     "test:postgres": "node --test tests/postgres.test.ts",
     "test:bonus": "node --test \"bonus/**/*.test.ts\"",
+    "lint:spec": "node scripts/lint-spec.ts",
+    "bench": "node bench/run.ts",
+    "drill:backup": "node scripts/backup-drill.ts",
     "check:all": "npm run check && npm run test:bonus"
   },
   "dependencies": {
@@ -27,6 +32,7 @@
     "pg": "8.16.3"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "10.0.0",
     "@types/node": "24.19.0",
     "@types/pg": "8.23.1",
     "ajv": "8.20.0",

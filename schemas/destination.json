@@ -61,6 +61,11 @@
     },
     "active": {
       "type": "boolean"
+    },
+    "region": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9-]{1,15}$",
+      "description": "0.6 (R187): jurisdiction or region this destination processes content in (ISO 3166-1 alpha-2 or an operator-defined region code). Required to receive content whose effective residency is set."
     }
   },
   "required": [

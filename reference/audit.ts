@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Audit, State } from './types.ts';
 import { safeNumber, validId } from './validation.ts';
 import { canonicalBytes } from './jcs.ts';
-import { classify, validDecisionId, validObligation, validTraceId } from './decision.ts';
+import { classify, validDecisionId, validFindings, validObligation, validTraceId } from './decision.ts';
 import type { Obligation, ReasonCode } from './decision.ts';
 import { leafHash } from './merkle.ts';
 
@@ -21,7 +21,12 @@ const V2 = [...V1, 'formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 
  * are absent from every earlier entry, so earlier entries hash and verify unchanged;
  * a verifier that predates them rejects an entry carrying them (closed shape, fail closed).
  */
-const V2_OPTIONAL = ['runId', 'traceId', 'executionId', 'runtimeRevision'];
+const V2_OPTIONAL = ['runId', 'traceId', 'executionId', 'runtimeRevision', 'actorChain', 'breakGlass', 'findings'];
+/** RFC 8693 actor chain (0.6, R145): 1..MAX_ACTOR_CHAIN printable ASCII identifiers of at most 256 characters. */
+export const MAX_ACTOR_CHAIN = 5;
+export const validActorId = (x: unknown): x is string => typeof x === 'string' && /^[!-~]{1,256}$/.test(x);
+export const validActorChain = (x: unknown): x is string[] => Array.isArray(x) && x.length >= 1 && x.length <= MAX_ACTOR_CHAIN
+  && Object.keys(x).length === x.length && x.every(validActorId);
 /** Closed shape of a format 2 body (without `hash`). */
 function v2Shape(body: Record<string, unknown>): boolean {
   const keys = Object.keys(body);
@@ -33,7 +38,9 @@ function v2Shape(body: Record<string, unknown>): boolean {
     && Array.isArray(body.obligations) && body.obligations.length <= 16 && body.obligations.every(validObligation)
     && (body.decision === 'allow' || body.obligations.length === 0)
     && (body.runId === undefined || validId(body.runId)) && (body.traceId === undefined || validTraceId(body.traceId))
-    && (body.executionId === undefined || validId(body.executionId)) && (body.runtimeRevision === undefined || validId(body.runtimeRevision));
+    && (body.executionId === undefined || validId(body.executionId)) && (body.runtimeRevision === undefined || validId(body.runtimeRevision))
+    && (body.actorChain === undefined || validActorChain(body.actorChain)) && (body.breakGlass === undefined || body.breakGlass === true)
+    && (body.findings === undefined || (validFindings(body.findings) && body.findings.length >= 1));
 }
 /** Format 2: SHA-256 over the RFC 8785 (JCS) form of the body, which includes `formatVersion: 2`. */
 export function auditHashV2(entry: Omit<Audit, 'hash'>): string {
@@ -85,6 +92,7 @@ export type AuditFields = {
   time: number; tenant: string; actor: string; operation: string; decision: 'allow' | 'deny'; reason: string;
   policyVersion: string; epoch: number; decisionId: string; reasonCode: ReasonCode; policyDigest: string;
   obligations: Obligation[]; runId?: string; traceId?: string; executionId?: string; runtimeRevision?: string;
+  actorChain?: string[]; breakGlass?: true;
 };
 /**
  * Appends a format 2 entry to the tenant stream. A partial snapshot MUST contain
@@ -93,10 +101,11 @@ export type AuditFields = {
 export function appendAudit(s: State, fields: AuditFields): Audit {
   let head: Audit | undefined;
   for (let i = s.audits.length - 1; i >= 0; i--) if (s.audits[i]!.tenant === fields.tenant) { head = s.audits[i]; break; }
-  const { runId, traceId, executionId, runtimeRevision, ...required } = fields;
+  const { runId, traceId, executionId, runtimeRevision, actorChain, breakGlass, ...required } = fields;
   const entry: Omit<Audit, 'hash'> = { ...required, obligations: structuredClone(fields.obligations),
     ...(runId !== undefined ? { runId } : {}), ...(traceId !== undefined ? { traceId } : {}),
     ...(executionId !== undefined ? { executionId } : {}), ...(runtimeRevision !== undefined ? { runtimeRevision } : {}),
+    ...(actorChain !== undefined ? { actorChain: [...actorChain] } : {}), ...(breakGlass === true ? { breakGlass } : {}),
     formatVersion: AUDIT_FORMAT, sequence: (head?.sequence ?? 0) + 1, previous: head?.hash ?? GENESIS };
   const hash = entryHash(entry);
   if (!hash) throw new Error('Malformed audit entry');

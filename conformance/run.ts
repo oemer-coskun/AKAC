@@ -13,6 +13,10 @@ import { runAuthzenVectors } from './run-authzen.ts';
 import { runScenarios } from './scenarios.ts';
 import { runDestinationVectors } from './run-destinations.ts';
 import { runRuntimeVectors } from './run-runtime.ts';
+import { runReleaseVectors } from './run-release.ts';
+import { runIdentityVectors } from './run-identity.ts';
+import { runCryptoVectors } from './run-crypto.ts';
+import { runKnowledgeVectors } from './run-knowledge.ts';
 import type { RuntimeHooks } from './run-runtime.ts';
 import type { Mutant } from './scenarios.ts';
 import { apply } from './patch.ts';
@@ -120,7 +124,7 @@ export function runEvidenceVectors(hooks: Hooks = {}): Row[] {
   });
 }
 export const RUNNER_VERSION = 'akac-conformance-runner/0.4.0';
-export const PROFILES = ['AKAC-Core/0.1-draft', 'AKAC-KB/0.3-draft', 'AKAC-Evidence/0.4-draft', 'AKAC-Lifecycle/0.4-draft', 'AKAC-AuthZEN/0.4-draft', 'AKAC-RedTeam/0.4-draft', 'AKAC-Destinations/0.4-draft', 'AKAC-RuntimeContainment/0.5-draft'];
+export const PROFILES = ['AKAC-Core/0.1-draft', 'AKAC-KB/0.3-draft', 'AKAC-Evidence/0.4-draft', 'AKAC-Lifecycle/0.4-draft', 'AKAC-AuthZEN/0.4-draft', 'AKAC-RedTeam/0.4-draft', 'AKAC-Destinations/0.4-draft', 'AKAC-RuntimeContainment/0.5-draft', 'AKAC-CryptoAgility/0.6-draft', 'AKAC-Identity/0.6-draft', 'AKAC-Release/0.6-draft', 'AKAC-Knowledge/0.6-draft'];
 const sha256 = (path: URL) => createHash('sha256').update(readFileSync(path)).digest('hex');
 /** Reproducibility manifest: digests of everything the result depends on (repository-relative names, no host paths). */
 export function manifest() {
@@ -132,7 +136,7 @@ export function manifest() {
 /** Every portable vector with its four-way outcome. `hooks` and `mutant` are test-only. */
 export async function runAll(options: { hooks?: Hooks; mutant?: Mutant; runtime?: RuntimeHooks } = {}): Promise<Row[]> {
   return [...runVectors(options.hooks), ...runEvidenceVectors(options.hooks), ...runAuthzenVectors(options.hooks), ...runDestinationVectors(), ...await runScenarios(options.mutant),
-    ...await runRuntimeVectors(options.runtime)];
+    ...await runRuntimeVectors(options.runtime), ...await runReleaseVectors(), ...runCryptoVectors(), ...runIdentityVectors(options.hooks), ...await runKnowledgeVectors(options.hooks)];
 }
 export function report(results: Row[]) {
   const summary = summarize(results);

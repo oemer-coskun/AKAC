@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/oemer-coskun/AKAC/schemas/checkpoint.json",
-  "description": "Signed audit checkpoint. Format 2 signs the JCS form of {format, stream, treeSize, rootHash, issuedAt, keyId} with Ed25519; rootHash is the RFC 9162 root of the first treeSize entries. Format 1 (0.2-0.3) remains verifiable.",
+  "description": "Signed audit checkpoint. Format 2 signs the JCS form of {format, stream, treeSize, rootHash, issuedAt, keyId} with Ed25519; rootHash is the RFC 9162 root of the first treeSize entries. Format 3 (0.6) signs the same content plus alg (JCS of {format, alg, stream, treeSize, rootHash, issuedAt, keyId}) with a registered algorithm: ed25519, ml-dsa-44/65/87 (FIPS 204), slh-dsa-sha2-128s/256s (FIPS 205) or the hybrid ed25519+ml-dsa-65 (both signatures required); keyId is <alg>:<label>; signature is the base64url of the component signatures, whose exact length depends on alg (enforced by verifiers). Format 1 (0.2-0.3) remains verifiable.",
   "oneOf": [
     {
       "type": "object",
@@ -92,6 +92,69 @@
         "signature": {
           "type": "string",
           "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "alg",
+        "stream",
+        "treeSize",
+        "rootHash",
+        "issuedAt",
+        "keyId",
+        "signature"
+      ],
+      "properties": {
+        "format": {
+          "const": "akac-audit-checkpoint/3"
+        },
+        "alg": {
+          "enum": [
+            "ed25519",
+            "ml-dsa-44",
+            "ml-dsa-65",
+            "ml-dsa-87",
+            "slh-dsa-sha2-128s",
+            "slh-dsa-sha2-256s",
+            "ed25519+ml-dsa-65"
+          ]
+        },
+        "stream": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "treeSize": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rootHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "issuedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "keyId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._:+-]+$",
+          "description": "<alg>:<label>; the prefix must equal alg"
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 86,
+          "maxLength": 40000,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "description": "base64url of the concatenated component signatures (ed25519 64; ml-dsa-44 2420; ml-dsa-65 3309; ml-dsa-87 4627; slh-dsa-sha2-128s 7856; slh-dsa-sha2-256s 29792; ed25519+ml-dsa-65 3373 bytes)"
         }
       }
     }

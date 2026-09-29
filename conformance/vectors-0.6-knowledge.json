@@ -1,0 +1,6505 @@
+{
+  "description": "AKAC 0.6 knowledge semantics vectors (ADR-022, spec/AKAC-0.6.md). Synthetic data. kind 'decision': decide() over kbFixture(clock) with patches; kind 'steps': gateway operations through the engine in order (session-scoped records in its in-memory partition); every step states its expected effect and audited code, a derive step optionally fields of the stored record. The last step decides the vector's outcome. Patches are whole records ([collection, id, record]); settings and combinationRules start empty. Depth (K-D*, R182), modality (K-M*, R183), tags and combination (K-T*, K-C*, R186, R188), residency (K-R*, R187), session scope (K-E*, R190), model lineage (K-L*, R191), placement (K-W*, R192) and provenance cycles (K-Y*, R185).",
+  "profile": "AKAC-Knowledge/0.6-draft",
+  "fixture": "kbFixture",
+  "clock": 1800000000000,
+  "cases": [
+    {
+      "id": "K-D01",
+      "kind": "steps",
+      "description": "Deriving generation 2 under a depth limit of 2 is allowed",
+      "patch": [
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "lineageDepth": 2
+          }
+        ],
+        [
+          "knowledge",
+          "m1",
+          {
+            "id": "m1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory m1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "m2",
+          {
+            "id": "m2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory m2.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "m1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "m1"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-D02",
+      "kind": "steps",
+      "description": "Deriving generation 3 under a depth limit of 2 is refused (LINEAGE_DEPTH)",
+      "patch": [
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "lineageDepth": 2
+          }
+        ],
+        [
+          "knowledge",
+          "m1",
+          {
+            "id": "m1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory m1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "m2",
+          {
+            "id": "m2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory m2.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "m1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "m2"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "LINEAGE_DEPTH"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-D03",
+      "kind": "steps",
+      "description": "Default limit 16: deriving generation 16 is allowed",
+      "patch": [
+        [
+          "knowledge",
+          "g1",
+          {
+            "id": "g1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g2",
+          {
+            "id": "g2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g2.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g3",
+          {
+            "id": "g3",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g3.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g2",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g4",
+          {
+            "id": "g4",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g4.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g3",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g5",
+          {
+            "id": "g5",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g5.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g4",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g6",
+          {
+            "id": "g6",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g6.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g5",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g7",
+          {
+            "id": "g7",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g7.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g6",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g8",
+          {
+            "id": "g8",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g8.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g7",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g9",
+          {
+            "id": "g9",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g9.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g8",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g10",
+          {
+            "id": "g10",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g10.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g9",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g11",
+          {
+            "id": "g11",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g11.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g10",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g12",
+          {
+            "id": "g12",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g12.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g11",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g13",
+          {
+            "id": "g13",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g13.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g12",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g14",
+          {
+            "id": "g14",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g14.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g13",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g15",
+          {
+            "id": "g15",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g15.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g14",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g16",
+          {
+            "id": "g16",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g16.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g15",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "g15"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-D04",
+      "kind": "steps",
+      "description": "Default limit 16: deriving generation 17 is refused",
+      "patch": [
+        [
+          "knowledge",
+          "g1",
+          {
+            "id": "g1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g2",
+          {
+            "id": "g2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g2.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g3",
+          {
+            "id": "g3",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g3.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g2",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g4",
+          {
+            "id": "g4",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g4.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g3",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g5",
+          {
+            "id": "g5",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g5.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g4",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g6",
+          {
+            "id": "g6",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g6.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g5",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g7",
+          {
+            "id": "g7",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g7.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g6",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g8",
+          {
+            "id": "g8",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g8.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g7",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g9",
+          {
+            "id": "g9",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g9.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g8",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g10",
+          {
+            "id": "g10",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g10.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g9",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g11",
+          {
+            "id": "g11",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g11.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g10",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g12",
+          {
+            "id": "g12",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g12.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g11",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g13",
+          {
+            "id": "g13",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g13.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g12",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g14",
+          {
+            "id": "g14",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g14.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g13",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g15",
+          {
+            "id": "g15",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g15.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g14",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g16",
+          {
+            "id": "g16",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g16.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g15",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "g16"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "LINEAGE_DEPTH"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-D05",
+      "kind": "steps",
+      "description": "The highest source generation counts, not the context's first record",
+      "patch": [
+        [
+          "knowledge",
+          "g1",
+          {
+            "id": "g1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g2",
+          {
+            "id": "g2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g2.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g3",
+          {
+            "id": "g3",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g3.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g2",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g4",
+          {
+            "id": "g4",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g4.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g3",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g5",
+          {
+            "id": "g5",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g5.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g4",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g6",
+          {
+            "id": "g6",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g6.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g5",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g7",
+          {
+            "id": "g7",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g7.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g6",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g8",
+          {
+            "id": "g8",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g8.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g7",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g9",
+          {
+            "id": "g9",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g9.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g8",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g10",
+          {
+            "id": "g10",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g10.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g9",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g11",
+          {
+            "id": "g11",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g11.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g10",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g12",
+          {
+            "id": "g12",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g12.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g11",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g13",
+          {
+            "id": "g13",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g13.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g12",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g14",
+          {
+            "id": "g14",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g14.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g13",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g15",
+          {
+            "id": "g15",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g15.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g14",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "g16",
+          {
+            "id": "g16",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory g16.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "g15",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "g16"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "LINEAGE_DEPTH"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-D06",
+      "kind": "steps",
+      "description": "A malformed depth limit fails closed",
+      "patch": [
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "lineageDepth": 0
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "INVALID_CONTEXT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-D07",
+      "kind": "steps",
+      "description": "A consolidated document (new human root without sources) starts at generation 0 again",
+      "patch": [
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "lineageDepth": 2
+          }
+        ],
+        [
+          "knowledge",
+          "m1",
+          {
+            "id": "m1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory m1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "m2",
+          {
+            "id": "m2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory m2.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "m1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "consolidated",
+          {
+            "id": "consolidated",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "human",
+            "content": "Synthetic document consolidated.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "consolidated"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-M01",
+      "kind": "steps",
+      "description": "An image derived from restricted text is restricted",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "classification": "restricted",
+              "modality": "image"
+            }
+          },
+          "modality": "image"
+        }
+      ]
+    },
+    {
+      "id": "K-M02",
+      "kind": "steps",
+      "description": "Text derived from a restricted image stays invisible to a lower clearance",
+      "patch": [
+        [
+          "knowledge",
+          "strategy",
+          {
+            "id": "strategy",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product acquisition strategy: confidential purchase budget is 900000.",
+            "classification": "restricted",
+            "readerRoles": [
+              "executive"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "modality": "image"
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "classification": "restricted",
+              "modality": "text"
+            }
+          },
+          "modality": "text",
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "intern",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "x",
+          "expected": {
+            "effect": "deny",
+            "code": "KNOWLEDGE_BOUNDARY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-M03",
+      "kind": "steps",
+      "description": "Code derived from a confidential project table keeps classification and project",
+      "patch": [
+        [
+          "knowledge",
+          "project-alpha",
+          {
+            "id": "project-alpha",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product project alpha schedule: launch in November.",
+            "classification": "confidential",
+            "readerRoles": [
+              "project",
+              "executive"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "modality": "table"
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "lead",
+          "resources": [
+            "project-alpha"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "lead",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "classification": "confidential",
+              "modality": "code"
+            }
+          },
+          "modality": "code"
+        }
+      ]
+    },
+    {
+      "id": "K-M04",
+      "kind": "steps",
+      "description": "An unknown modality is refused",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "INVALID_REQUEST"
+          },
+          "modality": "hologram"
+        }
+      ]
+    },
+    {
+      "id": "K-T01",
+      "kind": "steps",
+      "description": "Derived content carries the union of source and container tags",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "tags": [
+                "audit",
+                "fin"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C01",
+      "kind": "steps",
+      "description": "A context combining excluded tag sets is refused (COMBINATION)",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "wall",
+          {
+            "id": "wall",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "deny",
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "deny",
+            "code": "COMBINATION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C02",
+      "kind": "steps",
+      "description": "The run accumulates: a second context completing the combination is refused",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "wall",
+          {
+            "id": "wall",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "deny",
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "deny",
+            "code": "COMBINATION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C03",
+      "kind": "steps",
+      "description": "Each side alone is allowed",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "wall",
+          {
+            "id": "wall",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "deny",
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C04",
+      "kind": "steps",
+      "description": "An inactive rule adds nothing",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "wall",
+          {
+            "id": "wall",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "deny",
+            "active": false
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C05",
+      "kind": "steps",
+      "description": "A malformed rule fails closed",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "wall",
+          {
+            "id": "wall",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "bogus",
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "deny",
+            "code": "INVALID_CONTEXT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C06",
+      "kind": "steps",
+      "description": "Uplift to a fixed level raises the derived classification",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "agg",
+          {
+            "id": "agg",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "uplift",
+            "active": true,
+            "upliftTo": "restricted"
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "classification": "restricted"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C07",
+      "kind": "steps",
+      "description": "Uplift without a level raises one level above the sources",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "agg",
+          {
+            "id": "agg",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "uplift",
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "classification": "confidential"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C08",
+      "kind": "steps",
+      "description": "An uplift never lowers",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "agg",
+          {
+            "id": "agg",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "uplift",
+            "active": true,
+            "upliftTo": "public"
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "classification": "internal"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C09",
+      "kind": "steps",
+      "description": "A record whose own lineage combines the sets is refused on evaluation",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "wall",
+          {
+            "id": "wall",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "deny",
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "both",
+          {
+            "id": "both",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory both.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              },
+              {
+                "id": "staff-faq",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "evaluate",
+          "as": "chief",
+          "resource": "both",
+          "action": "read",
+          "purpose": "work",
+          "expected": {
+            "effect": "deny",
+            "code": "COMBINATION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-C10",
+      "kind": "steps",
+      "description": "The uplifted record stays invisible to a lower clearance",
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "tags": [
+              "fin"
+            ]
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "tags": [
+              "audit"
+            ]
+          }
+        ],
+        [
+          "combinationRules",
+          "agg",
+          {
+            "id": "agg",
+            "tenant": "acme",
+            "tagsA": [
+              "fin"
+            ],
+            "tagsB": [
+              "audit"
+            ],
+            "effect": "uplift",
+            "active": true,
+            "upliftTo": "restricted"
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "intern",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "x",
+          "expected": {
+            "effect": "deny",
+            "code": "KNOWLEDGE_BOUNDARY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R01",
+      "kind": "steps",
+      "description": "Release to a destination in the residency set",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "reviewer",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED_RECIPIENT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R02",
+      "kind": "steps",
+      "description": "Release to a destination outside the residency set is refused (RESIDENCY)",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "reviewer-us",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R03",
+      "kind": "steps",
+      "description": "A recipient without a destination profile cannot receive residency-bound content",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "intern",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R04",
+      "kind": "steps",
+      "description": "A destination without a region cannot receive residency-bound content",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "reviewer-none",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R05",
+      "kind": "steps",
+      "description": "Without residency nothing changes (legacy release to a user)",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "intern",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED_RECIPIENT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R06",
+      "kind": "steps",
+      "description": "Container and record residency intersect: FR is excluded",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ],
+        [
+          "knowledge",
+          "staff-faq",
+          {
+            "id": "staff-faq",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Staff FAQ: synthetic office hours.",
+            "classification": "public",
+            "readerRoles": [
+              "staff"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "container": "kb-corporate",
+            "residency": [
+              "DE",
+              "FR"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "reviewer-fr",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R07",
+      "kind": "steps",
+      "description": "Container and record residency intersect: DE is admitted",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "containers",
+          "kb-corporate",
+          {
+            "id": "kb-corporate",
+            "tenant": "acme",
+            "kind": "knowledge-base",
+            "classification": "internal",
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "projects": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ],
+        [
+          "knowledge",
+          "staff-faq",
+          {
+            "id": "staff-faq",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Staff FAQ: synthetic office hours.",
+            "classification": "public",
+            "readerRoles": [
+              "staff"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "container": "kb-corporate",
+            "residency": [
+              "DE",
+              "FR"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "staff-faq"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "reviewer",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED_RECIPIENT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R08",
+      "kind": "steps",
+      "description": "An empty residency admits no destination",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": []
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "reviewer",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R09",
+      "kind": "steps",
+      "description": "Residency of every source applies to the release (mixed context)",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c",
+          "recipient": "reviewer-us",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R10",
+      "kind": "steps",
+      "description": "Evaluation of a share names a destination in the residency set",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "evaluate",
+          "as": "chief",
+          "resource": "handbook",
+          "action": "share",
+          "purpose": "work",
+          "destination": "d-de",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R11",
+      "kind": "steps",
+      "description": "Evaluation of a share to a destination outside the residency set is refused",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "evaluate",
+          "as": "chief",
+          "resource": "handbook",
+          "action": "share",
+          "purpose": "work",
+          "destination": "d-us",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-R12",
+      "kind": "steps",
+      "description": "Derived content inherits the residency; its release is bound too",
+      "patch": [
+        [
+          "destinations",
+          "d-de",
+          {
+            "id": "d-de",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "DE"
+          }
+        ],
+        [
+          "destinations",
+          "d-us",
+          {
+            "id": "d-us",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "US"
+          }
+        ],
+        [
+          "destinations",
+          "d-fr",
+          {
+            "id": "d-fr",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true,
+            "region": "FR"
+          }
+        ],
+        [
+          "destinations",
+          "d-none",
+          {
+            "id": "d-none",
+            "tenant": "acme",
+            "class": "internal-user",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "reviewer",
+          {
+            "id": "reviewer",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-de"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-us",
+          {
+            "id": "reviewer-us",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-us"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-fr",
+          {
+            "id": "reviewer-fr",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-fr"
+          }
+        ],
+        [
+          "actors",
+          "reviewer-none",
+          {
+            "id": "reviewer-none",
+            "tenant": "acme",
+            "kind": "user",
+            "roles": [
+              "staff",
+              "executive"
+            ],
+            "clearance": "restricted",
+            "projects": [
+              "alpha"
+            ],
+            "active": true,
+            "destination": "d-none"
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          {
+            "id": "handbook",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "Product handbook: our public product is a laptop.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "residency": [
+              "DE"
+            ]
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "residency": [
+                "DE"
+              ]
+            }
+          },
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "release",
+          "as": "chief",
+          "context": "$c2",
+          "recipient": "reviewer-us",
+          "expected": {
+            "effect": "deny",
+            "code": "RESIDENCY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E01",
+      "kind": "steps",
+      "description": "A session-scoped derivation is readable by its own run",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "ephemeral": true
+            }
+          },
+          "session": {
+            "id": "s1"
+          },
+          "kind": "memory",
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E02",
+      "kind": "steps",
+      "description": "A session-scoped record is invisible to another run",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "session": {
+            "id": "s1"
+          },
+          "kind": "memory",
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "lead",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "x",
+          "expected": {
+            "effect": "deny",
+            "code": "KNOWLEDGE_BOUNDARY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E03",
+      "kind": "steps",
+      "description": "Closing the session removes its records",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "session": {
+            "id": "s1"
+          },
+          "kind": "memory",
+          "save": "d"
+        },
+        {
+          "op": "close",
+          "as": "chief",
+          "session": {
+            "id": "s1"
+          },
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "deny",
+            "code": "NOT_AUTHORIZED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E04",
+      "kind": "steps",
+      "description": "Closing another session keeps the records",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "session": {
+            "id": "s1"
+          },
+          "kind": "memory",
+          "save": "d"
+        },
+        {
+          "op": "close",
+          "as": "chief",
+          "session": {
+            "id": "s2"
+          },
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E05",
+      "kind": "steps",
+      "description": "Content derived from a session-scoped record is session-scoped too",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "session": {
+            "id": "s1"
+          },
+          "kind": "memory",
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c2",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "ephemeral": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E06",
+      "kind": "steps",
+      "description": "Another run cannot close a session of this run",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "session": {
+            "id": "s1"
+          },
+          "kind": "memory",
+          "save": "d"
+        },
+        {
+          "op": "close",
+          "as": "lead",
+          "session": {
+            "id": "s1"
+          },
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E07",
+      "kind": "steps",
+      "description": "Two sessions cannot be combined in one derivation",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "session": {
+            "id": "s1"
+          },
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "c2",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c2",
+          "expected": {
+            "effect": "deny",
+            "code": "OUT_OF_SCOPE"
+          },
+          "session": {
+            "id": "s2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-E08",
+      "kind": "decision",
+      "description": "An ephemeral record is visible to its run before expiry",
+      "patch": [
+        [
+          "knowledge",
+          "e1",
+          {
+            "id": "e1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory e1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true,
+            "ephemeral": {
+              "sessionId": "s1",
+              "run": "chief-run",
+              "expiresAt": 1800000001000
+            }
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "e1",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "K-E09",
+      "kind": "decision",
+      "description": "An ephemeral record is invisible at its expiry",
+      "patch": [
+        [
+          "knowledge",
+          "e1",
+          {
+            "id": "e1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory e1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true,
+            "ephemeral": {
+              "sessionId": "s1",
+              "run": "chief-run",
+              "expiresAt": 1800000000000
+            }
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "e1",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-E10",
+      "kind": "decision",
+      "description": "An ephemeral record is invisible to another run",
+      "patch": [
+        [
+          "knowledge",
+          "e1",
+          {
+            "id": "e1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory e1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true,
+            "ephemeral": {
+              "sessionId": "s1",
+              "run": "lead-run",
+              "expiresAt": 1800000001000
+            }
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "e1",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-E11",
+      "kind": "decision",
+      "description": "A malformed session scope hides the record",
+      "patch": [
+        [
+          "knowledge",
+          "e1",
+          {
+            "id": "e1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory e1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true,
+            "ephemeral": {
+              "sessionId": "s1",
+              "run": "chief-run"
+            }
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "e1",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-E12",
+      "kind": "decision",
+      "description": "A record derived from an expired ephemeral record is invisible",
+      "patch": [
+        [
+          "knowledge",
+          "e1",
+          {
+            "id": "e1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory e1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true,
+            "ephemeral": {
+              "sessionId": "s1",
+              "run": "chief-run",
+              "expiresAt": 1800000000000
+            }
+          }
+        ],
+        [
+          "knowledge",
+          "p1",
+          {
+            "id": "p1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory p1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "e1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "p1",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-W01",
+      "kind": "steps",
+      "description": "Restricted memory placed into a wider knowledge base keeps its own narrow audience",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "container": "kb-corporate",
+              "classification": "restricted"
+            }
+          },
+          "kind": "memory",
+          "container": "kb-corporate"
+        }
+      ]
+    },
+    {
+      "id": "K-W02",
+      "kind": "steps",
+      "description": "Mixed-audience content placed where a source's audience is not preserved is refused (WRITE_DOWN)",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "WRITE_DOWN"
+          },
+          "kind": "memory",
+          "container": "kb-corporate"
+        }
+      ]
+    },
+    {
+      "id": "K-W03",
+      "kind": "steps",
+      "description": "The same content placed into a folder that preserves every source audience is allowed",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "container": "f-executive"
+            }
+          },
+          "kind": "memory",
+          "container": "f-executive"
+        }
+      ]
+    },
+    {
+      "id": "K-W04",
+      "kind": "steps",
+      "description": "A container the run does not name is refused (OUT_OF_SCOPE)",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "handbook",
+              "strategy"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "OUT_OF_SCOPE"
+          },
+          "kind": "memory",
+          "container": "kb-corporate"
+        }
+      ]
+    },
+    {
+      "id": "K-W05",
+      "kind": "steps",
+      "description": "An unknown container is refused",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "deny",
+            "code": "INVALID_REQUEST"
+          },
+          "kind": "memory",
+          "container": "missing"
+        }
+      ]
+    },
+    {
+      "id": "K-W06",
+      "kind": "steps",
+      "description": "Placed content stays invisible to principals outside the sources' audience",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "strategy"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION"
+          },
+          "kind": "memory",
+          "container": "kb-corporate",
+          "save": "d"
+        },
+        {
+          "op": "open",
+          "as": "intern",
+          "resources": [
+            "$d"
+          ],
+          "purpose": "work",
+          "save": "x",
+          "expected": {
+            "effect": "deny",
+            "code": "KNOWLEDGE_BOUNDARY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-L01",
+      "kind": "steps",
+      "description": "The trusted model identity is recorded on derived content",
+      "patch": [],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "allow",
+            "code": "AUTHORIZED"
+          }
+        },
+        {
+          "op": "derive",
+          "as": "chief",
+          "context": "$c",
+          "expected": {
+            "effect": "allow",
+            "code": "PROTECTED_DERIVATION",
+            "record": {
+              "model": {
+                "id": "synthetic-model",
+                "version": "2.1"
+              },
+              "origin": "model"
+            }
+          }
+        }
+      ],
+      "model": {
+        "id": "synthetic-model",
+        "version": "2.1"
+      }
+    },
+    {
+      "id": "K-Y01",
+      "kind": "decision",
+      "description": "A two-record provenance cycle denies",
+      "patch": [
+        [
+          "knowledge",
+          "cyc-a",
+          {
+            "id": "cyc-a",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory cyc-a.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "cyc-b",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "cyc-b",
+          {
+            "id": "cyc-b",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory cyc-b.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "cyc-a",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "cyc-a",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-Y02",
+      "kind": "decision",
+      "description": "A self-referencing record denies",
+      "patch": [
+        [
+          "knowledge",
+          "cyc-s",
+          {
+            "id": "cyc-s",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory cyc-s.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "cyc-s",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "cyc-s",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-Y03",
+      "kind": "decision",
+      "description": "A three-record cycle denies",
+      "patch": [
+        [
+          "knowledge",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory c1.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "c2",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "c2",
+          {
+            "id": "c2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory c2.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "c3",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "c3",
+          {
+            "id": "c3",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory c3.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "c1",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "c1",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-Y04",
+      "kind": "decision",
+      "description": "A record whose source lies on a cycle denies",
+      "patch": [
+        [
+          "knowledge",
+          "cyc-a",
+          {
+            "id": "cyc-a",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory cyc-a.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "cyc-b",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "cyc-b",
+          {
+            "id": "cyc-b",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory cyc-b.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "cyc-a",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "tail",
+          {
+            "id": "tail",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory tail.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              },
+              {
+                "id": "cyc-a",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "tail",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "K-Y05",
+      "kind": "steps",
+      "description": "A context over a cyclic record is refused",
+      "patch": [
+        [
+          "knowledge",
+          "cyc-a",
+          {
+            "id": "cyc-a",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory cyc-a.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "cyc-b",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "cyc-b",
+          {
+            "id": "cyc-b",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory cyc-b.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "cyc-a",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "steps": [
+        {
+          "op": "open",
+          "as": "chief",
+          "resources": [
+            "handbook",
+            "cyc-a"
+          ],
+          "purpose": "work",
+          "save": "c",
+          "expected": {
+            "effect": "deny",
+            "code": "KNOWLEDGE_BOUNDARY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "K-Y06",
+      "kind": "decision",
+      "description": "A diamond (shared ancestor, no cycle) is allowed",
+      "patch": [
+        [
+          "knowledge",
+          "l",
+          {
+            "id": "l",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory l.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "r",
+          {
+            "id": "r",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory r.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "top",
+          {
+            "id": "top",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Synthetic memory top.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "l",
+                "version": 1
+              },
+              {
+                "id": "r",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "binding": "chief",
+      "resource": "top",
+      "action": "read",
+      "purpose": "work",
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    }
+  ]
+}

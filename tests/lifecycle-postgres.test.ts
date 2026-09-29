@@ -67,7 +67,8 @@ test('PostgreSQL lifecycle: migration 005 upgrades a database at 004 and 007 and
   const dir = mkdtempSync(join(tmpdir(), 'akac-at-007-'));
   try {
     cpSync(MIGRATIONS, dir, { recursive: true });
-    for (const f of readdirSync(dir)) if (f.startsWith('005') || f.startsWith('006')) rmSync(join(dir, f));
+    // 011 (knowledge semantics) builds on 005 and 006, so a database without them cannot have it either.
+    for (const f of readdirSync(dir)) if (f.startsWith('005') || f.startsWith('006') || f >= '011') rmSync(join(dir, f));
     const first = await migrate(url!, { schema: name, directory: dir });
     assert.ok(first.includes('004_audit_evidence') && first.includes('007_token_binding') && !first.some(v => v.startsWith('005')));
   } finally { rmSync(dir, { recursive: true }); }

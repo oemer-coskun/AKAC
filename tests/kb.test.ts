@@ -162,7 +162,7 @@ test('candidate source: every candidate is re-checked; mismatches are dropped an
   assert.deepEqual(result.value.documents.map(d => d.id), ['handbook', 'staff-faq']);
   assert.equal(engine.stats().filterMismatches, 3);
   assert.equal(events.filter(e => e.type === 'filter_mismatch').length, 3);
-  assert.deepEqual(seen, [{ tenant: 'acme', maxClassification: 'internal', tokens: ['user:intern', 'role:staff'], query: 'product', limit: 20 }]);
+  assert.deepEqual(seen, [{ tenant: 'acme', maxClassification: 'internal', tokens: ['user:intern', 'role:staff'], agent: { tokens: ['user:intern-agent', 'role:staff'] }, query: 'product', limit: 20 }]);
   assert.ok(!JSON.stringify(events).includes('vault'));
   const failing = new Engine(store, { clock: () => now, candidates: { candidates: async () => { throw new Error('index offline'); } } });
   assert.equal((await failing.retrieve(bindings.intern, 'product', 'work')).ok, false);

@@ -87,8 +87,13 @@ export const RUNTIME_OBLIGATIONS: readonly ObligationType[] = ['audit_level', 'm
  * The answer's own profiles bind the caller that receives it.
  * max_output_classification: passed on with the answer (the highest of the context,
  * provider gate and answer values); the caller must label the output with it.
+ * release_filter (0.6, ADR-020): every release this runtime performs (the provider gate and
+ * the final answer) is called with the release_filter ids of the context as required, so
+ * the engine runs those filters or denies when one is not configured.
+ * approval_required is deliberately not listed: the runtime has no approval workflow, so a
+ * decision that carries it is denied.
  */
-export const PROTECTED_RUNTIME_OBLIGATIONS: readonly ObligationType[] = [...RUNTIME_OBLIGATIONS, 'runtime_profile', 'max_output_classification'];
+export const PROTECTED_RUNTIME_OBLIGATIONS: readonly ObligationType[] = [...RUNTIME_OBLIGATIONS, 'runtime_profile', 'max_output_classification', 'release_filter'];
 /** True when every destination_restricted obligation admits the destination the content goes to. */
 const reaches = (obligations: readonly Obligation[], to: Released['destination']) => obligations.every(o => o.type !== 'destination_restricted'
   || (!!to && (o.value.includes(to.class) || (to.id !== undefined && o.value.includes(to.id)))));
@@ -150,10 +155,12 @@ export class ProtectedRuntime {
     const { runtimeRevision: _ignored, ...given } = call?.trace ?? {};
     const executionId = executionOf(call) ?? `exec-${randomUUID()}`;
     const trace = { ...given, executionId };
-    const traced: Call = { trace };
-    const context = await this.engine.openContext(binding, resourceIds, purpose, traced);
+    const context = await this.engine.openContext(binding, resourceIds, purpose, { trace });
     if (!context.ok) return context;
     if (!enforceable(context.obligations, PROTECTED_RUNTIME_OBLIGATIONS)) return { ok: false, code: 'NOT_AUTHORIZED', decisionId: context.decisionId };
+    // Release filters the context requires apply to every release below (ADR-020); a filter that is not configured denies there.
+    const requireFilters = context.obligations.flatMap(o => o.type === 'release_filter' ? o.value : []);
+    const traced: Call = { trace, ...(requireFilters.length ? { requireFilters } : {}) };
     const prompt = JSON.stringify({ instruction, documents: context.value.documents });
     const providerGate = await this.engine.release(binding, context.value.context, this.provider.principal, prompt, 'share', traced);
     if (!providerGate.ok) return providerGate;
@@ -169,8 +176,14 @@ export class ProtectedRuntime {
     if (!enforceable(providerGate.obligations, PROTECTED_RUNTIME_OBLIGATIONS) || unsatisfiable(governing) || !supported(this.enforcer, profiles)
       || !reaches([...context.obligations, ...providerGate.obligations], providerGate.value.destination)) return deny;
     // Construct from the authorized payload; caller/model cannot choose a different destination.
-    const approved = JSON.parse(providerGate.value.content) as { instruction: string; documents: Documents };
-    if (!profiles.length) return this.generate(binding, context.value.context, approved, governing, trace, providerGate.decisionId);
+    // A release filter may have redacted the prompt; the payload must still be the same shape (fail closed otherwise).
+    let approved: { instruction: string; documents: Documents };
+    try {
+      const parsed = JSON.parse(providerGate.value.content) as { instruction?: unknown; documents?: unknown };
+      if (!parsed || typeof parsed.instruction !== 'string' || !Array.isArray(parsed.documents)) return deny;
+      approved = parsed as { instruction: string; documents: Documents };
+    } catch { return deny; }
+    if (!profiles.length) return this.generate(binding, context.value.context, approved, governing, trace, providerGate.decisionId, undefined, requireFilters);
     const enforcer = this.enforcer!;
     // A sandbox-wide runtime holds one policy at a time: executions through it never overlap (R112).
     const unlock = enforcer.isolation === 'per-execution' ? undefined : await exclusive(enforcer);
@@ -190,7 +203,7 @@ export class ProtectedRuntime {
       const verify = async () => {
         try { return await bounded(async () => enforcer.current(executionId), this.enforcerDeadline) === runtimeRevision; } catch { return false; }
       };
-      result = await this.generate(binding, context.value.context, approved, governing, trace, providerGate.decisionId, { runtimeRevision, verify });
+      result = await this.generate(binding, context.value.context, approved, governing, trace, providerGate.decisionId, { runtimeRevision, verify }, requireFilters);
     } finally {
       if (lease?.release) {
         const held = lease, release = lease.release;
@@ -202,9 +215,12 @@ export class ProtectedRuntime {
     }
     return result;
   }
-  /** Provider call and final release; under a lease the revision is re-verified before the final release and recorded on it (R117, R112). */
+  /**
+   * Provider call and final release; under a lease the revision is verified before the final release, recorded on it
+   * (R117, R112) and verified again after it (R124): a change in between withholds the answer, audited as a denial.
+   */
   private async generate(binding: Binding, contextId: string, approved: { instruction: string; documents: Documents }, governing: Obligation[],
-    trace: NonNullable<Call['trace']>, gateDecision: string, runtime?: { runtimeRevision: string; verify: () => Promise<boolean> }): Promise<Result<{ content: string }>> {
+    trace: NonNullable<Call['trace']>, gateDecision: string, runtime?: { runtimeRevision: string; verify: () => Promise<boolean> }, requireFilters?: readonly string[]): Promise<Result<{ content: string }>> {
     const deny = { ok: false as const, code: 'NOT_AUTHORIZED' as const, decisionId: gateDecision };
     const ttl = governing.find((o): o is Extract<Obligation, { type: 'max_context_ttl_ms' }> => o.type === 'max_context_ttl_ms');
     const deadline = Math.min(PROVIDER_DEADLINE_MS, ttl?.value ?? PROVIDER_DEADLINE_MS);
@@ -221,8 +237,14 @@ export class ProtectedRuntime {
       // Re-evaluate after inference: revoked/expired context never produces a released answer.
       // The applied runtime revision is recorded in this decision's audit entry (R117).
       const result = await this.engine.release(binding, contextId, binding.subject, text, 'share',
-        { trace: { ...trace, ...(runtime ? { runtimeRevision: runtime.runtimeRevision } : {}) } });
+        { trace: { ...trace, ...(runtime ? { runtimeRevision: runtime.runtimeRevision } : {}) }, ...(requireFilters?.length ? { requireFilters } : {}) });
       if (!result.ok) return result;
+      // R124: the runtime may change between the check above and the final release; check again before
+      // returning. A changed revision withholds the answer and audits the denial (the release entry stays).
+      if (runtime && !await runtime.verify()) {
+        try { return await this.engine.withhold(binding, 'share', { trace: { ...trace, runtimeRevision: runtime.runtimeRevision } }); }
+        catch { return { ok: false, code: 'NOT_AUTHORIZED', decisionId: result.decisionId }; }
+      }
       if (!enforceable(result.obligations, PROTECTED_RUNTIME_OBLIGATIONS) || !reaches(result.obligations, result.value.destination)) return { ok: false, code: 'NOT_AUTHORIZED', decisionId: result.decisionId };
       // The answer's own obligations (for example no_persist, runtime_profile) bind the caller that receives it;
       // its output label is never lower than that of the context or the provider gate.

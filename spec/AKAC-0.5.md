@@ -77,7 +77,9 @@ the derivation above is made once for every destination class the run allows (th
 classes in the run's `destinations`, a Destination id by the class of its active
 profile; every class for an unrestricted run), and the results are merged. Where
 two of these name different profiles for one domain, R110 applies (deny); the
-enforcement point can name the destination instead.
+enforcement point can name the destination instead. (AKAC 0.6: an evaluation
+that names no Destination is denied outright, and no reachable class denies;
+[R121, R122](AKAC-0.6.md).)
 
 **R110 — Conflicts deny.** If, for a domain, two winners of R109 (or two
 destination classes of an unknown destination under R109) name different profiles, or the runtime obligations combined with any other obligation
@@ -166,7 +168,7 @@ one non-bypassable policy enforcement point. Direct paths from the agent sandbox
 vector indexes, object stores, databases, model provider endpoints and credential
 stores MUST be unreachable (operator obligation; the reference cannot verify it).
 Operators SHOULD run the bypass checklist of
-[RUNTIME-CONTAINMENT.md](../../docs/RUNTIME-CONTAINMENT.md) before production use
+[RUNTIME-CONTAINMENT.md](../docs/RUNTIME-CONTAINMENT.md) before production use
 and after every runtime or template change.
 
 **R119 — Staleness.** After an epoch advance a runtime SHOULD discard content

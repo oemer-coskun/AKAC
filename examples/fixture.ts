@@ -1,57 +1,56 @@
+import { readFileSync } from 'node:fs';
 import { emptyState } from '../reference/types.ts';
-import type { Actor, Binding, Grant, Knowledge, State } from '../reference/types.ts';
+import type { Binding, State } from '../reference/types.ts';
 
-export const bindings: Record<'intern' | 'chief' | 'lead', Binding> = {
-  intern: { tenant: 'acme', subject: 'intern', agent: 'intern-agent', grant: 'intern-run' },
-  chief: { tenant: 'acme', subject: 'chief', agent: 'chief-agent', grant: 'chief-run' },
-  lead: { tenant: 'acme', subject: 'lead', agent: 'lead-agent', grant: 'lead-run' }
+/**
+ * The synthetic company of the conformance vectors, loaded from the language-neutral
+ * fixture examples/fixture.json (schema: schemas/fixture.json, ADR-014). Any
+ * implementation reproduces it without this file: start from an empty state, merge
+ * the records of the fixture it extends and then its own, and add the clock to every
+ * clock-relative field.
+ */
+export type FixtureName = 'fixture' | 'kbFixture';
+type Collection = 'actors' | 'grants' | 'knowledge' | 'contexts' | 'roles' | 'groups' | 'containers' | 'constraints' | 'destinations' | 'runtimeProfiles';
+export type FixtureFile = {
+  format: 'akac-fixture/1'; description: string;
+  clockRelative: [Collection, string][];
+  bindings: Record<'intern' | 'chief' | 'lead', Binding>;
+  fixtures: Record<FixtureName, { description?: string; extends?: FixtureName; records: Partial<Record<Collection, Record<string, unknown>>> }>;
 };
-export function fixture(now = Date.now()): State {
+export const FIXTURE_URL = new URL('./fixture.json', import.meta.url);
+const data = JSON.parse(readFileSync(FIXTURE_URL, 'utf8')) as FixtureFile;
+if (data.format !== 'akac-fixture/1') throw new Error('Unsupported fixture format');
+/** The parsed fixture file (a copy: callers may not change the shared source). */
+export const fixtureData = (): FixtureFile => structuredClone(data);
+
+export const bindings: Record<'intern' | 'chief' | 'lead', Binding> = structuredClone(data.bindings);
+
+/** A fresh state of the named fixture at clock `now`. */
+export function loadFixture(name: FixtureName, now: number): State {
   const s = emptyState();
-  const addActor = (id: string, roles: string[], clearance: Actor['clearance'], projects: string[] = [], tenant = 'acme') => {
-    s.actors[id] = { id, tenant, kind: id.endsWith('-agent') ? 'agent' : 'user', roles, clearance, projects, active: true };
-  };
-  addActor('intern', ['staff'], 'internal'); addActor('intern-agent', ['staff'], 'internal');
-  addActor('chief', ['staff', 'executive'], 'restricted', ['alpha']); addActor('chief-agent', ['staff', 'executive'], 'restricted', ['alpha']);
-  addActor('lead', ['staff', 'project'], 'confidential', ['alpha']); addActor('lead-agent', ['staff', 'project'], 'confidential', ['alpha']);
-  addActor('admin', ['security-admin'], 'restricted'); addActor('outsider', ['staff', 'executive'], 'restricted', ['alpha'], 'other');
-  for (const b of Object.values(bindings)) {
-    const g: Grant = { id: b.grant, tenant: b.tenant, subject: b.subject, agent: b.agent,
-      actions: ['read', 'derive', 'write_memory', 'share', 'export'], resources: ['*'], purposes: ['work'],
-      notBefore: now - 1000, expiresAt: now + 3_600_000, active: true };
-    s.grants[g.id] = g;
+  const chain: FixtureName[] = [];
+  for (let n: FixtureName | undefined = name; n !== undefined; n = data.fixtures[n]?.extends) {
+    if (chain.includes(n) || !data.fixtures[n]) throw new Error('Invalid fixture chain');
+    chain.unshift(n);
   }
-  const add = (id: string, content: string, classification: Knowledge['classification'], readerRoles: string[], projects: string[] = []) => {
-    s.knowledge[id] = { id, tenant: 'acme', version: 1, kind: 'document', origin: 'system', content, classification, readerRoles, projects, readers: [], sources: [], active: true };
-  };
-  add('handbook', 'Product handbook: our public product is a notebook.', 'public', ['staff']);
-  add('strategy', 'Product acquisition strategy: confidential purchase budget is 900000.', 'restricted', ['executive']);
-  add('project-alpha', 'Product project alpha schedule: launch in November.', 'confidential', ['project', 'executive'], ['alpha']);
+  const collections = s as unknown as Record<Collection, Record<string, unknown>>;
+  for (const n of chain) {
+    for (const [collection, records] of Object.entries(data.fixtures[n]!.records) as [Collection, Record<string, unknown>][]) {
+      if (!collections[collection] || typeof collections[collection] !== 'object') throw new Error('Invalid fixture collection');
+      for (const [id, record] of Object.entries(records)) collections[collection][id] = structuredClone(record);
+    }
+  }
+  for (const [collection, field] of data.clockRelative) {
+    for (const record of Object.values(collections[collection] ?? {}) as Record<string, number>[]) {
+      if (Object.hasOwn(record, field)) record[field] = now + record[field]!;
+    }
+  }
   return s;
 }
+export function fixture(now = Date.now()): State { return loadFixture('fixture', now); }
 /**
  * Fixture for the AKAC-KB/0.3 profile: a role hierarchy, an (inactive) group,
  * separation-of-duty constraints and a knowledge base with nested folders.
  * Base decisions of fixture() are unchanged.
  */
-export function kbFixture(now = Date.now()): State {
-  const s = fixture(now);
-  const role = (id: string, inherits: string[]) => { s.roles[id] = { id, tenant: 'acme', inherits, active: true }; };
-  role('staff', []); role('executive', ['staff']); role('board', ['executive']);
-  s.groups.leadership = { id: 'leadership', tenant: 'acme', members: ['lead', 'lead-agent'], roles: ['board'], active: false };
-  s.constraints['ssd-payments'] = { id: 'ssd-payments', tenant: 'acme', kind: 'static', roles: ['requester', 'approver'], cardinality: 2 };
-  s.constraints['dsd-review'] = { id: 'dsd-review', tenant: 'acme', kind: 'dynamic', roles: ['auditor-role', 'project'], cardinality: 2 };
-  const container = (id: string, kind: 'knowledge-base' | 'folder', classification: Knowledge['classification'], readerRoles: string[], parent?: string) => {
-    s.containers[id] = { id, tenant: 'acme', kind, ...(parent ? { parent } : {}), classification, readerRoles, readers: [], projects: [], active: true };
-  };
-  container('kb-corporate', 'knowledge-base', 'internal', ['staff']);
-  container('f-executive', 'folder', 'confidential', ['executive'], 'kb-corporate');
-  container('f-vault', 'folder', 'restricted', ['executive'], 'f-executive');
-  const doc = (id: string, content: string, folder: string) => {
-    s.knowledge[id] = { ...structuredClone(s.knowledge.handbook!), id, content, container: folder };
-  };
-  doc('board-notes', 'Board notes: synthetic quarterly agenda.', 'f-executive');
-  doc('vault-memo', 'Vault memo: synthetic reserve figure 42.', 'f-vault');
-  doc('staff-faq', 'Staff FAQ: synthetic office hours.', 'kb-corporate');
-  return s;
-}
+export function kbFixture(now = Date.now()): State { return loadFixture('kbFixture', now); }

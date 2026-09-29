@@ -84,14 +84,23 @@ export async function retentionDue(tx: Tx, tenant: string, now: number, after: s
 export const held = (k: Pick<Knowledge, 'legalHolds'>): boolean => k.legalHolds !== undefined && (!Array.isArray(k.legalHolds) || k.legalHolds.length > 0);
 
 /**
- * Replaces a record by its tombstone: content removed, reader list cleared,
- * inactive, lifecycle `erased`. Identity, version, kind, origin, classification
- * and provenance ids stay (pseudonymous; needed to keep denying descendants and to
- * explain the audit trail). Returns false when it already was a tombstone.
+ * Replaces a record by its tombstone: content removed, audience cleared (readers
+ * and readerRoles: the tombstone names no one who could read it, even for an
+ * evaluator that ignored the lifecycle, R125), inactive, lifecycle `erased`.
+ * Identity, version, kind, origin, classification, projects and provenance ids stay
+ * (pseudonymous; needed to keep denying descendants and to explain the audit
+ * trail). Projects are kept on purpose: they are a conjunctive restriction, so
+ * clearing them would widen the label. Returns false when it already was a tombstone
+ * with an empty audience.
  */
 export function tombstone(k: Knowledge, now: number): boolean {
-  if (k.lifecycle === 'erased' && k.content === '') return false;
-  k.content = ''; k.readers = []; k.active = false; k.lifecycle = 'erased'; k.lifecycleAt = now;
-  delete k.quarantineReason; delete k.retainUntil; delete k.legalHolds;
+  if (k.lifecycle === 'erased' && k.content === '') {
+    // A tombstone written before 0.6 may still name reader roles: clear them, keep its erasure time.
+    if (!k.readers.length && !k.readerRoles.length) return false;
+    k.readers = []; k.readerRoles = [];
+    return true;
+  }
+  k.content = ''; k.readers = []; k.readerRoles = []; k.active = false; k.lifecycle = 'erased'; k.lifecycleAt = now;
+  delete k.quarantineReason; delete k.retainUntil; delete k.legalHolds; delete k.erasureRequestedAt;
   return true;
 }

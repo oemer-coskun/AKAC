@@ -14,3 +14,7 @@
 
 ## License and contribution confirmation
 I have the right to submit this contribution under the applicable file license.
+
+## Release, process and supply-chain changes (delete if not applicable)
+- [ ] `npm run lint:spec` passes; spec changes follow spec/CHANGE-CONTROL.md; errata recorded in spec/ERRATA.md
+- [ ] Any new GitHub Action is pinned by full commit SHA with the version in a comment; permissions are minimal

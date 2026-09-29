@@ -48,7 +48,7 @@ never read from a request.
 | resource | `resource.id`, `resource.type` = `knowledge` | Other types: `decision:false`. |
 | action | `action.name` in `read`, `derive`, `write_memory`, `share`, `export` | Any other name, including `declassify`: `decision:false`. |
 | purpose | `context.purpose` | Required string of 1 to 128 characters (longer: `decision:false`). |
-| destination | `context.destination` | Optional Destination profile id (ADR-008), for `share` and `export`; applies R62/R63. Present but not a valid identifier: `decision:false`. |
+| destination | `context.destination` | Destination profile id (ADR-008) the PEP sends to. Required for `share` and `export` (0.6 R121): without it the evaluation is `decision:false` (reason `RECIPIENT`), also for an unrestricted run, because a read-only evaluation has no recipient whose access could be checked. Applies R62/R63 when present. Present but not a valid identifier: `decision:false`. |
 | decision id | response `context.id` | UUIDv4 of the audit entry. |
 | obligations | response `context.obligations` | AKAC extension, only on an allow. Includes `runtime_profile` (one per domain) and `max_output_classification` when the tenant has an active runtime profile policy (0.5, [RUNTIME-CONTAINMENT.md](RUNTIME-CONTAINMENT.md)). |
 | reason code | response `context.reason_admin.code` | Only with `AKAC_AUTHZEN_REASONS=admin`. |

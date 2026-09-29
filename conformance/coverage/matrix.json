@@ -1,0 +1,3499 @@
+{
+ "format": "akac-coverage-matrix/1",
+ "description": "Maps each normative requirement (spec/AKAC-*.md R01-R196; a draft not yet merged, spec/drafts/0.6-*.md, R-<TOPIC>-n) to conformance vectors (ids, * allowed), tests (file + exact test title) or an operator test procedure. Checked by scripts/coverage-matrix.ts.",
+ "requirements": {
+  "R01": {
+   "vectors": [
+    "AKAC-012-missing-acl",
+    "AKAC-001-positive-public",
+    "AKAC-002-intern-restricted",
+    "AKAC-003-missing-resource"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "unknown context and forged binding cannot release"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "policy allow cannot widen core; errors and deny fail closed"
+    },
+    {
+     "file": "tests/opa.test.ts",
+     "name": "OPA adapter rejects undefined, string truth, malformed and failed responses"
+    }
+   ]
+  },
+  "R02": {
+   "vectors": [
+    "AKAC-018-user-inactive",
+    "AKAC-019-agent-inactive",
+    "AKAC-020-user-is-not-a-user",
+    "AKAC-021-agent-is-not-an-agent",
+    "AKAC-030-grant-names-another-subject",
+    "AKAC-014-agent-identity",
+    "Z06",
+    "Z20"
+   ],
+   "tests": [
+    {
+     "file": "tests/jwt.test.ts",
+     "name": "verified JWT maps to server identity, ignoring forged roles and bindings"
+    },
+    {
+     "file": "tests/http.test.ts",
+     "name": "API and SDK: real requests, strict envelopes, binding and output protection"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "unknown context and forged binding cannot release"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "tenant comes from the PEP credential only; request members cannot select it"
+    }
+   ]
+  },
+  "R03": {
+   "vectors": [
+    "AKAC-022-user-of-another-tenant",
+    "AKAC-023-agent-of-another-tenant",
+    "AKAC-024-grant-of-another-tenant",
+    "KB-043-malformed-group-of-another-tenant-is-ignored",
+    "KB-049-constraint-of-another-tenant-is-ignored",
+    "AKAC-004-tenant",
+    "KB-004-hierarchy-cross-tenant-record-is-flat",
+    "KB-007-group-cross-tenant",
+    "KB-023-cross-tenant-container",
+    "KB-031-other-tenant-revocation-isolated",
+    "RT-060-cross-tenant-open",
+    "RT-061-cross-tenant-release-recipient",
+    "DST-G07",
+    "AKAC-076-parent-grant-names-an-agent-of-another-tenant"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "recipient check blocks cross-agent and cross-tenant laundering"
+    },
+    {
+     "file": "tests/regressions-0.4.test.ts",
+     "name": "release is denied when a policy destination_restricted excludes the recipient (unrestricted run)"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "tenant isolation: one tenant never sees the other tenant's chunks"
+    }
+   ]
+  },
+  "R04": {
+   "vectors": [
+    "AKAC-057-action-not-in-the-grant",
+    "AKAC-058-resource-not-in-the-grant",
+    "AKAC-059-resource-named-in-the-grant",
+    "AKAC-064-classification-outside-the-closed-set",
+    "AKAC-068-reader-listed-by-identity",
+    "AKAC-069-agent-not-among-the-readers",
+    "AKAC-001-positive-restricted",
+    "AKAC-005-agent-clearance",
+    "AKAC-007-purpose",
+    "AKAC-010-role",
+    "AKAC-011-project",
+    "AKAC-014-agent-identity"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "exhaustive clearance matrix preserves ordering"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "project membership is required for both principals"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "positive controls: public read and privileged read"
+    }
+   ]
+  },
+  "R05": {
+   "vectors": [
+    "AKAC-031-grant-inactive",
+    "AKAC-035-grant-without-actions",
+    "AKAC-036-grant-with-an-unknown-action",
+    "AKAC-044-child-at-the-bounds-of-its-parent",
+    "AKAC-045-child-of-a-missing-parent",
+    "AKAC-046-child-of-another-subjects-grant",
+    "AKAC-047-child-adds-an-action",
+    "AKAC-048-child-widens-the-resources",
+    "AKAC-049-child-narrows-the-resources",
+    "AKAC-050-child-adds-a-purpose",
+    "AKAC-051-child-starts-before-its-parent",
+    "AKAC-052-child-outlives-its-parent",
+    "AKAC-053-child-drops-the-role-activation-of-its-parent",
+    "AKAC-054-delegation-cycle",
+    "KB-050-activation-names-a-role-the-user-does-not-hold",
+    "RT-020*",
+    "RT-021*",
+    "RT-022*",
+    "RT-023*",
+    "RT-024*",
+    "RT-025*",
+    "RT-026*",
+    "KB-015-child-widens-activation",
+    "KB-016-child-narrows-activation",
+    "AKAC-037-active-roles-not-a-list",
+    "AKAC-074-parent-grant-names-an-inactive-agent",
+    "AKAC-075-parent-grant-names-a-user-as-its-agent",
+    "AKAC-076-parent-grant-names-an-agent-of-another-tenant",
+    "AKAC-077-parent-grant-names-another-active-agent",
+    "AKAC-081-parent-grant-names-an-unknown-agent"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "delegation attenuates and respects parent revocation"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "delegation cannot extend lifetime"
+    }
+   ]
+  },
+  "R06": {
+   "vectors": [
+    "RT-010*",
+    "RT-011*",
+    "KB-028-origin-unknown"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "prompt injection remains content, not authority"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "agent cannot revoke via an ordinary actor"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "control plane: model content and malformed records never become authority"
+    },
+    {
+     "file": "tests/scim.test.ts",
+     "name": "SCIM: identity providers cannot smuggle authority, and only security-admin may provision"
+    }
+   ]
+  },
+  "R07": {
+   "vectors": [
+    "RT-040*",
+    "RT-041*",
+    "RT-042*",
+    "RT-001*"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "retrieval does not expose unauthorized content, titles, counts or ranks"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "unknown and forbidden IDs are indistinguishable"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "ranking uses only authorized candidates: unauthorized documents leave no trace in scores"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "pre-filter: ACL, containers, projects and clearance decide admission; results match"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "empty results do not distinguish no match from no authority"
+    }
+   ]
+  },
+  "R08": {
+   "vectors": [
+    "RT-001*",
+    "RT-002*",
+    "RT-003*",
+    "RT-030*",
+    "RT-004*"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "mixed-source memory inherits restrictions and transitively blocks intern"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "old context cannot omit later reads in the same run"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "property: derivation never lowers classification and never widens audience"
+    }
+   ]
+  },
+  "R09": {
+   "vectors": [
+    "RT-003*",
+    "RTC-P08",
+    "KB-027-source-container-applies",
+    "DST-G17"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "mixed-source memory inherits restrictions and transitively blocks intern"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "effectiveLabel exposes the conjunctive label for indexers"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "derivation takes the container floor and is model-originated"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "property: derivation never lowers classification and never widens audience"
+    }
+   ]
+  },
+  "R10": {
+   "vectors": [
+    "RT-061*",
+    "DST-G07",
+    "DST-G09"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "recipient check blocks cross-agent and cross-tenant laundering"
+    },
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "a run restricted to internal-user cannot release to a provider, a tool or a service without a profile"
+    }
+   ]
+  },
+  "R11": {
+   "vectors": [
+    "AKAC-032-grant-not-yet-valid",
+    "AKAC-033-grant-valid-from-now",
+    "AKAC-034-grant-valid-until-after-now",
+    "KB-058-context-expiring-now",
+    "KB-059-context-expiring-in-a-millisecond",
+    "KB-060-context-marked-inactive",
+    "KB-061-context-of-a-newer-epoch",
+    "AKAC-008-source-revoked",
+    "AKAC-009-source-stale",
+    "AKAC-006-expiry",
+    "KB-032-own-tenant-revocation",
+    "KB-033-revision-change",
+    "RT-050*"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "changed source version invalidates a previous context"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "revocation invalidates contexts and derived knowledge"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "grant expiring during a policy call never discloses"
+    },
+    {
+     "file": "tests/runtime.test.ts",
+     "name": "revocation while provider works blocks the final answer"
+    }
+   ]
+  },
+  "R12": {
+   "vectors": [
+    "KB-030-context-current-epoch",
+    "KB-032-own-tenant-revocation",
+    "RT-012*",
+    "RT-013*"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "serialized revocation wins over subsequent reads"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "SQLite restart preserves policy state, contexts and revocation"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "revocation invalidates contexts and derived knowledge"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "per-tenant epochs: revocation invalidates only the revoking tenant"
+    },
+    {
+     "file": "tests/coverage-gaps.test.ts",
+     "name": "R12: the revocation linearization point and the stale-access bound are published and match the reference"
+    }
+   ]
+  },
+  "R13": {
+   "vectors": [
+    "AKAC-025-unknown-grant",
+    "AKAC-026-purpose-empty",
+    "AKAC-027-purpose-longer-than-128",
+    "AKAC-028-purpose-of-128-characters",
+    "AKAC-029-action-outside-the-closed-set",
+    "AKAC-061-record-inactive",
+    "AKAC-062-record-version-zero",
+    "AKAC-063-record-version-not-an-integer",
+    "AKAC-065-access-expiry-not-a-number",
+    "AKAC-066-source-missing",
+    "AKAC-067-source-id-malformed",
+    "KB-038-role-record-with-malformed-juniors",
+    "KB-039-empty-role-name",
+    "KB-040-role-name-not-a-string",
+    "KB-041-group-with-malformed-members",
+    "KB-042-group-with-malformed-roles",
+    "KB-044-actor-roles-not-a-list",
+    "KB-045-constraint-of-unknown-kind",
+    "KB-046-constraint-with-cardinality-one",
+    "KB-047-constraint-with-fractional-cardinality",
+    "KB-048-constraint-with-malformed-roles",
+    "KB-053-container-record-with-another-id",
+    "KB-054-container-of-unknown-kind",
+    "KB-055-knowledge-base-with-a-parent",
+    "KB-056-container-parent-id-malformed",
+    "KB-057-container-classification-outside-the-closed-set",
+    "AKAC-013-cycle",
+    "KB-003-hierarchy-cycle",
+    "KB-025-missing-container",
+    "KB-028-origin-unknown",
+    "DST-G18",
+    "AKAC-078-agent-roles-not-a-list",
+    "AKAC-079-resource-named-like-an-object-member",
+    "AKAC-080-grant-named-like-an-object-member"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "policy allow cannot widen core; errors and deny fail closed"
+    },
+    {
+     "file": "tests/opa.test.ts",
+     "name": "OPA adapter rejects undefined, string truth, malformed and failed responses"
+    },
+    {
+     "file": "tests/hardening.test.ts",
+     "name": "malformed and forged decision envelopes deny rather than throw"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "supplemental policy: known obligations are merged; unknown or malformed ones deny UNSUPPORTED_OBLIGATION"
+    }
+   ]
+  },
+  "R14": {
+   "vectors": [
+    "E17",
+    "E18",
+    "E21",
+    "E22",
+    "E23"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "audit chain detects accidental tampering and contains no source content"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "transaction rollback does not publish partial state"
+    },
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "audit: format 2 entries are JCS-hashed, closed and chained after format 1 entries; downgrades fail"
+    },
+    {
+     "file": "tests/metrics.test.ts",
+     "name": "logging: structured, request and trace ids, and no content or credentials"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "engine: every result and audit entry carries the same decision id; allows carry core obligations"
+    }
+   ]
+  },
+  "R15": {
+   "vectors": [
+    "AKAC-060-declassify-is-never-allowed",
+    "Z12"
+   ],
+   "tests": [
+    {
+     "file": "tests/regressions-0.6.test.ts",
+     "name": "regression: a kb-admin cannot widen a document label through a new version (R15, R126)"
+    },
+    {
+     "file": "tests/regressions-0.4.test.ts",
+     "name": "a kb-admin cannot undo a security-admin revoke or revokeLineage with a new version; reinstate is security-admin only"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "control plane: model content and malformed records never become authority"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "policy allow cannot widen core; errors and deny fail closed"
+    }
+   ]
+  },
+  "R16": {
+   "vectors": [
+    "RT-030*",
+    "RT-031*",
+    "RT-013*"
+   ],
+   "tests": [
+    {
+     "file": "tests/core.test.ts",
+     "name": "old context cannot omit later reads in the same run"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "delegation attenuates and respects parent revocation"
+    },
+    {
+     "file": "tests/runtime.test.ts",
+     "name": "provider without clearance receives no protected input"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-isolation",
+    "reason": "A less privileged run reusing state of a more privileged one is prevented in the reference only by run-bound contexts and grants; process, memory and credential isolation of the model runtime is an operator control."
+   }
+  },
+  "R17": {
+   "vectors": [
+    "AKAC-055-delegation-chain-of-32-grants",
+    "AKAC-056-delegation-chain-of-33-grants",
+    "AKAC-070-derivation-chain-of-128-records",
+    "AKAC-071-derivation-chain-of-129-records",
+    "AKAC-072-shared-source-within-the-depth-budget-on-every-path",
+    "AKAC-073-shared-source-beyond-the-depth-budget-on-the-deeper-path",
+    "KB-034-role-closure-of-64",
+    "KB-035-role-closure-of-65",
+    "KB-036-role-hierarchy-16-deep",
+    "KB-037-role-hierarchy-17-deep",
+    "KB-051-container-chain-of-32",
+    "KB-052-container-chain-of-33",
+    "AKAC-009-source-stale",
+    "KB-003-hierarchy-cycle",
+    "AKAC-013-cycle",
+    "E32"
+   ],
+   "tests": [
+    {
+     "file": "tests/hardening.test.ts",
+     "name": "bounded DAG evaluator handles heavily shared dependencies without exponential traversal"
+    },
+    {
+     "file": "tests/hardening.test.ts",
+     "name": "dependency depth and node limits fail closed"
+    },
+    {
+     "file": "tests/hardening.test.ts",
+     "name": "retrieval candidate budget refuses over-limit work"
+    },
+    {
+     "file": "tests/coverage-gaps.test.ts",
+     "name": "R17: the published resource budgets equal the limits the decision core enforces"
+    },
+    {
+     "file": "tests/postgres.test.ts",
+     "name": "PostgreSQL: loads never truncate; an over-bound closure is a deferred, audited denial"
+    }
+   ]
+  },
+  "R18": {
+   "vectors": [
+    "KB-061-context-of-a-newer-epoch",
+    "KB-033-revision-change"
+   ],
+   "tests": [
+    {
+     "file": "tests/hardening.test.ts",
+     "name": "changing company policy revision invalidates previously captured contexts"
+    },
+    {
+     "file": "tests/opa.test.ts",
+     "name": "real OPA server evaluates checked-in Rego"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "OPA adapter: the exact {allow, revision} document still works; obligations are passed to the engine strictly"
+    }
+   ]
+  },
+  "R19": {
+   "tests": [
+    {
+     "file": "tests/jwt.test.ts",
+     "name": "verified JWT maps to server identity, ignoring forged roles and bindings"
+    },
+    {
+     "file": "tests/jwt.test.ts",
+     "name": "JWT rejects wrong token type, token-supplied key URL, bad signature and oversized token"
+    },
+    {
+     "file": "tests/jwt.test.ts",
+     "name": "JWT key rotation requires a trusted configured key"
+    },
+    {
+     "file": "tests/jwt.test.ts",
+     "name": "HTTP signed authentication enforces the same resource boundary and readiness"
+    }
+   ]
+  },
+  "R20": {
+   "vectors": [
+    "AKAC-065-access-expiry-not-a-number",
+    "AKAC-006-expiry",
+    "AKAC-015-access-expired",
+    "AKAC-016-access-not-yet-expired",
+    "AKAC-017-source-access-expired-transitive"
+   ],
+   "tests": [
+    {
+     "file": "tests/hardening.test.ts",
+     "name": "source access expiry invalidates future reads and derived outputs"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "retention: due records are erased with cascade in resumable batches; held lineages are skipped; access expiry is separate"
+    }
+   ]
+  },
+  "R21": {
+   "tests": [
+    {
+     "file": "tests/runtime.test.ts",
+     "name": "provider without clearance receives no protected input"
+    },
+    {
+     "file": "tests/runtime.test.ts",
+     "name": "authorized provider receives exact captured sources and output passes recipient gate"
+    },
+    {
+     "file": "tests/runtime.test.ts",
+     "name": "revocation while provider works blocks the final answer"
+    },
+    {
+     "file": "tests/integrations.test.ts",
+     "name": "OpenAI proxy: a provider without clearance receives nothing; the output gate binds the caller"
+    }
+   ]
+  },
+  "R22": {
+   "vectors": [
+    "KB-034-role-closure-of-64",
+    "KB-035-role-closure-of-65",
+    "KB-036-role-hierarchy-16-deep",
+    "KB-037-role-hierarchy-17-deep",
+    "KB-038-role-record-with-malformed-juniors",
+    "KB-039-empty-role-name",
+    "KB-040-role-name-not-a-string",
+    "KB-001-hierarchy-inherits",
+    "KB-002-hierarchy-inactive-role",
+    "KB-003-hierarchy-cycle",
+    "KB-004-hierarchy-cross-tenant-record-is-flat",
+    "KB-029-flat-role-compatibility"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "positive controls: hierarchy, group roles, folders and flat 0.2 roles"
+    },
+    {
+     "file": "tests/interop.test.ts",
+     "name": "two language implementations agree on 1500 generated hierarchy, SoD and container cases"
+    }
+   ]
+  },
+  "R23": {
+   "vectors": [
+    "KB-041-group-with-malformed-members",
+    "KB-042-group-with-malformed-roles",
+    "KB-043-malformed-group-of-another-tenant-is-ignored",
+    "KB-005-group-grants-roles",
+    "KB-006-group-inactive",
+    "KB-007-group-cross-tenant"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "positive controls: hierarchy, group roles, folders and flat 0.2 roles"
+    },
+    {
+     "file": "tests/scim.test.ts",
+     "name": "SCIM: group membership grants a role; removing the member takes it away"
+    }
+   ]
+  },
+  "R24": {
+   "vectors": [
+    "KB-045-constraint-of-unknown-kind",
+    "KB-046-constraint-with-cardinality-one",
+    "KB-047-constraint-with-fractional-cardinality",
+    "KB-048-constraint-with-malformed-roles",
+    "KB-049-constraint-of-another-tenant-is-ignored",
+    "KB-050-activation-names-a-role-the-user-does-not-hold",
+    "KB-008-ssd-direct",
+    "KB-009-ssd-via-group",
+    "KB-010-ssd-via-hierarchy",
+    "KB-011-dsd-all-roles-active",
+    "KB-012-dsd-activated-subset",
+    "KB-013-active-role-not-held",
+    "KB-014-active-role-excludes-needed",
+    "KB-062-agent-holds-a-static-separation-of-duty-pair"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "control plane: SoD is enforced at assignment, group membership and grant issuance"
+    },
+    {
+     "file": "tests/regressions.test.ts",
+     "name": "constraint and role changes that would invalidate current holders are refused with a count only"
+    },
+    {
+     "file": "tests/regressions.test.ts",
+     "name": "SCIM DELETE and PATCH active=false succeed for a user who already violates static SoD, and DELETE revokes"
+    },
+    {
+     "file": "tests/admin.test.ts",
+     "name": "admin API: static separation of duty rejects role assignment with 409"
+    }
+   ]
+  },
+  "R25": {
+   "vectors": [
+    "KB-051-container-chain-of-32",
+    "KB-052-container-chain-of-33",
+    "KB-053-container-record-with-another-id",
+    "KB-054-container-of-unknown-kind",
+    "KB-055-knowledge-base-with-a-parent",
+    "KB-056-container-parent-id-malformed",
+    "KB-057-container-classification-outside-the-closed-set",
+    "KB-017-container-positive",
+    "KB-018-container-audience",
+    "KB-019-knowledge-base-audience",
+    "KB-020-folder-floor-above-clearance",
+    "KB-021-folder-floor-agent",
+    "KB-022-inactive-folder",
+    "KB-023-cross-tenant-container",
+    "KB-024-container-cycle",
+    "KB-025-missing-container",
+    "KB-026-folder-without-parent",
+    "KB-027-source-container-applies"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "property: adding a container never grants access denied without it"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "meta: the property harness detects an injected permissive container bug"
+    },
+    {
+     "file": "tests/regressions.test.ts",
+     "name": "supplemental policy sees the highest classification over the source graph, and ingestion refuses a document below its sources"
+    }
+   ]
+  },
+  "R26": {
+   "vectors": [
+    "RT-040*",
+    "RT-041*",
+    "RT-042*"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "candidate source: every candidate is re-checked; mismatches are dropped and counted"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "index metadata is a hint: a chunk with wrong tokens is dropped by decide() and counted"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "pre-filter: ACL, containers, projects and clearance decide admission; results match"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "unavailable embedder or index denies and is reported"
+    },
+    {
+     "file": "tests/regressions.test.ts",
+     "name": "lexical retrieval refuses a corpus above the content byte budget (deferred, audited)"
+    }
+   ]
+  },
+  "R27": {
+   "vectors": [
+    "KB-028-origin-unknown"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "derivation takes the container floor and is model-originated"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "control plane: model content and malformed records never become authority"
+    }
+   ]
+  },
+  "R28": {
+   "vectors": [
+    "KB-058-context-expiring-now",
+    "KB-059-context-expiring-in-a-millisecond",
+    "KB-060-context-marked-inactive",
+    "KB-061-context-of-a-newer-epoch",
+    "KB-030-context-current-epoch",
+    "KB-031-other-tenant-revocation-isolated",
+    "KB-032-own-tenant-revocation",
+    "RT-050*",
+    "RT-051*",
+    "RT-052*"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "per-tenant epochs: revocation invalidates only the revoking tenant"
+    },
+    {
+     "file": "tests/postgres.test.ts",
+     "name": "PostgreSQL: persistence, rollback, per-tenant revocation and audit streams"
+    }
+   ]
+  },
+  "R29": {
+   "vectors": [
+    "E30",
+    "E31",
+    "E32",
+    "E33",
+    "E34"
+   ],
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "decision categories separate definite denial from unestablished authority"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "audit reasons carry the internal category; responses stay non-distinguishing"
+    },
+    {
+     "file": "tests/conformance.test.ts",
+     "name": "every vector decision matches the decision schema"
+    }
+   ]
+  },
+  "R30": {
+   "tests": [
+    {
+     "file": "tests/postgres.test.ts",
+     "name": "PostgreSQL: row-level security isolates tenants for the runtime role"
+    },
+    {
+     "file": "tests/postgres.test.ts",
+     "name": "PostgreSQL: tenants run in parallel; one tenant is serialized"
+    },
+    {
+     "file": "tests/postgres.test.ts",
+     "name": "PostgreSQL: record keys are (tenant, id) for a bypassing and an RLS-bound runtime role alike"
+    },
+    {
+     "file": "tests/holders.test.ts",
+     "name": "PostgreSQL: every tenant table must have forced row-level security"
+    },
+    {
+     "file": "tests/holders.test.ts",
+     "name": "PostgreSQL: the runtime role must not own the tables, nor be a member of their owner"
+    }
+   ],
+   "note": "PostgreSQL tests need AKAC_TEST_DATABASE_URL and run in the hosted CI job; without a database they are reported as skipped."
+  },
+  "R31": {
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "control plane: role separation between security-admin, kb-admin and auditor"
+    },
+    {
+     "file": "tests/admin.test.ts",
+     "name": "admin API: each route is authorized by the matching standing role"
+    },
+    {
+     "file": "tests/regressions.test.ts",
+     "name": "store errors inside control-plane and engine transactions are audited as DEFERRED:STORE_ERROR and rethrown"
+    },
+    {
+     "file": "tests/regressions.test.ts",
+     "name": "admin API with the real Ingestor: a kb-admin removes a document; chunks go, the epoch advances, the removal is audited"
+    },
+    {
+     "file": "tests/regressions-0.6.test.ts",
+     "name": "regression: a kb-admin cannot widen a document label through a new version (R15, R126)"
+    }
+   ]
+  },
+  "R32": {
+   "tests": [
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "engine: every result and audit entry carries the same decision id; allows carry core obligations"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "control plane: results carry decision ids; attempt() only records closed reason codes"
+    },
+    {
+     "file": "tests/admin-evidence.test.ts",
+     "name": "evidence routes: auditor role only, strict queries, decision id on every failure"
+    }
+   ]
+  },
+  "R33": {
+   "vectors": [
+    "E81",
+    "E82",
+    "E83",
+    "E84",
+    "E85",
+    "E30",
+    "E31",
+    "E32",
+    "E33",
+    "E34"
+   ],
+   "tests": [
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "decisions: closed reason codes classify every reason the reference records"
+    }
+   ]
+  },
+  "R34": {
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "policy digest covers the active runtime profile policy set; tenants without one keep the 0.4 digest"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "engine: every result and audit entry carries the same decision id; allows carry core obligations"
+    },
+    {
+     "file": "tests/conformance.test.ts",
+     "name": "0.4 evidence records validate against closed JSON schemas"
+    }
+   ]
+  },
+  "R35": {
+   "tests": [
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "HTTP: a denial body is exactly {ok, code, decisionId} for hidden and nonexistent objects; an allow carries obligations"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "unknown and forbidden IDs are indistinguishable"
+    },
+    {
+     "file": "tests/kb.test.ts",
+     "name": "audit reasons carry the internal category; responses stay non-distinguishing"
+    }
+   ]
+  },
+  "R36": {
+   "vectors": [
+    "E52",
+    "E53",
+    "E54",
+    "E55",
+    "E56",
+    "E57",
+    "E58",
+    "E59",
+    "E60",
+    "E61",
+    "E62",
+    "E63",
+    "E64",
+    "E65",
+    "E66",
+    "E67",
+    "E69",
+    "E70",
+    "E71",
+    "E72",
+    "E73",
+    "E79",
+    "E80",
+    "E24",
+    "E25",
+    "E26",
+    "E27",
+    "E28",
+    "E29",
+    "E51"
+   ],
+   "tests": [
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "decisions: obligations are a closed set, validated strictly and combined restrictively"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "engine: every result and audit entry carries the same decision id; allows carry core obligations"
+    }
+   ]
+  },
+  "R37": {
+   "vectors": [
+    "E74",
+    "E75",
+    "E76",
+    "E77",
+    "E78",
+    "E51"
+   ],
+   "tests": [
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "supplemental policy: known obligations are merged; unknown or malformed ones deny UNSUPPORTED_OBLIGATION"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "OPA adapter: the exact {allow, revision} document still works; obligations are passed to the engine strictly"
+    },
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "real OPA server: a Rego policy adding obligations is enforced; an unknown obligation denies"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "a supplemental policy verdict applies as in the engine, including unsupported obligations"
+    }
+   ]
+  },
+  "R38": {
+   "vectors": [
+    "RTC-R01",
+    "RTC-R02",
+    "RTC-R04",
+    "RTC-R06"
+   ],
+   "tests": [
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "runtime: enforces every obligation it receives or fails closed before the provider sees content"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "ProtectedRuntime: a slow enforcer is a deny before the provider"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: the agent listener denies disclosures carrying runtime_profile unless declared behind an enforcer (R123)"
+    }
+   ]
+  },
+  "R39": {
+   "tests": [
+    {
+     "file": "tests/admin-evidence.test.ts",
+     "name": "a valid W3C traceparent is recorded with the audited decision; an invalid one never is"
+    },
+    {
+     "file": "tests/admin-evidence.test.ts",
+     "name": "agent gateway records a valid traceparent with the audited decision"
+    }
+   ]
+  },
+  "R40": {
+   "vectors": [
+    "E14",
+    "E15",
+    "E16",
+    "E17",
+    "E18",
+    "E21",
+    "E22",
+    "E23"
+   ],
+   "tests": [
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "audit: format 2 entries are JCS-hashed, closed and chained after format 1 entries; downgrades fail"
+    },
+    {
+     "file": "tests/conformance.test.ts",
+     "name": "0.4 evidence records validate against closed JSON schemas"
+    }
+   ]
+  },
+  "R41": {
+   "vectors": [
+    "E21",
+    "E22",
+    "E23"
+   ],
+   "tests": [
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "audit: format 2 entries are JCS-hashed, closed and chained after format 1 entries; downgrades fail"
+    }
+   ]
+  },
+  "R42": {
+   "vectors": [
+    "E14",
+    "E15",
+    "E16",
+    "E01",
+    "E02",
+    "E03",
+    "E04",
+    "E05",
+    "E06",
+    "E07",
+    "E08",
+    "E09",
+    "E19",
+    "E20"
+   ],
+   "tests": [
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "Merkle: RFC 6962/9162 eight-leaf test tree (roots, inclusion and consistency proofs)"
+    },
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "audit leaves: H(0x00 || JCS(entry)) for both formats"
+    },
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "evidence: proofs and tree heads match for memory, SQLite and the auditLog fallback"
+    }
+   ]
+  },
+  "R43": {
+   "vectors": [
+    "E10",
+    "E11",
+    "E12",
+    "E13",
+    "E35",
+    "E36",
+    "E37",
+    "E38",
+    "E39",
+    "E40",
+    "E41",
+    "E42",
+    "E43",
+    "E44"
+   ],
+   "tests": [
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "Merkle (property): inclusion and consistency proofs verify, and any tampering fails"
+    },
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "control plane: auditor proofs are audited, range-checked and verify against a signed tree head"
+    },
+    {
+     "file": "tests/admin-evidence.test.ts",
+     "name": "checkpoint, inclusion proof and consistency proof are served to auditors and verify independently"
+    }
+   ]
+  },
+  "R44": {
+   "vectors": [
+    "E45",
+    "E46",
+    "E47",
+    "E48",
+    "E49",
+    "E50"
+   ],
+   "tests": [
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "checkpoint v2: signs the RFC 9162 root; entry rewrite, reordering, truncation and key substitution are detected"
+    },
+    {
+     "file": "tests/evidence.test.ts",
+     "name": "checkpoint v2: consistency proofs accept an extension and reject a forked, rolled-back or truncated history"
+    },
+    {
+     "file": "tests/admin-evidence.test.ts",
+     "name": "without a checkpoint key only the unsigned tree head is returned"
+    },
+    {
+     "file": "tests/config-authzen.test.ts",
+     "name": "config: checkpoint key file (PEM or JWK), key id, Ed25519 only, permissions in production"
+    }
+   ]
+  },
+  "R45": {
+   "vectors": [
+    "L02*",
+    "L06*",
+    "L01*"
+   ],
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "quarantined ancestor denies every descendant at read, derive, write_memory, share, export and retrieval; release restores"
+    }
+   ]
+  },
+  "R46": {
+   "vectors": [
+    "L03*",
+    "L04*",
+    "L05*",
+    "L08*"
+   ],
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "quarantined ancestor denies every descendant at read, derive, write_memory, share, export and retrieval; release restores"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "quarantine of a middle node hides only its own lineage; idempotent; erased cannot be quarantined"
+    }
+   ]
+  },
+  "R47": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "quarantine of a middle node hides only its own lineage; idempotent; erased cannot be quarantined"
+    },
+    {
+     "file": "tests/admin-lifecycle.test.ts",
+     "name": "lifecycle routes: each is authorized by the matching standing role and carries the decision id"
+    },
+    {
+     "file": "tests/admin-lifecycle.test.ts",
+     "name": "reinstate route: only a security-admin lifts a security revocation; the kb-admin cannot republish before it"
+    },
+    {
+     "file": "tests/lifecycle-postgres.test.ts",
+     "name": "PostgreSQL lifecycle: quarantine hides the lineage, release (security-admin only) restores it"
+    }
+   ]
+  },
+  "R48": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "descendants: diamond and chain, sorted, bounded, auditor or security-admin only, other tenants invisible"
+    },
+    {
+     "file": "tests/lifecycle-postgres.test.ts",
+     "name": "PostgreSQL lifecycle: descendants via recursive SQL match the in-memory traversal and are bounded"
+    }
+   ]
+  },
+  "R49": {
+   "vectors": [
+    "RT-050*"
+   ],
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "revokeLineage deactivates the record and every descendant, advances the epoch, is idempotent"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "erase cascades to every descendant, removes content and chunks, denies forever, is idempotent and burns the id"
+    },
+    {
+     "file": "tests/regressions-0.4.test.ts",
+     "name": "a kb-admin cannot undo a security-admin revoke or revokeLineage with a new version; reinstate is security-admin only"
+    },
+    {
+     "file": "tests/regressions-0.4.test.ts",
+     "name": "revoke(knowledge) sets the durable marker too; removeKnowledge (kb-admin) does not"
+    },
+    {
+     "file": "tests/admin-lifecycle.test.ts",
+     "name": "reinstate route: only a security-admin lifts a security revocation; the kb-admin cannot republish before it"
+    }
+   ]
+  },
+  "R50": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "ingestion scanner: quarantine and failures never index; reject stores nothing; release indexes via reconcile"
+    }
+   ]
+  },
+  "R51": {
+   "vectors": [
+    "RT-011*"
+   ],
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "memory review: model-origin memory lands quarantined until a security-admin releases it"
+    }
+   ]
+  },
+  "R52": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "quarantine through the ingestor drops the chunks of every indexed document in the lineage"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "reconcile alone removes a derived document whose ancestor was quarantined outside the ingestor (R-LIFE-8)"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "removal, revocation and relabeling keep the index consistent"
+    },
+    {
+     "file": "tests/admin-lifecycle.test.ts",
+     "name": "with an ingestor the vector index follows quarantine, release, erase and retention"
+    }
+   ]
+  },
+  "R53": {
+   "vectors": [
+    "L05*"
+   ],
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "erase cascades to every descendant, removes content and chunks, denies forever, is idempotent and burns the id"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "regression: a tombstone names no audience and stays unreadable even if the lifecycle were ignored (R125)"
+    }
+   ]
+  },
+  "R54": {
+   "vectors": [
+    "L05*"
+   ],
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "property: after erase(id), no gate discloses content of id or any descendant"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "erase cascades to every descendant, removes content and chunks, denies forever, is idempotent and burns the id"
+    }
+   ]
+  },
+  "R55": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "legal hold on the record or any descendant blocks erasure with a count only; lifting it allows erasure"
+    },
+    {
+     "file": "tests/regressions-0.4.test.ts",
+     "name": "a legal hold preserves content: a new version that changes content or sources is CONFLICT (held), metadata may change"
+    },
+    {
+     "file": "tests/admin-lifecycle.test.ts",
+     "name": "legal hold blocks erasure with a held count; lifting it allows it; erasure is idempotent"
+    },
+    {
+     "file": "tests/lifecycle-postgres.test.ts",
+     "name": "PostgreSQL lifecycle: legal hold blocks erasure; erase cascades, tombstones and is idempotent; revokeLineage; retention"
+    }
+   ]
+  },
+  "R56": {
+   "vectors": [
+    "L07*"
+   ],
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "derived records inherit the earliest retention deadline of their sources"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "retention: due records are erased with cascade in resumable batches; held lineages are skipped; access expiry is separate"
+    }
+   ]
+  },
+  "R57": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "retention: due records are erased with cascade in resumable batches; held lineages are skipped; access expiry is separate"
+    },
+    {
+     "file": "tests/admin-lifecycle.test.ts",
+     "name": "retention apply erases due records, skips held lineages and resumes with after"
+    }
+   ]
+  },
+  "R58": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "a lineage beyond the cascade bound is a deferred denial that changes nothing"
+    }
+   ]
+  },
+  "R59": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "erase cascades to every descendant, removes content and chunks, denies forever, is idempotent and burns the id"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "audit chain detects accidental tampering and contains no source content"
+    }
+   ]
+  },
+  "R60": {
+   "vectors": [
+    "DST-G07",
+    "DST-G08"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "inactive, unknown, foreign, malformed and class-named profiles deny"
+    },
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "control plane: upsertDestination is security-admin only, validated, audited and tenant-scoped"
+    },
+    {
+     "file": "tests/destinations-postgres.test.ts",
+     "name": "PostgreSQL destinations: row-level security isolates profiles by tenant"
+    }
+   ]
+  },
+  "R61": {
+   "vectors": [
+    "DST-G10",
+    "DST-G11",
+    "DST-G12",
+    "DST-G13",
+    "DST-G15",
+    "DST-G16"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "a run restricted to internal-user cannot release to a provider, a tool or a service without a profile"
+    }
+   ]
+  },
+  "R62": {
+   "vectors": [
+    "DST-G01",
+    "DST-G02",
+    "DST-G03",
+    "DST-G04",
+    "DST-G05",
+    "DST-G06",
+    "DST-G17",
+    "DST-G18"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "a model-provider profile up to confidential: restricted content is denied, confidential content allowed with destination_restricted"
+    },
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "inactive, unknown, foreign, malformed and class-named profiles deny"
+    },
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "purpose mismatch between the context and the profile denies"
+    },
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "the transitive classification of released sources counts, including through a derived artifact"
+    }
+   ]
+  },
+  "R63": {
+   "vectors": [
+    "DST-G09",
+    "DST-G10",
+    "DST-G13",
+    "DST-G14",
+    "DST-G15"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "a run restricted to internal-user cannot release to a provider, a tool or a service without a profile"
+    }
+   ]
+  },
+  "R64": {
+   "vectors": [
+    "DST-G11",
+    "DST-G12",
+    "DST-G16",
+    "DST-D01"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "destination conformance vectors pass (conformance/vectors-destinations.json)"
+    }
+   ]
+  },
+  "R65": {
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "property: a destination restriction or profile never turns a deny into an allow"
+    }
+   ]
+  },
+  "R66": {
+   "vectors": [
+    "DST-G01",
+    "DST-G10",
+    "DST-G14",
+    "DST-G15"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "a model-provider profile up to confidential: restricted content is denied, confidential content allowed with destination_restricted"
+    },
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "runtime provider gate: the provider profile is enforced before inference and destination obligations are honoured"
+    },
+    {
+     "file": "tests/regressions-0.4.test.ts",
+     "name": "release is allowed when the policy restriction names the recipient; the result names the destination"
+    }
+   ]
+  },
+  "R67": {
+   "vectors": [
+    "Z21",
+    "Z22",
+    "Z23",
+    "RTC-E05",
+    "RTC-E09",
+    "RTC-E10",
+    "RTC-E11",
+    "RTC-E14"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "Engine.evaluate and AuthZEN context.destination apply the destination gate without creating contexts"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "regression: AuthZEN share/export must name a Destination, also in an unrestricted run (R121)"
+    }
+   ]
+  },
+  "R68": {
+   "vectors": [
+    "AKAC-038-destinations-with-a-malformed-id",
+    "AKAC-039-destinations-with-a-duplicate",
+    "AKAC-040-destinations-64-distinct",
+    "AKAC-041-destinations-65-distinct",
+    "DST-D02",
+    "DST-D03",
+    "DST-D04",
+    "DST-D05",
+    "DST-D06",
+    "DST-D07",
+    "DST-D10",
+    "DST-D11"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "child grants can only narrow destinations and the result limit"
+    }
+   ]
+  },
+  "R69": {
+   "vectors": [
+    "AKAC-042-result-limit-at-the-cap",
+    "AKAC-043-result-limit-not-an-integer",
+    "DST-D08",
+    "DST-D09"
+   ],
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "grant.maxResults bounds openContext and retrieval"
+    }
+   ]
+  },
+  "R70": {
+   "tests": [
+    {
+     "file": "tests/decisions.test.ts",
+     "name": "runtime: enforces every obligation it receives or fails closed before the provider sees content"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: the agent listener denies disclosures carrying runtime_profile unless declared behind an enforcer (R123)"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-egress",
+    "reason": "Egress itself is enforced by the integration, not by AKAC; the reference decides and ships enforcement seams only."
+   }
+  },
+  "R71": {
+   "tests": [
+    {
+     "file": "tests/destinations.test.ts",
+     "name": "control plane: upsertDestination is security-admin only, validated, audited and tenant-scoped"
+    },
+    {
+     "file": "tests/destinations-postgres.test.ts",
+     "name": "PostgreSQL destinations: fresh schema, control plane, release gate and round trip as the RLS-bound runtime role"
+    }
+   ]
+  },
+  "R72": {
+   "tests": [
+    {
+     "file": "tests/config.test.ts",
+     "name": "config: DPoP is off by default and configured per listener with a public URL"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP: listeners are configured independently"
+    }
+   ]
+  },
+  "R73": {
+   "tests": [
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP: Bearer downgrade is refused; optional mode accepts unbound Bearer tokens only"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP required: a bound token with a valid proof is accepted, every mismatch is refused"
+    }
+   ]
+  },
+  "R74": {
+   "tests": [
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP: cnf other than a valid jkt is refused"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP required: a bound token with a valid proof is accepted, every mismatch is refused"
+    }
+   ]
+  },
+  "R75": {
+   "tests": [
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP required: a bound token with a valid proof is accepted, every mismatch is refused"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP proof rejects alg none/HS256, private key material, key references and foreign key types"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP guard: option validation, clock skew configuration and replay cache bounds"
+    }
+   ]
+  },
+  "R76": {
+   "tests": [
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP: a replayed proof identifier is refused, including from a copy of the request"
+    },
+    {
+     "file": "tests/dpop-postgres.test.ts",
+     "name": "PostgreSQL DPoP replay cache is shared across instances, keyed by (jti, jkt), and lets expired identifiers be reused"
+    }
+   ]
+  },
+  "R77": {
+   "tests": [
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP required: a bound token with a valid proof is accepted, every mismatch is refused"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP: Bearer downgrade is refused; optional mode accepts unbound Bearer tokens only"
+    }
+   ]
+  },
+  "R78": {
+   "tests": [
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP proof rejects alg none/HS256, private key material, key references and foreign key types"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP guard: option validation, clock skew configuration and replay cache bounds"
+    },
+    {
+     "file": "tests/dpop.test.ts",
+     "name": "DPoP: public URL with a path prefix, and the Host header is never trusted"
+    }
+   ]
+  },
+  "R79": {
+   "vectors": [
+    "Z05"
+   ],
+   "tests": [
+    {
+     "file": "tests/config-authzen.test.ts",
+     "name": "config: the AuthZEN listener is off by default and needs its own credentials"
+    },
+    {
+     "file": "tests/config-authzen.test.ts",
+     "name": "config: a credential is valid on one listener only; JWT audiences are distinct"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "authentication: other listeners credentials are rejected; PEP credentials are rejected elsewhere"
+    }
+   ]
+  },
+  "R80": {
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "startup rejects weak, duplicate and malformed PEP credentials and mixed modes"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "PEP JWT authentication: verified subject maps to a trusted tenant; another audience is rejected"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "authentication: other listeners credentials are rejected; PEP credentials are rejected elsewhere"
+    }
+   ]
+  },
+  "R81": {
+   "vectors": [
+    "Z05",
+    "Z06"
+   ],
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "tenant comes from the PEP credential only; request members cannot select it"
+    }
+   ]
+  },
+  "R82": {
+   "vectors": [
+    "Z01",
+    "Z02",
+    "Z03",
+    "Z16",
+    "Z17"
+   ],
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "single evaluation: AuthZEN 1.0 request and response shapes"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "the AuthZEN agent-subject form maps to the same binding"
+    }
+   ]
+  },
+  "R83": {
+   "vectors": [
+    "Z04",
+    "Z07",
+    "Z08",
+    "Z09",
+    "Z10",
+    "Z11",
+    "Z12",
+    "Z13",
+    "Z14",
+    "Z15",
+    "Z18",
+    "Z19"
+   ],
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "unknown members are ignored, missing required members are 400, unsupported values are decision false"
+    }
+   ]
+  },
+  "R84": {
+   "vectors": [
+    "Z01",
+    "Z02",
+    "Z16",
+    "Z20"
+   ],
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "parity: AuthZEN decisions equal decide() over generated requests"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "a supplemental policy verdict applies as in the engine, including unsupported obligations"
+    }
+   ]
+  },
+  "R85": {
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "x-akac-execution-id is recorded on AuthZEN evaluations; a malformed one is a 400"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "tenant comes from the PEP credential only; request members cannot select it"
+    },
+    {
+     "file": "tests/admin-evidence.test.ts",
+     "name": "a valid W3C traceparent is recorded with the audited decision; an invalid one never is"
+    }
+   ]
+  },
+  "R86": {
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "reasons: none by default, closed reason code with AKAC_AUTHZEN_REASONS=admin"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "single evaluation: AuthZEN 1.0 request and response shapes"
+    }
+   ]
+  },
+  "R87": {
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "obligations match those of the engine for the same decision (audit_level from confidential, no_persist from restricted)"
+    }
+   ]
+  },
+  "R88": {
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "batch evaluations: defaults, overrides, semantics and per-evaluation errors"
+    }
+   ]
+  },
+  "R89": {
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "X-Request-ID is echoed; the metadata document exists only with a public URL"
+    }
+   ]
+  },
+  "R90": {
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "unknown members are ignored, missing required members are 400, unsupported values are decision false"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "batch evaluations: defaults, overrides, semantics and per-evaluation errors"
+    },
+    {
+     "file": "tests/coverage-gaps.test.ts",
+     "name": "R90: the per-PEP evaluation budget counts every batch item, refuses with 429 before any engine work and fails closed with 503"
+    }
+   ]
+  },
+  "R91": {
+   "tests": [
+    {
+     "file": "tests/http.test.ts",
+     "name": "API and SDK: real requests, strict envelopes, binding and output protection"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "single evaluation: AuthZEN 1.0 request and response shapes"
+    },
+    {
+     "file": "tests/admin.test.ts",
+     "name": "admin API: envelopes, limits and headers"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-partitioning",
+    "reason": "The reference gateway holds no cache of protected content or derived model state; caches belong to the deployment (model runtime, embedding service, retrieval layer). The obligation is verified by the operator."
+   },
+   "note": "Reference part only: every listener answers with cache-control: no-store, so an intermediary cache never holds protected responses. Partitioning of the deployments own caches is the operator procedure."
+  },
+  "R92": {
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-partitioning",
+    "reason": "The reference gateway holds no cache of protected content or derived model state; caches belong to the deployment (model runtime, embedding service, retrieval layer). The obligation is verified by the operator."
+   }
+  },
+  "R93": {
+   "tests": [
+    {
+     "file": "tests/kb.test.ts",
+     "name": "per-tenant epochs: revocation invalidates only the revoking tenant"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "a runtime profile change ends open contexts (stale authorization)"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-invalidation",
+    "reason": "The epoch mechanism that operators tie cache invalidation to is tested; the invalidation of the operator's own caches is not visible to the reference."
+   }
+  },
+  "R94": {
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-keys",
+    "reason": "The reference gateway holds no cache of protected content or derived model state; caches belong to the deployment (model runtime, embedding service, retrieval layer). The obligation is verified by the operator."
+   }
+  },
+  "R95": {
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-derivatives",
+    "reason": "The reference gateway holds no cache of protected content or derived model state; caches belong to the deployment (model runtime, embedding service, retrieval layer). The obligation is verified by the operator."
+   }
+  },
+  "R96": {
+   "tests": [
+    {
+     "file": "tests/vector.test.ts",
+     "name": "compartments: a low-clearance caller never queries a higher tier"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "routed index: the restricted tier lives in a separate backend the low-clearance caller never reaches"
+    },
+    {
+     "file": "tests/vector.test.ts",
+     "name": "removal, revocation and relabeling keep the index consistent"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-derivatives",
+    "reason": "The reference vector index applies R96 to its own chunk tables (compartments, reconcile); every other cached derivative is the operator's."
+   }
+  },
+  "R97": {
+   "tests": [
+    {
+     "file": "tests/vector.test.ts",
+     "name": "removal, revocation and relabeling keep the index consistent"
+    },
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "reconcile alone removes a derived document whose ancestor was quarantined outside the ingestor (R-LIFE-8)"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-invalidation",
+    "reason": "Index entries are covered by tests; other caches are the operator's."
+   }
+  },
+  "R98": {
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-readiness",
+    "reason": "The reference gateway holds no cache of protected content or derived model state; caches belong to the deployment (model runtime, embedding service, retrieval layer). The obligation is verified by the operator."
+   }
+  },
+  "R99": {
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-cache-readiness",
+    "reason": "Informative: acknowledges a residual risk and requires nothing testable; the operator records it in the readiness review."
+   }
+  },
+  "R100": {
+   "tests": [
+    {
+     "file": "tests/http.test.ts",
+     "name": "rate limits: separate budgets per operation class, per run; 429 carries Retry-After"
+    }
+   ]
+  },
+  "R101": {
+   "tests": [
+    {
+     "file": "tests/http.test.ts",
+     "name": "rate limits: separate budgets per operation class, per run; 429 carries Retry-After"
+    }
+   ]
+  },
+  "R102": {
+   "tests": [
+    {
+     "file": "tests/http.test.ts",
+     "name": "rate limits: bounded memory fails closed with 503 instead of evicting counters"
+    },
+    {
+     "file": "tests/ha.test.ts",
+     "name": "HA seams: in-memory rate windows count per (tenant, scope, key), reset per window and refuse when full"
+    },
+    {
+     "file": "tests/ha.test.ts",
+     "name": "agent and admin listeners fail closed (503) when the rate limiter store is unavailable"
+    }
+   ]
+  },
+  "R103": {
+   "tests": [
+    {
+     "file": "tests/ha.test.ts",
+     "name": "HA seams: in-memory rate windows count per (tenant, scope, key), reset per window and refuse when full"
+    },
+    {
+     "file": "tests/coverage-gaps.test.ts",
+     "name": "R103: the per-instance scope of limiter state is documented"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-shared-limits",
+    "reason": "A global bound across N instances needs a shared layer or the PostgreSQL limiter store; the operator verifies the deployed choice."
+   }
+  },
+  "R104": {
+   "tests": [
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "the unmodified implementation has no failure and no unsafe success, and covers every red-team class"
+    },
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "a blanket-deny implementation is reported as FAILURE, not as safe"
+    },
+    {
+     "file": "tests/conformance.test.ts",
+     "name": "all portable conformance vectors pass"
+    }
+   ]
+  },
+  "R105": {
+   "tests": [
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "a suite without cross-tenant vectors cannot pass the tenant gate"
+    },
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "an id that merely names a tenant does not count for the tenant gate; only the cross-tenant tag does"
+    },
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "the AuthZEN tenant-pinning vectors are tagged cross-tenant"
+    },
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "broken oracle detected: decide ignores tenant trips the cross-tenant gate"
+    }
+   ]
+  },
+  "R106": {
+   "tests": [
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "machine-readable summary carries a reproducibility manifest"
+    },
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "CLI exits zero and writes the JSON summary"
+    }
+   ]
+  },
+  "R107": {
+   "tests": [
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "broken oracle detected: decide ignores tenant trips the cross-tenant gate"
+    },
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "a verifier that rejects everything is reported as FAILURE"
+    },
+    {
+     "file": "tests/conformance-authzen.test.ts",
+     "name": "broken oracle: an evaluator that allows share/export without a destination is UNSAFE_SUCCESS (R121)"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "broken oracles are reported: dropped profiles and a runtime that skips its enforcer are UNSAFE_SUCCESS, blanket deny is FAILURE"
+    }
+   ]
+  },
+  "R108": {
+   "vectors": [
+    "RT-001*",
+    "RT-004*",
+    "RT-010*",
+    "RT-020*",
+    "RT-026*",
+    "RT-030*",
+    "RT-031*",
+    "RT-040*",
+    "RT-041*",
+    "RT-050*",
+    "RT-052*",
+    "RT-060*"
+   ],
+   "tests": [
+    {
+     "file": "tests/conformance-mutation.test.ts",
+     "name": "the unmodified implementation has no failure and no unsafe success, and covers every red-team class"
+    }
+   ]
+  },
+  "R109": {
+   "vectors": [
+    "RTC-P22",
+    "RTC-P23",
+    "RTC-P*",
+    "RTC-E*"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "obligations: runtime_profile per domain, conflicts unsatisfiable, output label merges to the highest"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: share/export without a destination is never weaker than for any destination the run allows"
+    }
+   ]
+  },
+  "R110": {
+   "vectors": [
+    "E68",
+    "RTC-P13",
+    "RTC-P15",
+    "RTC-P16",
+    "RTC-E03",
+    "RTC-R10"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "a supplemental policy may add runtime profiles; a conflict with the tenant policy denies UNSUPPORTED_OBLIGATION"
+    }
+   ]
+  },
+  "R111": {
+   "vectors": [
+    "RTC-P03",
+    "RTC-P04",
+    "RTC-P05",
+    "RTC-P07"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "ProtectedRuntime applies exactly the governing profiles before the provider and records the revision; the answer carries the output label"
+    }
+   ]
+  },
+  "R112": {
+   "vectors": [
+    "RTC-R03",
+    "RTC-R08",
+    "RTC-R09",
+    "RTC-R11",
+    "RTC-R12",
+    "RTC-R13"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "ProtectedRuntime applies exactly the governing profiles before the provider and records the revision; the answer carries the output label"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: a revision that is no longer in force for the execution denies the answer; per-execution enforcers run concurrently"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: concurrent answers through one sandbox-wide enforcer never let a weaker profile govern restricted content"
+    }
+   ]
+  },
+  "R113": {
+   "vectors": [
+    "RTC-R01",
+    "RTC-R02",
+    "RTC-R04",
+    "RTC-R05",
+    "RTC-R06",
+    "RTC-R07"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "ProtectedRuntime: a slow enforcer is a deny before the provider"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: the agent listener denies disclosures carrying runtime_profile unless declared behind an enforcer (R123)"
+    }
+   ]
+  },
+  "R114": {
+   "vectors": [
+    "RTC-P24",
+    "RTC-P25",
+    "RTC-P26",
+    "RTC-P27",
+    "RTC-P28",
+    "RTC-P29",
+    "RTC-P30",
+    "RTC-P31",
+    "RTC-P17",
+    "RTC-P18"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "control plane: security-admin only, validated, audited, epoch advance on every change; auditor reads; tenant isolation; bounded"
+    }
+   ]
+  },
+  "R115": {
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "control plane: security-admin only, validated, audited, epoch advance on every change; auditor reads; tenant isolation; bounded"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "admin routes: PUT and GET /admin/v1/runtime-profiles/{id}"
+    },
+    {
+     "file": "tests/runtime-postgres.test.ts",
+     "name": "PostgreSQL runtime profiles as the RLS runtime role: derivation, administration, evidence correlation, tenant isolation"
+    }
+   ]
+  },
+  "R116": {
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: a runtime change between the last check and the final release withholds the answer and audits it (R124)"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "HTTP: x-akac-execution-id is recorded; a malformed one is refused; a runtime revision is never taken from an agent request"
+    }
+   ],
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-runtime-enforcer",
+    "reason": "That the enforcer runs outside the agent, and that the agent cannot change or replace the applied profile, is a property of the runtime deployment; AKAC only refuses a revision it cannot confirm."
+   }
+  },
+  "R117": {
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "audit correlation: execution id and runtime revision are format 2 optional members; old entries still verify; schemas accept them"
+    },
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "HTTP: x-akac-execution-id is recorded; a malformed one is refused; a runtime revision is never taken from an agent request"
+    },
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "x-akac-execution-id is recorded on AuthZEN evaluations; a malformed one is a 400"
+    }
+   ]
+  },
+  "R118": {
+   "operator": {
+    "procedure": "docs/CONFORMANCE-COVERAGE.md#op-non-bypass",
+    "reason": "Non-bypassability of every path from the agent sandbox to indexes, stores, databases and providers is a network and platform property; the checklist in docs/RUNTIME-CONTAINMENT.md is the operator procedure."
+   }
+  },
+  "R119": {
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "a runtime profile change ends open contexts (stale authorization)"
+    },
+    {
+     "file": "tests/core.test.ts",
+     "name": "revocation invalidates contexts and derived knowledge"
+    }
+   ]
+  },
+  "R120": {
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "AuthZEN facade: runtime_profile and max_output_classification appear in context.obligations"
+    }
+   ]
+  },
+  "R121": {
+   "vectors": [
+    "Z21",
+    "Z22",
+    "Z23",
+    "RTC-E09",
+    "RTC-E10",
+    "RTC-E11",
+    "RTC-E14",
+    "RTC-E15"
+   ],
+   "tests": [
+    {
+     "file": "tests/authzen.test.ts",
+     "name": "regression: AuthZEN share/export must name a Destination, also in an unrestricted run (R121)"
+    },
+    {
+     "file": "tests/conformance-authzen.test.ts",
+     "name": "broken oracle: an evaluator that allows share/export without a destination is UNSAFE_SUCCESS (R121)"
+    }
+   ]
+  },
+  "R122": {
+   "vectors": [
+    "RTC-P20",
+    "RTC-P21"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: share/export without a destination is never weaker than for any destination the run allows"
+    }
+   ]
+  },
+  "R123": {
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: the agent listener denies disclosures carrying runtime_profile unless declared behind an enforcer (R123)"
+    },
+    {
+     "file": "tests/config.test.ts",
+     "name": "config: AKAC_RUNTIME_OBLIGATIONS defaults to deny and accepts only deny or trusted-enforcer (R123)"
+    }
+   ]
+  },
+  "R124": {
+   "vectors": [
+    "RTC-R13"
+   ],
+   "tests": [
+    {
+     "file": "tests/runtime-containment.test.ts",
+     "name": "regression: a runtime change between the last check and the final release withholds the answer and audits it (R124)"
+    }
+   ]
+  },
+  "R125": {
+   "tests": [
+    {
+     "file": "tests/lifecycle.test.ts",
+     "name": "regression: a tombstone names no audience and stays unreadable even if the lifecycle were ignored (R125)"
+    }
+   ]
+  },
+  "R126": {
+   "tests": [
+    {
+     "file": "tests/regressions-0.6.test.ts",
+     "name": "regression: a kb-admin cannot widen a document label through a new version (R15, R126)"
+    },
+    {
+     "file": "tests/regressions-0.6.test.ts",
+     "name": "regression: narrowing versions stay kb-admin work; a security-admin alone may only relabel with unchanged content (R126)"
+    }
+   ]
+  },
+  "R127": {
+   "tests": [
+    {
+     "file": "tests/differential-vectors.test.ts",
+     "name": "the fixture is data: examples/fixture.json validates against schemas/fixture.json and loads into valid records"
+    }
+   ]
+  },
+  "R128": {
+   "tests": [
+    {
+     "file": "tests/differential-vectors.test.ts",
+     "name": "integral JSON numbers (1.0, 1e0) are integers in both implementations (review finding 14)"
+    }
+   ]
+  },
+  "R129": {
+   "tests": [
+    {
+     "file": "tests/differential-vectors.test.ts",
+     "name": "the Python implementation runs the shared vectors on its own (python -m akac conformance)"
+    },
+    {
+     "file": "tests/interop.test.ts",
+     "name": "the Python evaluator reproduces every portable decision vector"
+    }
+   ]
+  },
+  "R130": {
+   "tests": [
+    {
+     "file": "tests/differential-vectors.test.ts",
+     "name": "every shared vector file: the TypeScript reference and the Python implementation agree"
+    }
+   ]
+  },
+  "R131": {
+   "tests": [
+    {
+     "file": "tests/coverage-gaps.test.ts",
+     "name": "R131: the implementations table states who wrote each implementation and claims no independence"
+    }
+   ]
+  },
+  "R136": {
+   "tests": [
+    {
+     "file": "tests/ha.test.ts",
+     "name": "HA seams: in-memory rate windows count per (tenant, scope, key), reset per window and refuse when full"
+    },
+    {
+     "file": "tests/ha-postgres.test.ts",
+     "name": "PostgreSQL HA: two gateway instances on one database share rate windows (agent) and fail closed without it"
+    }
+   ],
+   "note": "The shared-window tests run on PostgreSQL in the hosted CI job."
+  },
+  "R137": {
+   "tests": [
+    {
+     "file": "tests/ha.test.ts",
+     "name": "agent and admin listeners fail closed (503) when the rate limiter store is unavailable"
+    },
+    {
+     "file": "tests/ha-postgres.test.ts",
+     "name": "PostgreSQL HA: migration 009 tables are tenant-scoped with forced RLS and pass the runtime-role posture check"
+    },
+    {
+     "file": "tests/ha-postgres.test.ts",
+     "name": "PostgreSQL HA: two gateway instances on one database share rate windows (agent) and fail closed without it"
+    }
+   ]
+  },
+  "R138": {
+   "tests": [
+    {
+     "file": "tests/ha.test.ts",
+     "name": "HA seams: in-memory idempotency claims once, replays the stored response and forgets released keys"
+    },
+    {
+     "file": "tests/ha-postgres.test.ts",
+     "name": "PostgreSQL HA: admin Idempotency-Key records are shared across instances; one concurrent claim wins; leases lapse; expired rows are swept"
+    }
+   ]
+  },
+  "R139": {
+   "tests": [
+    {
+     "file": "tests/ha.test.ts",
+     "name": "HA seams: the job lock runs one job per (job, tenant) at a time and skips a concurrent run"
+    },
+    {
+     "file": "tests/ha.test.ts",
+     "name": "admin API: a retention run held by another instance is refused 409, audited and counted"
+    },
+    {
+     "file": "tests/ha-postgres.test.ts",
+     "name": "PostgreSQL HA: retention/reconcile job locks serialize across instances without a leader and never outlive their session"
+    }
+   ]
+  },
+  "R140": {
+   "tests": [
+    {
+     "file": "tests/custody.test.ts",
+     "name": "custody: a file signer produces exactly the 0.4 format 2 checkpoint"
+    },
+    {
+     "file": "tests/custody.test.ts",
+     "name": "custody: the Vault Transit signer sends only the signing input, pins the key version and verifies every signature"
+    },
+    {
+     "file": "tests/custody.test.ts",
+     "name": "custody: checkpoint signer configuration (file or Vault Transit) is validated up front"
+    }
+   ]
+  },
+  "R141": {
+   "tests": [
+    {
+     "file": "tests/custody.test.ts",
+     "name": "custody: key rotation keeps every checkpoint verifiable through the keyring, and history stays append-only across keys"
+    }
+   ]
+  },
+  "R142": {
+   "tests": [
+    {
+     "file": "tests/custody.test.ts",
+     "name": "custody: the audit-verify job checks chain, stored tree and anchored checkpoints, and detects a rewritten stream"
+    }
+   ]
+  },
+  "R159": {
+   "vectors": [
+    "CRYPTO-unregistered-alg",
+    "CRYPTO-alg-none",
+    "CRYPTO-*-valid"
+   ],
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: the runtime provides every registered algorithm and each signs and verifies a format 3 checkpoint"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: key ids carry the algorithm; the algorithm is inside the signed content and cannot be swapped or stripped"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "configuration selects the checkpoint algorithm; Vault Transit stays Ed25519; misconfigurations fail closed"
+    }
+   ]
+  },
+  "R160": {
+   "vectors": [
+    "CRYPTO-*-alg-relabelled",
+    "CRYPTO-*-alg-and-keyid-relabelled",
+    "CRYPTO-*-truncated-signature",
+    "CRYPTO-*-padded-signature",
+    "CRYPTO-*-extra-member",
+    "CRYPTO-*-format-relabelled-v2",
+    "CRYPTO-*-keyid-without-algorithm",
+    "CRYPTO-*-tampered-root"
+   ],
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: key ids carry the algorithm; the algorithm is inside the signed content and cannot be swapped or stripped"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "the offline 0.4 signing form writes format 2 for Ed25519 and format 3 for other algorithms"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: keyring, custody and control plane carry format 3; a migration is verified end to end, downgrade included"
+    }
+   ]
+  },
+  "R161": {
+   "vectors": [
+    "CRYPTO-hybrid-*"
+   ],
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: a hybrid signature is valid only if both the Ed25519 and the ML-DSA-65 signature verify"
+    }
+   ]
+  },
+  "R162": {
+   "vectors": [
+    "CRYPTO-*-not-in-policy",
+    "CRYPTO-*-in-policy",
+    "CRYPTO-history-hybrid-not-allowed-by-policy"
+   ],
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: verifier policy is an allowlist decided by the verifier, not by the document"
+    }
+   ]
+  },
+  "R163": {
+   "vectors": [
+    "CRYPTO-history-*"
+   ],
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: no downgrade, a stream that used hybrid or post-quantum signatures does not verify against a later classical-only checkpoint"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: keyring, custody and control plane carry format 3; a migration is verified end to end, downgrade included"
+    }
+   ]
+  },
+  "R164": {
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "configuration selects the checkpoint algorithm; Vault Transit stays Ed25519; misconfigurations fail closed"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "crypto agility: signers, format selection and fail-closed signing"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "scripts/checkpoint.ts keygen writes a key pair with a private file mode and never overwrites"
+    },
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "the offline 0.4 signing form writes format 2 for Ed25519 and format 3 for other algorithms"
+    }
+   ]
+  },
+  "R165": {
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "key hygiene: Buffers are erased after parsing, and signers never serialise or inspect key material"
+    }
+   ],
+   "note": "KeyObject material cannot be erased from JavaScript; docs/CRYPTO-AGILITY.md states this limit instead of claiming erasure."
+  },
+  "R166": {
+   "tests": [
+    {
+     "file": "tests/crypto-agility.test.ts",
+     "name": "conformance vectors: public data only, and every applicable vector agrees between TypeScript and Python"
+    }
+   ],
+   "note": "The Python runner reports SLH-DSA (and ML-DSA on cryptography releases without mldsa) as NOT_APPLICABLE; tests/crypto-agility.test.ts asserts that only such algorithms are skipped."
+  },
+  "R143": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RFC 8693: a delegation token whose current actor matches the mapping authenticates and carries its chain"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RFC 8693 attacks: chain spoofing, missing delegation, prior actor posing as current, may_act mismatch and malformed chains deny"
+    }
+   ]
+  },
+  "R144": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RFC 8693 attacks: chain spoofing, missing delegation, prior actor posing as current, may_act mismatch and malformed chains deny"
+    }
+   ]
+  },
+  "R145": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RFC 8693: a delegation token whose current actor matches the mapping authenticates and carries its chain"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RFC 8693 attacks: chain spoofing, missing delegation, prior actor posing as current, may_act mismatch and malformed chains deny"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "actor chains are recorded in the audit entry of every decision of the binding"
+    },
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity: migration 010 upgrades a database at 009; forced RLS on the new tables; checks refuse malformed rows"
+    }
+   ]
+  },
+  "R146": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RFC 8693 attacks: chain spoofing, missing delegation, prior actor posing as current, may_act mismatch and malformed chains deny"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RFC 8693: administrative and PEP credentials are never delegation tokens"
+    }
+   ]
+  },
+  "R147": {
+   "vectors": [
+    "ID-H01",
+    "ID-H02",
+    "ID-H03",
+    "ID-H04",
+    "ID-H05",
+    "ID-H06",
+    "ID-H07",
+    "ID-H08",
+    "ID-H09",
+    "ID-H10"
+   ],
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "heartbeat: issuance starts the run alive; it lapses after the TTL, finally, and cascades to children"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "heartbeat: only the runtime role of a service or user may heartbeat; a TTL longer than the parent is refused"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "heartbeat: an agent-delegated child starts alive at delegation, whatever heartbeat time the agent sends"
+    },
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity as the RLS runtime role: heartbeats, break-glass with approval, risk caps and tenant isolation"
+    }
+   ]
+  },
+  "R148": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "heartbeat: only the runtime role of a service or user may heartbeat; a TTL longer than the parent is refused"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "admin routes: heartbeat (runtime service), break-glass with approval, risk signals and settings"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass: four eyes by default; self-approval and duplicate approval are refused; the grant and its use are flagged"
+    }
+   ]
+  },
+  "R149": {
+   "vectors": [
+    "ID-B00",
+    "ID-B01",
+    "ID-B02",
+    "ID-B03",
+    "ID-B04",
+    "ID-B05",
+    "ID-B06",
+    "ID-B07",
+    "ID-B08",
+    "ID-B09",
+    "ID-B10",
+    "ID-B11",
+    "ID-B12",
+    "ID-B13"
+   ],
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass: four eyes by default; self-approval and duplicate approval are refused; the grant and its use are flagged"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass limits: at most two hours, named resources, same tenant, never over quarantine or erasure, quorum never below 2"
+    },
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity: migration 010 upgrades a database at 009; forced RLS on the new tables; checks refuse malformed rows"
+    }
+   ]
+  },
+  "R150": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass: four eyes by default; self-approval and duplicate approval are refused; the grant and its use are flagged"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass limits: at most two hours, named resources, same tenant, never over quarantine or erasure, quorum never below 2"
+    },
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity as the RLS runtime role: heartbeats, break-glass with approval, risk caps and tenant isolation"
+    }
+   ]
+  },
+  "R151": {
+   "vectors": [
+    "ID-R01",
+    "ID-R02",
+    "ID-R03",
+    "ID-R04",
+    "ID-R05",
+    "ID-R06",
+    "ID-R07",
+    "ID-R08",
+    "ID-R09",
+    "ID-R10",
+    "ID-R11",
+    "ID-R12",
+    "ID-R13",
+    "ID-R14"
+   ],
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "risk signals: a service connector ingests, a raise advances the epoch, caps never widen and critical denies"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "property: adding any risk signal never turns a denial into an allow"
+    },
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity as the RLS runtime role: heartbeats, break-glass with approval, risk caps and tenant isolation"
+    }
+   ]
+  },
+  "R152": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "risk signals: a service connector ingests, a raise advances the epoch, caps never widen and critical denies"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "RiskProvider can only lower clearance; a failure denies"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "admin routes: heartbeat (runtime service), break-glass with approval, risk signals and settings"
+    }
+   ]
+  },
+  "R153": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "sensitive operations pass the quorum: label widening, role widening, SoD relaxation, runtime and destination widening, settings relaxation"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass: four eyes by default; self-approval and duplicate approval are refused; the grant and its use are flagged"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "admin routes: heartbeat (runtime service), break-glass with approval, risk signals and settings"
+    }
+   ]
+  },
+  "R154": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass: four eyes by default; self-approval and duplicate approval are refused; the grant and its use are flagged"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "approvals expire, can be rejected, execute exactly once and re-validate at execution"
+    },
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity as the RLS runtime role: heartbeats, break-glass with approval, risk caps and tenant isolation"
+    }
+   ]
+  },
+  "R155": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "ApprovalGate can only require more: a higher quorum, an external workflow, and it fails closed"
+    }
+   ]
+  },
+  "R156": {
+   "tests": [
+    {
+     "file": "tests/identity.test.ts",
+     "name": "sensitive operations pass the quorum: label widening, role widening, SoD relaxation, runtime and destination widening, settings relaxation"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "break-glass limits: at most two hours, named resources, same tenant, never over quarantine or erasure, quorum never below 2"
+    },
+    {
+     "file": "tests/identity.test.ts",
+     "name": "risk signals: a service connector ingests, a raise advances the epoch, caps never widen and critical denies"
+    }
+   ]
+  },
+  "R157": {
+   "tests": [
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity: migration 010 upgrades a database at 009; forced RLS on the new tables; checks refuse malformed rows"
+    },
+    {
+     "file": "tests/identity-postgres.test.ts",
+     "name": "PostgreSQL identity as the RLS runtime role: heartbeats, break-glass with approval, risk caps and tenant isolation"
+    }
+   ]
+  },
+  "R158": {
+   "tests": [
+    {
+     "file": "tests/regressions-0.6b.test.ts",
+     "name": "0.6b R158: a single security-admin cannot mint the second approver of a four-eyes rule (was: elevate, approve, break-glass)"
+    },
+    {
+     "file": "tests/regressions-0.6b.test.ts",
+     "name": "0.6b R158: an elevation executes with a second standing security-admin, never with the elevated principal"
+    }
+   ]
+  },
+  "R167": {
+   "vectors": [
+    "REL-R02",
+    "REL-R07",
+    "REL-R15",
+    "REL-R16"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: redaction replaces the released content; the audit entry holds closed findings only"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: filters only narrow; an unauthorized release is denied before any filter runs, and pass changes nothing"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: filters run in order and see the previous redaction"
+    },
+    {
+     "file": "tests/release-vectors.test.ts",
+     "name": "release and retrieval protection vectors pass (conformance/vectors-0.6-release.json)"
+    }
+   ]
+  },
+  "R168": {
+   "vectors": [
+    "REL-R03",
+    "REL-R04",
+    "REL-R05",
+    "REL-R06",
+    "REL-R12",
+    "REL-R13",
+    "REL-D03",
+    "REL-D04",
+    "REL-D05",
+    "REL-D06"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: a deny, an error, a timeout and a malformed result all deny (fail closed); nothing is released"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: failure \"skip\" ignores a broken filter, but never one that a policy requires"
+    },
+    {
+     "file": "tests/release-vectors.test.ts",
+     "name": "broken oracle: an engine that ignores required filters or the volume budget is UNSAFE_SUCCESS"
+    }
+   ]
+  },
+  "R169": {
+   "vectors": [
+    "REL-O01",
+    "REL-O02",
+    "REL-O03",
+    "REL-O04",
+    "REL-O08",
+    "REL-R08",
+    "REL-R09",
+    "REL-R10",
+    "REL-R11"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release_filter obligation: a required filter that is not configured denies; a configured one is enforced and not passed on"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "required filters per tenant and classification (option): unmet requirement denies, and the caller can add requirements only"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "obligations: release_filter and approval_required are validated, merged as a union and ordered"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "ProtectedRuntime: release_filter of the context applies to the provider hop; a missing filter stops before the provider"
+    },
+    {
+     "file": "tests/release-vectors.test.ts",
+     "name": "broken oracle: an engine that ignores required filters or the volume budget is UNSAFE_SUCCESS"
+    }
+   ]
+  },
+  "R170": {
+   "vectors": [
+    "REL-D01",
+    "REL-D02",
+    "REL-D03",
+    "REL-D07"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "derive sanitizer: clean stores the cleaned content; deny and error store nothing; findings are closed"
+    }
+   ]
+  },
+  "R171": {
+   "vectors": [
+    "REL-R02",
+    "REL-R03",
+    "REL-D02"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "closed findings: validation, and audit verification rejects a tampered finding"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: redaction replaces the released content; the audit entry holds closed findings only"
+    }
+   ]
+  },
+  "R172": {
+   "tests": [
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "timing: a denial, a no-match and a match all answer at or after the floor, with the same shape"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "timing: without a floor nothing is padded; jitter stays within its range; other routes are not padded"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "timing: AuthZEN evaluation pads allow and deny to the floor"
+    }
+   ]
+  },
+  "R173": {
+   "vectors": [
+    "REL-H01",
+    "REL-H02",
+    "REL-H03",
+    "REL-H04",
+    "REL-H05"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "hints: off by default, so a denial carries nothing beyond NOT_AUTHORIZED"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "hints: GRANT_EXPIRED, PURPOSE_NOT_GRANTED and ACTION_NOT_GRANTED depend on the grant of the caller only, never on the resource"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "hints: the hint of a request is a function of the caller state and request parameters, not of the resource (exhaustive over resource kinds)"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "hints: RATE_LIMITED accompanies a 429 only when hints are on"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "hints: RUNTIME_ENFORCER_REQUIRED is listener and tenant state, the same for a protected, a forbidden and a missing resource"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "hints: APPROVAL_REQUIRED and RATE_LIMITED come from the own volume state of the principal; another principal sees none"
+    }
+   ]
+  },
+  "R174": {
+   "vectors": [
+    "REL-V01",
+    "REL-V02",
+    "REL-V03",
+    "REL-V04"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "volume budget: bytes and documents per classification; the crossing disclosure is denied, audited with a closed finding and creates no context"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "volume budget: per (tenant, user, agent); released output counts too; approval mode defers with a distinct code; a store error fails closed"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "config: protections are off or fail-closed by default and validated strictly"
+    },
+    {
+     "file": "tests/release-vectors.test.ts",
+     "name": "broken oracle: an engine that ignores required filters or the volume budget is UNSAFE_SUCCESS"
+    }
+   ]
+  },
+  "R175": {
+   "vectors": [
+    "REL-O05",
+    "REL-O06",
+    "REL-O07"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "approval_required from a policy is refused by the engine callers that cannot obtain an approval (fail closed)"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "obligations: release_filter and approval_required are validated, merged as a union and ordered"
+    }
+   ]
+  },
+  "R176": {
+   "tests": [
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "backoff: free denials, then exponential Retry-After up to the cap; success resets; streaks expire"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "backoff: repeated denials over HTTP earn 429 with growing Retry-After; other principals and successes are unaffected"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "backoff: a no-match and a denial count alike, so the streak reveals nothing about resources"
+    }
+   ]
+  },
+  "R177": {
+   "tests": [
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "anchors: drift beyond the threshold disables retrieval until an administrator re-baselines; a down embedder does not"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "anchors: the baseline file survives restarts; a model or anchor change is drift; a replaced baseline is adopted"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "anchors: a drifted monitor defers vector retrieval with RETRIEVAL_DISABLED (audited, metric) and never queries the index"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "config: embedding anchors"
+    }
+   ]
+  },
+  "R178": {
+   "tests": [
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "recall: the vector pre-filter uses the user AND the agent audience, so invisible candidates neither fetch nor crowd out visible ones"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "recall: agent audience also applies to container audiences and required projects"
+    }
+   ]
+  },
+  "R179": {
+   "vectors": [
+    "REL-K01",
+    "REL-K02"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "decision cache: an allow is served from the cache and audited; a revocation advances the epoch, so no stale allow follows"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "decision cache: TTL, grant expiry, policy revision, destination and principal are part of the key; denials are never cached"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "decision cache: a returned obligation list is a copy, so a caller cannot change what later hits return"
+    }
+   ]
+  },
+  "R180": {
+   "vectors": [
+    "REL-C01",
+    "REL-C02",
+    "REL-C03",
+    "REL-C04",
+    "REL-C05",
+    "REL-C06",
+    "REL-C07"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "obligations: release_filter and approval_required are validated, merged as a union and ordered"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "closed findings: validation, and audit verification rejects a tampered finding"
+    }
+   ]
+  },
+  "R181": {
+   "vectors": [
+    "REL-R14"
+   ],
+   "tests": [
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: filters only narrow; an unauthorized release is denied before any filter runs, and pass changes nothing"
+    },
+    {
+     "file": "tests/release-hooks.test.ts",
+     "name": "release filter: a deny, an error, a timeout and a malformed result all deny (fail closed); nothing is released"
+    },
+    {
+     "file": "tests/release-protection.test.ts",
+     "name": "protection options are validated by the gateway"
+    }
+   ],
+   "note": "Enforced at the two extension points (filters, sanitizers): results are validated, and a hook runs only after every other check allowed the operation."
+  },
+  "R182": {
+   "vectors": [
+    "K-D01",
+    "K-D02",
+    "K-D03",
+    "K-D04",
+    "K-D05",
+    "K-D06"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R188 and R182: combination rules and the depth limit are administered by security-admins; relaxations pass the approval gate"
+    },
+    {
+     "file": "tests/knowledge-postgres.test.ts",
+     "name": "PostgreSQL knowledge: attributes round-trip, rules and settings load with every decision, session records never reach the database"
+    }
+   ]
+  },
+  "R183": {
+   "vectors": [
+    "K-M01",
+    "K-M02",
+    "K-M03",
+    "K-M04"
+   ]
+  },
+  "R184": {
+   "vectors": [
+    "K-D07"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R186 and R187: removing a tag or widening residency is a label widening; a destination region change is a destination widening"
+    }
+   ]
+  },
+  "R186": {
+   "vectors": [
+    "K-T01",
+    "K-C01"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R186 and R187: removing a tag or widening residency is a label widening; a destination region change is a destination widening"
+    }
+   ]
+  },
+  "R187": {
+   "vectors": [
+    "K-R01",
+    "K-R02",
+    "K-R03",
+    "K-R04",
+    "K-R05",
+    "K-R06",
+    "K-R07",
+    "K-R08",
+    "K-R09",
+    "K-R10",
+    "K-R11",
+    "K-R12"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R186 and R187: removing a tag or widening residency is a label widening; a destination region change is a destination widening"
+    }
+   ]
+  },
+  "R188": {
+   "vectors": [
+    "K-C01",
+    "K-C02",
+    "K-C03",
+    "K-C04",
+    "K-C05",
+    "K-C06",
+    "K-C07",
+    "K-C08",
+    "K-C09",
+    "K-C10"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R188 and R182: combination rules and the depth limit are administered by security-admins; relaxations pass the approval gate"
+    },
+    {
+     "file": "tests/knowledge-postgres.test.ts",
+     "name": "PostgreSQL knowledge: attributes round-trip, rules and settings load with every decision, session records never reach the database"
+    }
+   ]
+  },
+  "R190": {
+   "vectors": [
+    "K-E01",
+    "K-E02",
+    "K-E03",
+    "K-E04",
+    "K-E05",
+    "K-E06",
+    "K-E07",
+    "K-E08",
+    "K-E09",
+    "K-E10",
+    "K-E11",
+    "K-E12"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R190: session-scoped records never reach a persistent store and end with the session, the expiry or a restart"
+    },
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R190: DELETE /v1/sessions/{id} closes the caller's session and is audited"
+    },
+    {
+     "file": "tests/knowledge-postgres.test.ts",
+     "name": "PostgreSQL knowledge: attributes round-trip, rules and settings load with every decision, session records never reach the database"
+    }
+   ]
+  },
+  "R191": {
+   "vectors": [
+    "K-L01"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R191: the model identity comes from configuration or a trusted caller, never from the agent API"
+    },
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R191: a model recall quarantines the model's records in range and sweeps their lineage"
+    }
+   ]
+  },
+  "R192": {
+   "vectors": [
+    "K-W01",
+    "K-W02",
+    "K-W03",
+    "K-W04",
+    "K-W05",
+    "K-W06"
+   ],
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R192: an admissible placement never admits a principal that a source does not admit"
+    }
+   ]
+  },
+  "R193": {
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R193: the sweeper quarantines the descendants of a revoked record in bounded, resumable, audited batches"
+    },
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R193: poisoned roots mark descendants poisoned; an upward relabel raises stale stored classifications; the job lock serializes"
+    }
+   ]
+  },
+  "R194": {
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R194: an erasure blocked by a legal hold is stored as pending and runs once the hold is lifted"
+    },
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R194: the admin API answers 409 with pending: true, and lifting the hold runs pending erasures in the background"
+    },
+    {
+     "file": "tests/knowledge-postgres.test.ts",
+     "name": "PostgreSQL knowledge: attributes round-trip, rules and settings load with every decision, session records never reach the database"
+    }
+   ]
+  },
+  "R189": {
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R189: the supplemental policy receives effective tags, residency and the run's sources"
+    }
+   ]
+  },
+  "R195": {
+   "tests": [
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R195: content is sealed at rest, reads never rewrite it, and erasure destroys the key (backups become unreadable)"
+    },
+    {
+     "file": "tests/knowledge.test.ts",
+     "name": "R195: a failing key destruction is retried; configuration refuses unsafe modes"
+    },
+    {
+     "file": "tests/knowledge-postgres.test.ts",
+     "name": "PostgreSQL knowledge: content encryption keeps ciphertext at rest and reads rewrite nothing"
+    }
+   ]
+  },
+  "R185": {
+   "vectors": [
+    "K-Y01",
+    "K-Y02",
+    "K-Y03",
+    "K-Y04",
+    "K-Y05",
+    "K-Y06"
+   ]
+  },
+  "R196": {
+   "tests": [
+    {
+     "file": "tests/knowledge-monotonicity.test.ts",
+     "name": "R196: an added restriction never turns a denial into an allow (random worlds; decide and gateway sequences)"
+    }
+   ]
+  },
+  "R132": {
+   "artifacts": [
+    "formal/AKAC.tla",
+    "docs/FORMAL-MODEL.md"
+   ],
+   "note": "The model is informative; its traceability table (property to requirement to vectors and tests) is in docs/FORMAL-MODEL.md."
+  },
+  "R133": {
+   "artifacts": [
+    "formal/AKAC.tla",
+    "formal/MC.cfg",
+    "formal/MC_admin.cfg",
+    "formal/check.sh",
+    ".github/workflows/formal.yml"
+   ],
+   "note": "The seven properties are TLC invariants of the faithful configurations; formal/check.sh and the formal workflow run the model checker."
+  },
+  "R134": {
+   "artifacts": [
+    "formal/broken/DeriveOwnMinLabel.cfg",
+    "formal/broken/DynSoDOnlyActivated.cfg",
+    "formal/broken/KbAdminMayWiden.cfg",
+    "formal/broken/LifecycleNotTransitive.cfg",
+    "formal/broken/NoPurposeAttenuation.cfg",
+    "formal/broken/NoTenantCheck.cfg",
+    "formal/broken/QuarantineNoEpoch.cfg",
+    "formal/broken/ReleaseShallowRecipient.cfg",
+    "formal/witness/NeverDelegatedAllow.cfg",
+    "formal/witness/NeverDerivedFromDerived.cfg",
+    "formal/witness/NeverReadDerived.cfg",
+    "formal/witness/NeverReleaseToColleague.cfg",
+    "formal/witness/NeverSecurityWidening.cfg"
+   ],
+   "note": "One broken configuration per property that changes one rule, and non-vacuity witnesses; the checker must report the violation or reach the witness state."
+  },
+  "R135": {
+   "artifacts": [
+    "docs/FORMAL-MODEL.md",
+    "formal/check.sh"
+   ],
+   "note": "Universe, depth bounds, checker version, state counts and what is not modelled are stated in docs/FORMAL-MODEL.md."
+  }
+ }
+}

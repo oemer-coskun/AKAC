@@ -29,6 +29,8 @@ jobs:
       OPA_BIN: /usr/local/bin/opa
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
@@ -42,15 +44,35 @@ jobs:
           chmod +x opa
           sudo mv opa /usr/local/bin/opa
       - run: npm run check
+      - name: Spec lint (RFC 2119/8174 keywords, requirement IDs, relative links)
+        run: npm run lint:spec
       - run: npm run conformance
+      - name: Rule coverage matrix (every MUST-level requirement has a vector, a test or an operator procedure)
+        run: npm run coverage:matrix
       - run: npm run test:opa
       - run: npm run demo
+      - name: Backup and restore drill (pg_dump, drop, pg_restore, checkpoint verify against the pre-backup checkpoint)
+        env:
+          # pg_dump/pg_restore from the same pinned image as the service, so client and server majors match.
+          AKAC_DRILL_DATABASE_URL: postgresql://akac_test@127.0.0.1:5432/akac_test
+          AKAC_PG_TOOL: docker run --rm -i --network host pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+        run: |
+          node scripts/backup-drill.ts --evidence backup-drill-evidence.json
+          node scripts/backup-drill-summary.ts backup-drill-evidence.json >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backup-drill-evidence
+          path: backup-drill-evidence.json
+          if-no-files-found: warn
       - run: npm audit --omit=dev --audit-level=high
   containers:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - name: Generate throwaway database password files for this run
         run: |
           umask 077 && mkdir secrets
@@ -88,14 +110,17 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Scan the full history for secrets (pinned gitleaks image, no license key)
-        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --redact --no-banner --verbose
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner --verbose
   bonus:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
@@ -103,3 +128,73 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx tsc --noEmit
       - run: npm run test:bonus
+  reproducible-build:
+    # Builds the image twice from two different checkouts (different paths and file times, no
+    # cache) and compares the OCI manifest digest. Single platform (linux/amd64); attestations are
+    # excluded because provenance and SBOM carry run-specific data. See docs/process/VERIFY-RELEASE.md.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Prepare a second, independent checkout
+        id: prep
+        run: |
+          echo "epoch=$(git log -1 --pretty=%ct)" >> "$GITHUB_OUTPUT"
+          git clone --quiet --no-hardlinks "$GITHUB_WORKSPACE" "$RUNNER_TEMP/akac-second"
+          git -C "$RUNNER_TEMP/akac-second" checkout --quiet "$GITHUB_SHA"
+          # Different file times than checkout A, and later than SOURCE_DATE_EPOCH: rewrite-timestamp clamps only
+          # times newer than the epoch, so both builds must see times above it to compare like with like.
+          find "$RUNNER_TEMP/akac-second" -not -path '*/.git/*' -exec touch -d "@$(( $(git log -1 --pretty=%ct) + 86400 ))" {} +
+      - name: Build A
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          no-cache: true
+          provenance: false
+          sbom: false
+          outputs: type=oci,dest=${{ runner.temp }}/a.tar,rewrite-timestamp=true
+          build-args: |
+            VERSION=reproducibility-check
+            VCS_REF=${{ github.sha }}
+            SOURCE_DATE_EPOCH=${{ steps.prep.outputs.epoch }}
+      - name: Build B
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ${{ runner.temp }}/akac-second
+          no-cache: true
+          provenance: false
+          sbom: false
+          outputs: type=oci,dest=${{ runner.temp }}/b.tar,rewrite-timestamp=true
+          build-args: |
+            VERSION=reproducibility-check
+            VCS_REF=${{ github.sha }}
+            SOURCE_DATE_EPOCH=${{ steps.prep.outputs.epoch }}
+      - name: Compare digests
+        run: |
+          set -euo pipefail
+          for x in a b; do
+            mkdir "$RUNNER_TEMP/$x" && tar -xf "$RUNNER_TEMP/$x.tar" -C "$RUNNER_TEMP/$x"
+            jq -r '.manifests[0].digest' "$RUNNER_TEMP/$x/index.json" > "$RUNNER_TEMP/$x.digest"
+          done
+          echo "A: $(cat "$RUNNER_TEMP/a.digest")"; echo "B: $(cat "$RUNNER_TEMP/b.digest")"
+          if ! cmp "$RUNNER_TEMP/a.digest" "$RUNNER_TEMP/b.digest"; then
+            # Report the differing component: manifests, then the config, then each layer's file list.
+            for x in a b; do
+              m="$RUNNER_TEMP/$x/blobs/sha256/$(sed 's/^sha256://' "$RUNNER_TEMP/$x.digest")"
+              jq -S . "$m" > "$RUNNER_TEMP/$x.manifest.json"
+              jq -S . "$RUNNER_TEMP/$x/blobs/sha256/$(jq -r '.config.digest|sub("sha256:";"")' "$m")" > "$RUNNER_TEMP/$x.config.json"
+              : > "$RUNNER_TEMP/$x.layers.txt"
+              for l in $(jq -r '.layers[].digest|sub("sha256:";"")' "$m"); do
+                echo "== layer $l" >> "$RUNNER_TEMP/$x.layers.txt"
+                tar -tvf "$RUNNER_TEMP/$x/blobs/sha256/$l" --full-time 2>/dev/null | sed 's/^/  /' >> "$RUNNER_TEMP/$x.layers.txt" || true
+              done
+            done
+            echo "--- manifest diff"; diff "$RUNNER_TEMP/a.manifest.json" "$RUNNER_TEMP/b.manifest.json" || true
+            echo "--- config diff"; diff "$RUNNER_TEMP/a.config.json" "$RUNNER_TEMP/b.config.json" || true
+            echo "--- layer content diff"; diff "$RUNNER_TEMP/a.layers.txt" "$RUNNER_TEMP/b.layers.txt" | head -60 || true
+            echo "::error::image build is not reproducible"; exit 1
+          fi
+          echo "### Reproducible build: identical digest $(cat "$RUNNER_TEMP/a.digest")" >> "$GITHUB_STEP_SUMMARY"

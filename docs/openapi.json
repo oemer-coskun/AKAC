@@ -301,6 +301,56 @@
                       "memory",
                       "artifact"
                     ]
+                  },
+                  "modality": {
+                    "enum": [
+                      "text",
+                      "image",
+                      "audio",
+                      "video",
+                      "table",
+                      "code",
+                      "other"
+                    ],
+                    "description": "0.6 (R183): descriptive label of the derived content; never authority."
+                  },
+                  "session": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                        "not": {
+                          "enum": [
+                            "constructor",
+                            "prototype",
+                            "__proto__"
+                          ]
+                        }
+                      },
+                      "ttlMs": {
+                        "type": "integer",
+                        "minimum": 1000,
+                        "maximum": 86400000
+                      }
+                    },
+                    "description": "0.6 (R190): keep the result in the gateway's memory only, for this session of the run (never persisted, gone after a restart)."
+                  },
+                  "container": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                    "not": {
+                      "enum": [
+                        "constructor",
+                        "prototype",
+                        "__proto__"
+                      ]
+                    },
+                    "description": "0.6 (R192): place the result into this knowledge base or folder (named by the run); refused (WRITE_DOWN) when that would widen its static audience."
                   }
                 },
                 "required": [
@@ -611,6 +661,92 @@
           }
         }
       }
+    },
+    "/v1/sessions/{id}": {
+      "delete": {
+        "operationId": "closeSession",
+        "summary": "Close a session of the credential's run (0.6, R190)",
+        "description": "Removes every session-scoped record of this run and session from the gateway's memory. Audited as session_close. Closing an unknown or already closed session removes nothing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "not": {
+                "enum": [
+                  "constructor",
+                  "prototype",
+                  "__proto__"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Closed; value.closed is the number of records removed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizedResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed session id",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeniedResult"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -768,6 +904,62 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "description": "0.6 (ADR-020): the release MUST pass every listed release filter (by id) before the content leaves AKAC. The engine enforces it at share/export itself; an enforcement point that cannot run the listed filters treats the decision as a deny. At most 16 ids after merging (a union beyond 16 is unsatisfiable).",
+            "properties": {
+              "type": {
+                "const": "release_filter"
+              },
+              "value": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                  "not": {
+                    "enum": [
+                      "constructor",
+                      "prototype",
+                      "__proto__"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "description": "0.6 (ADR-020): an approval MUST be obtained before the content is used. An enforcement point without an approval workflow treats the decision as a deny.",
+            "properties": {
+              "type": {
+                "const": "approval_required"
+              },
+              "value": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
+              }
+            }
           }
         ]
       },
@@ -811,7 +1003,7 @@
           "code",
           "decisionId"
         ],
-        "description": "Every denial has exactly this shape: hidden and nonexistent objects, and every reason code, are indistinguishable. The reason code is recorded in audit only.",
+        "description": "Every denial has exactly this shape: hidden and nonexistent objects, and every reason code, are indistinguishable. The reason code is recorded in audit only. With denial hints enabled a denial may also carry one closed `hint` about the caller's own state.",
         "properties": {
           "ok": {
             "const": false
@@ -823,6 +1015,17 @@
             "type": "string",
             "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
             "description": "UUIDv4 of the audited decision; auditors correlate it with the audit entry."
+          },
+          "hint": {
+            "enum": [
+              "GRANT_EXPIRED",
+              "PURPOSE_NOT_GRANTED",
+              "ACTION_NOT_GRANTED",
+              "RATE_LIMITED",
+              "APPROVAL_REQUIRED",
+              "RUNTIME_ENFORCER_REQUIRED"
+            ],
+            "description": "Only with denial hints enabled (AKAC_DENIAL_HINTS, default off): a fact about the caller's own grant, credential, budget or listener that by itself denies the request. Never derived from a resource, so it is the same for an existing and a missing resource."
           }
         }
       }

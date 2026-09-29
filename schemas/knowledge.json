@@ -156,7 +156,10 @@
         "scanner",
         "scanner_unavailable",
         "memory_review",
-        "incident"
+        "incident",
+        "poisoned",
+        "ancestor_revoked",
+        "model_recall"
       ]
     },
     "retainUntil": {
@@ -187,6 +190,123 @@
       "minimum": 0,
       "maximum": 9007199254740991,
       "description": "Unix ms of a security-admin revocation (revoke, revoke-lineage). While present the record stays inactive across new versions; only reinstate clears it."
+    },
+    "modality": {
+      "enum": [
+        "text",
+        "image",
+        "audio",
+        "video",
+        "table",
+        "code",
+        "other"
+      ],
+      "description": "0.6 (R183): content modality. Descriptive only, never authority; derivation inherits labels whatever the modality."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+        "not": {
+          "enum": [
+            "constructor",
+            "prototype",
+            "__proto__"
+          ]
+        }
+      },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "description": "0.6 (R186): tags; the effective tags are the union over the record, its containers and every transitive source. Tags never grant access."
+    },
+    "residency": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9-]{1,15}$"
+      },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "description": "0.6 (R187): ISO 3166-1 alpha-2 or operator-defined region codes; the effective residency is the intersection over the record, its containers and every transitive source. When set, share/export reaches only destinations whose region is in it."
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          }
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "description": "0.6 (R191): model that produced derived content; set by the gateway from a trusted runtime path only, never accepted from a caller."
+    },
+    "ephemeral": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          }
+        },
+        "run": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          }
+        },
+        "expiresAt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "sessionId",
+        "run",
+        "expiresAt"
+      ],
+      "description": "0.6 (R190): session-scoped record held only in the gateway's memory; never present in a persistent store. Visible to its run only, before expiresAt."
+    },
+    "erasureRequestedAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "0.6 (R194): Unix ms an erasure was requested while a legal hold blocked it; the erasure runs once no hold blocks it."
     }
   },
   "required": [

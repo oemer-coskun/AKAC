@@ -175,14 +175,14 @@ test('a legal hold preserves content: a new version that changes content or sour
     assert.equal((await record(store, 'handbook')).content, handbook.content);
     const resourced = await cp().upsertKnowledge('acme', 'kb', version(handbook, 2, { sources: [{ id: 'project-alpha', version: 1 }] }));
     assert.deepEqual([resourced.ok, !resourced.ok && resourced.code, !resourced.ok && resourced.held], [false, 'CONFLICT', 1]);
-    // Same content and sources, narrower readers: allowed; the hold is kept.
-    assert.ok((await cp().upsertKnowledge('acme', 'kb', version(handbook, 2, { readers: ['chief'] }))).ok);
+    // Same content and sources, a narrower label: allowed; the hold is kept.
+    assert.ok((await cp().upsertKnowledge('acme', 'kb', version(handbook, 2, { classification: 'internal' }))).ok);
     store = await open();
     const after = await record(store, 'handbook');
     assert.deepEqual([after.version, after.content, after.legalHolds], [2, handbook.content, ['case-1']]);
     // Once the hold is lifted the content may change again.
     assert.ok((await cp().setLegalHold('acme', 'admin', 'handbook', false, 'case-1')).ok);
-    assert.ok((await cp().upsertKnowledge('acme', 'kb', version(handbook, 3, { content: 'Revised synthetic handbook.' }))).ok);
+    assert.ok((await cp().upsertKnowledge('acme', 'kb', version(handbook, 3, { classification: 'internal', content: 'Revised synthetic handbook.' }))).ok);
   });
 });
 

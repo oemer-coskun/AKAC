@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import type { EngineEvent } from './engine.ts';
 import type { IngestEvent } from './ingest.ts';
+import type { ControlEvent } from './control.ts';
 
 /** Bounded series per metric: a runaway label value can never exhaust memory. Excess series are dropped. */
 const MAX_SERIES = 512;
@@ -74,7 +75,9 @@ const DECISION_OPERATIONS = ['read', 'retrieve', 'derive', 'share', 'export', 'd
 /** Lifecycle administration (0.4); the admin operation label is a closed set as well. */
 const LIFECYCLE_OPERATIONS = ['quarantine', 'release', 'lineage_read', 'revoke_lineage', 'legal_hold_set', 'legal_hold_lift', 'erase', 'retention_apply'];
 const ADMIN_OPERATIONS = ['put_actor', 'assign_roles', 'put_role', 'put_group', 'put_constraint', 'put_container', 'put_knowledge', 'delete_knowledge', 'put_destination',
-  'index_reconcile', 'issue_grant', 'revoke', 'audit_read', 'audit_export', 'audit_checkpoint', 'audit_proof', 'audit_consistency', 'unknown', ...LIFECYCLE_OPERATIONS];
+  'index_reconcile', 'index_rebaseline', 'issue_grant', 'revoke', 'audit_read', 'audit_export', 'audit_checkpoint', 'audit_proof', 'audit_consistency', 'unknown', ...LIFECYCLE_OPERATIONS,
+  // Identity and authority (0.6, ADR-019).
+  'grant_heartbeat', 'issue_break_glass', 'approval_list', 'approval_read', 'approval_grant', 'approval_reject', 'approval_execute', 'risk_signal', 'put_settings', 'read_settings'];
 /** AKAC metrics. Labels are closed sets: no tenant, subject, resource, query or content values. */
 export class Metrics {
   readonly registry = new Registry();
@@ -92,15 +95,48 @@ export class Metrics {
   readonly indexReconciles = this.registry.counter('akac_index_reconcile_runs_total', 'Index reconciliation runs.');
   readonly indexRepairs = this.registry.counter('akac_index_reconcile_documents_total', 'Documents handled by reconciliation.', ['action']);
   readonly indexTruncated = this.registry.counter('akac_index_reconcile_truncated_total', 'Reconciliation runs that hit the per-tenant scan cap.');
+  /** Shared-state and job metrics (0.6, ADR-016). */
+  readonly rateLimits = this.registry.counter('akac_rate_limit_rejections_total', 'Requests refused by a rate limiter: limited (429), full (in-memory limiter at its bucket cap, 503) or unavailable (shared limiter store error, 503).', ['listener', 'reason']);
+  readonly obligationDenials = this.registry.counter('akac_unsupported_obligation_denials_total', 'Denials because an allow would carry an obligation the caller cannot enforce (for example runtime_profile on the agent listener).', ['operation']);
+  readonly idempotency = this.registry.counter('akac_idempotency_total', 'Admin Idempotency-Key outcomes.', ['outcome']);
+  /** Identity and authority (0.6, ADR-019): alert on any break-glass issuance or use. */
+  readonly breakGlassGrants = this.registry.counter('akac_break_glass_grants_total', 'Break-glass grants issued (after their approval quorum). Any increase needs review.');
+  readonly breakGlassDecisions = this.registry.counter('akac_break_glass_decisions_total', 'Decisions taken under a break-glass grant.', ['allowed']);
+  readonly approvals = this.registry.counter('akac_approvals_total', 'Approval workflow events by operation class and outcome.', ['class', 'outcome']);
+  readonly jobs = this.registry.counter('akac_job_runs_total', 'Maintenance job runs through the job lock: ran, skipped (another instance holds the lock) or failed.', ['job', 'result']);
+  /** Release and retrieval protection metrics (0.6, ADR-020). Closed label sets; no tenant, content or ids. */
+  readonly hooks = this.registry.counter('akac_release_hook_outcomes_total', 'Release filter and derive sanitizer outcomes that changed or stopped an operation.', ['hook', 'outcome']);
+  readonly volumeExceeded = this.registry.counter('akac_volume_budget_exceeded_total', 'Disclosures refused because a volume budget was exhausted, by classification.', ['classification']);
+  readonly retrievalDisabled = this.registry.counter('akac_retrieval_disabled_total', 'Retrievals deferred because vector retrieval is disabled by embedding drift.');
+  readonly anchorDrift = this.registry.gauge('akac_embedding_drift', '1 while embedding anchors report drift (or no baseline yet) and vector retrieval is disabled, else 0.');
+  readonly anchorCosine = this.registry.gauge('akac_embedding_anchor_min_cosine', 'Lowest cosine of an embedding anchor against its baseline at the last check.');
+  readonly anchorChecks = this.registry.counter('akac_embedding_anchor_checks_total', 'Embedding anchor checks by result: ok, drifted or failed (the embedder could not be reached).', ['result']);
   private uptime = this.registry.gauge('akac_process_uptime_seconds', 'Process uptime.');
   private heap = this.registry.gauge('akac_process_heap_used_bytes', 'V8 heap in use.');
   private rss = this.registry.gauge('akac_process_resident_memory_bytes', 'Resident set size.');
   readonly onEvent = (event: EngineEvent) => {
     if (event.type === 'decision') {
       const cls = REASONS.find(r => event.reason === r || event.reason.startsWith(`${r}:`)) ?? 'other';
-      this.decisions.inc([DECISION_OPERATIONS.includes(event.operation) ? event.operation : 'other', String(event.allowed), cls.toLowerCase()]);
+      const operation = DECISION_OPERATIONS.includes(event.operation) ? event.operation : 'other';
+      this.decisions.inc([operation, String(event.allowed), cls.toLowerCase()]);
+      if (!event.allowed && (event.code === 'UNSUPPORTED_OBLIGATION' || event.reason.endsWith(':UNSUPPORTED_OBLIGATION'))) this.obligationDenials.inc([operation]);
+      if (event.breakGlass) this.breakGlassDecisions.inc([String(event.allowed)]);
     } else if (event.type === 'filter_mismatch') this.filterMismatch.inc();
     else if (event.type === 'candidates_unavailable') this.candidatesUnavailable.inc();
+    else if (event.type === 'hook') this.hooks.inc([event.hook, event.outcome]);
+    else if (event.type === 'volume_exceeded') this.volumeExceeded.inc([event.classification]);
+    else if (event.type === 'retrieval_disabled') this.retrievalDisabled.inc();
+  };
+  /** Anchor monitor results (reference/anchors.ts AnchorOptions.onCheck). */
+  readonly onAnchorCheck = (r: { state: 'pending' | 'ok' | 'drifted'; minCosine?: number; failed?: boolean }) => {
+    this.anchorDrift.set([], r.state === 'ok' ? 0 : 1);
+    if (r.minCosine !== undefined) this.anchorCosine.set([], r.minCosine);
+    this.anchorChecks.inc([r.failed ? 'failed' : r.state === 'ok' ? 'ok' : 'drifted']);
+  };
+  /** Control-plane events (0.6): break-glass issuance and approval outcomes, no identities. */
+  readonly onControl = (event: ControlEvent) => {
+    if (event.type === 'break_glass') this.breakGlassGrants.inc();
+    else if (event.type === 'approval') this.approvals.inc([event.class, event.outcome]);
   };
   /** Ingest events carry counts only: no tenant, document ids or text. */
   readonly onIngest = (event: IngestEvent) => {
@@ -116,6 +152,11 @@ export class Metrics {
   request(listener: string, route: string, status: number, seconds: number) {
     this.http.inc([listener, route, String(status)]); this.duration.observe([listener, route], seconds);
   }
+  rateLimited(listener: string, reason: 'limited' | 'full' | 'unavailable') {
+    this.rateLimits.inc([['agent', 'admin', 'authzen'].includes(listener) ? listener : 'other', reason]);
+  }
+  idempotent(outcome: 'stored' | 'replayed' | 'reused' | 'in_flight' | 'unavailable') { this.idempotency.inc([outcome]); }
+  job(job: string, result: 'ran' | 'skipped' | 'failed') { this.jobs.inc([['retention', 'reconcile', 'audit-verify'].includes(job) ? job : 'other', result]); }
   admin(operation: string, result: string) {
     const known = ADMIN_OPERATIONS.includes(operation) || operation.startsWith('scim_') ? operation : 'other';
     this.adminOps.inc([known, result]);

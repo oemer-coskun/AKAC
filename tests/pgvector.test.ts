@@ -120,6 +120,15 @@ test('PostgreSQL vector: SQL pre-filter agrees with the in-memory reference filt
       const [a, b] = [await pgIndex.query(q), await memory.query(q)];
       assert.deepEqual(a.map(h => h.docId).sort(), b.map(h => h.docId).sort(), JSON.stringify([tokens, projects, compartments]));
     }
+    // 0.6 (ADR-020): with the agent's audience a chunk must admit both principals; SQL and reference filter agree.
+    const agents: { tokens: string[]; projects: string[] }[] = [{ tokens: ['role:staff'], projects: [] }, { tokens: ['role:staff', 'user:ann'], projects: ['alpha', 'beta'] }, { tokens: [], projects: [] }, { tokens: ['role:exec', 'user:ann'], projects: ['alpha'] }];
+    for (const [tokens, projects, compartments] of cases) for (const agent of agents) {
+      const q = { tenant: 't', compartments, tokens, projects, vector: v, k: 50, agent };
+      const [a, b] = [await pgIndex.query(q), await memory.query(q)];
+      assert.deepEqual(a.map(h => h.docId).sort(), b.map(h => h.docId).sort(), JSON.stringify([tokens, projects, compartments, agent]));
+    }
+    const narrowed = await pgIndex.query({ tenant: 't', compartments: ['internal'], tokens: ['role:staff', 'user:ann'], projects: ['alpha', 'beta'], vector: v, k: 50, agent: { tokens: ['user:ann'], projects: [] } });
+    assert.ok(!narrowed.some(h => h.docId === 'open') && !narrowed.some(h => h.docId === 'proj'), 'a chunk the agent cannot see is not fetched');
     assert.deepEqual(await pgIndex.state('t'), await memory.state('t'), 'stored labels digest identically');
     // Replacement across compartments, and a stale (lower) version is ignored.
     await pgIndex.upsert([chunk('open', { docVersion: 2, chunkId: 'open#2#0', compartment: 'restricted' })]);

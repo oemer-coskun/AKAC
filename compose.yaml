@@ -113,6 +113,10 @@ services:
       AKAC_AUTHZEN_HOST: ${AKAC_AUTHZEN_HOST:-}
       AKAC_AUTHZEN_CREDENTIALS_FILE: ${AKAC_AUTHZEN_CREDENTIALS_FILE:-}
       AKAC_AUTHZEN_REASONS: ${AKAC_AUTHZEN_REASONS:-}
+      # 0.6: the HTTP gateway denies runtime_profile obligations unless every client runs inside a tested runtime enforcer
+      # (docs/RUNTIME-CONTAINMENT.md); shared rate limits and idempotency records live in PostgreSQL (docs/HA.md).
+      AKAC_RUNTIME_OBLIGATIONS: ${AKAC_RUNTIME_OBLIGATIONS:-deny}
+      AKAC_SHARED_STATE: ${AKAC_SHARED_STATE:-postgres}
     secrets: [pg_app_password]
     volumes: [credentials:/app/data:ro]
     ports:

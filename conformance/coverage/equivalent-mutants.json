@@ -1,0 +1,251 @@
+{
+  "description": "Surviving mutants documented as equivalent: no input makes the mutated program observably differ from the original at its public interface. Each rule names the mutation operators and a source-text pattern (so it survives line renumbering) and the reason. scripts/mutation-summary.ts reports the score with and without them; the raw score, which the break threshold uses, is never adjusted. See docs/CONFORMANCE-COVERAGE.md.",
+  "rules": [
+    {
+      "id": "E1",
+      "mutators": [
+        "StringLiteral"
+      ],
+      "linePattern": "throw new Error\\(",
+      "reason": "The message of an internal exception. Every such exception is caught by the enclosing try/catch and mapped to a fixed decision; the text is never observed."
+    },
+    {
+      "id": "E2",
+      "mutators": [
+        "CallExpression",
+        "ConditionalExpression"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "height\\.set\\(name, h\\)|path\\.add\\(name\\)|if \\(path\\.has\\(name\\)\\) throw|if \\(known !== undefined\\) return known|visiting\\.add\\(|done\\.add\\(k\\.id\\)|if \\(done\\.has\\(k\\.id\\)\\) return true|if \\(!admitted\\.has\\(c\\.id\\)\\)",
+      "reason": "Memoization and cycle bookkeeping. Without the memo the traversal recomputes the same value; without the in-progress marker a cycle recurses until the stack overflows, which the enclosing try/catch turns into the same fail-closed result (null or false) as the explicit cycle check."
+    },
+    {
+      "id": "E3",
+      "mutators": [
+        "EqualityOperator",
+        "ArithmeticOperator",
+        "ConditionalExpression",
+        "LogicalOperator",
+        "BooleanLiteral"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "depth >= LIMITS\\.path \\|\\| visiting\\.has\\(resource\\.id\\)|completed\\.has\\(resource\\.id\\)\\) return depth|visit\\(source, depth \\+ 1\\)\\) return false|completed\\.set\\(resource\\.id, height\\); return depth",
+      "reason": "Redundant depth accounting in visible(). The height of the whole graph is computed bottom-up and compared at the root (depth 0 + height <= LIMITS.path), so the entry check, the memoized-path check and the per-node check only end the traversal earlier; a cycle yields an undefined height (NaN) that fails the comparison at the root."
+    },
+    {
+      "id": "E4",
+      "mutators": [
+        "ConditionalExpression",
+        "LogicalOperator"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "child\\.id !== parent\\.id|child\\.tenant === parent\\.tenant|child\\.subject === parent\\.subject|!!agent && agent\\.tenant === child\\.tenant|agent\\.kind === 'agent' && agent\\.active",
+      "reason": "canDelegate() repeats conditions that grantValid(next, child) checks again through the child's own chain (tenant, subject, agent liveness and tenant; a grant that is its own parent is a cycle)."
+    },
+    {
+      "id": "E5",
+      "mutators": [
+        "ConditionalExpression",
+        "LogicalOperator",
+        "EqualityOperator",
+        "UpdateOperator",
+        "OptionalChaining"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "\\+\\+edges > LIMITS\\.edges \\|\\| !validId\\(ref\\?\\.id\\)\\) return false",
+      "reason": "In lineageLive() every edge leads to a visit that increments the node count first, so the 1024-node budget is exhausted before the 4096-edge budget can be; a null reference throws and is caught as false, like an invalid id (see the findings)."
+    },
+    {
+      "id": "E6",
+      "mutators": [
+        "OptionalChaining"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "validId\\(ref\\?\\.id\\)",
+      "reason": "A null source reference throws inside a try/catch that returns the same fail-closed value as the identifier check."
+    },
+    {
+      "id": "E7",
+      "mutators": [
+        "ArithmeticOperator",
+        "BooleanLiteral"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "limit: number = LEVELS\\.length - 1, open = false|let limit = LEVELS\\.length - 1;|options\\.risk === false \\? LEVELS\\.length - 1",
+      "reason": "A default that the callers always override, or an upper bound that the clearance index or the first cap of the loop already lowers."
+    },
+    {
+      "id": "E8",
+      "mutators": [
+        "ConditionalExpression",
+        "LogicalOperator",
+        "EqualityOperator",
+        "ArrowFunction",
+        "MethodExpression"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "activeRoles\\.length > LIMITS\\.roles|activeRoles\\.some\\(r => typeof r !== 'string' \\|\\| !r\\)|typeof r === 'string' && held\\.has\\(r\\)",
+      "reason": "grantValid() and sessionRoles() both reject an activation that is not a list of held role names, and held.has() is false for anything that is not a string; the second check is the one that decides."
+    },
+    {
+      "id": "E9",
+      "mutators": [
+        "ConditionalExpression",
+        "LogicalOperator",
+        "EqualityOperator"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "parent\\.maxResults === undefined \\|\\| \\(grant\\.maxResults !== undefined|parent\\.heartbeatTtlMs === undefined \\|\\| \\(grant\\.heartbeatTtlMs !== undefined|parent\\.tenant === grant\\.tenant",
+      "reason": "An undefined child value compared with a number is NaN and fails the comparison anyway; the tenant of a parent is checked again through the parent's own subject."
+    },
+    {
+      "id": "E10",
+      "mutators": [
+        "ConditionalExpression",
+        "LogicalOperator",
+        "EqualityOperator",
+        "BooleanLiteral",
+        "ArithmeticOperator"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "risky && visible\\(|const risky = |if \\(riskLimit\\(state, user, now\\) < 0",
+      "reason": "risky only selects the reason (RISK_CAP or KNOWLEDGE_BOUNDARY) of a denial that visible() already decided, and a principal whose cap is below public is denied with RISK_CAP by the fallback path as well; neither changes an effect."
+    },
+    {
+      "id": "E11",
+      "mutators": [
+        "ConditionalExpression",
+        "LogicalOperator"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "!d \\|\\| !validId\\(target\\.id\\)|typeof id === 'string' \\|\\| Object\\.hasOwn|typeof id === 'string' && Object\\.hasOwn\\(records, id\\)",
+      "reason": "A missing destination record throws on the next property access and is caught as a denial; a non-string id never names a record (Object.hasOwn coerces it to a key that no record has)."
+    },
+    {
+      "id": "E12",
+      "mutators": [
+        "ConditionalExpression",
+        "MethodExpression",
+        "LogicalOperator",
+        "EqualityOperator",
+        "BooleanLiteral"
+      ],
+      "files": [
+        "reference/decision.ts"
+      ],
+      "linePattern": "const plain = |const only = |&& prior\\.type === o\\.type|LEVELS\\.indexOf\\(o\\.value\\) > LEVELS\\.indexOf\\(prior\\.value\\)|if \\(o\\.type === 'runtime_profile'\\) \\{|list\\.some\\(p => p\\.type === 'runtime_profile'|typeof x === 'string' && /\\^",
+      "reason": "Type tests that the following conjunct already implies (a primitive has no `type`; a missing required member fails the value check; the prior obligation was looked up by its own type); equal levels assign the same value; identifier and trace-id tests fail for non-strings through the regular expression."
+    },
+    {
+      "id": "E13",
+      "mutators": [
+        "EqualityOperator",
+        "ConditionalExpression"
+      ],
+      "linePattern": "a\\.id < b\\.id \\? -1 : a\\.id > b\\.id \\? 1 : 0",
+      "reason": "Comparator boundary for equal ids (ids are unique, so equality never occurs) and the second ternary of a sort comparator, which only tells 0 from 1: the engine's sort acts on negative results only. The first ternary is pinned by tests with unsorted input."
+    },
+    {
+      "id": "E14",
+      "mutators": [
+        "ConditionalExpression"
+      ],
+      "files": [
+        "reference/lifecycle.ts"
+      ],
+      "linePattern": "if \\(truncated\\) break;",
+      "reason": "The outer loop only skips the remaining work after a bound was already reported; the returned records and the flag are unchanged."
+    },
+    {
+      "id": "E15",
+      "mutators": [
+        "ConditionalExpression"
+      ],
+      "files": [
+        "reference/containment.ts"
+      ],
+      "linePattern": "if \\(o\\.type !== 'runtime_profile'\\) continue;|prior && prior\\.type === 'runtime_profile' && prior\\.profile !== o\\.profile",
+      "reason": "Entries of other obligation types are keyed by an undefined domain and never read back; the merged map only holds runtime_profile entries."
+    },
+    {
+      "id": "E16",
+      "mutators": [
+        "ArrayDeclaration"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "\\[k, \\.\\.\\.\\(chain \\?\\? \\[\\]\\)\\]",
+      "reason": "When the chain is null the function returns null on the next line whatever the levels are."
+    },
+    {
+      "id": "E17",
+      "mutators": [
+        "ConditionalExpression",
+        "StringLiteral"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "const index = cap === 'deny' \\? -1 : LEVELS\\.indexOf\\(cap as Level\\)",
+      "reason": "LEVELS.indexOf('deny') is -1 as well: the cap denies either way."
+    },
+    {
+      "id": "E18",
+      "mutators": [
+        "ConditionalExpression",
+        "LogicalOperator",
+        "ArrowFunction"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "grant\\.breakGlass === true && grant\\.parent === undefined|grant\\.breakGlass === undefined && parent\\.breakGlass === undefined|if \\(!label \\|\\| !Array\\.isArray\\(k\\.sources\\)\\) throw|chain\\.some\\(c => c\\.id === id\\)|if \\(!held\\) return false;",
+      "reason": "Conditions that a second check subsumes: a break-glass grant with a parent is rejected by breakGlassShape() and by the delegation clause alike; sources that are not a list throw in the loop and are caught; a container cycle also hits the depth bound; missing roles throw in audience() and are caught."
+    },
+    {
+      "id": "E19",
+      "mutators": [
+        "OptionalChaining",
+        "ConditionalExpression"
+      ],
+      "files": [
+        "reference/policy.ts"
+      ],
+      "linePattern": "if \\(!subject\\?\\.active \\|\\| !agent\\?\\.active|\\|\\| subject\\.tenant !== grant\\.tenant \\|\\| agent\\.tenant !== grant\\.tenant",
+      "reason": "The subject of a grant in a chain is the evaluated user, whose existence, activity and tenant decide() has checked; a missing agent would throw and be caught, and the vectors pin the unknown-agent case as INVALID_DELEGATION."
+    },
+    {
+      "id": "E20",
+      "mutators": [
+        "ConditionalExpression"
+      ],
+      "files": [
+        "reference/containment.ts"
+      ],
+      "linePattern": "typeof p === 'object'",
+      "reason": "A primitive record has no tenant and is filtered out by the tenant comparison anyway."
+    }
+  ],
+  "mutants": []
+}

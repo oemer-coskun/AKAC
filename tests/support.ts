@@ -6,6 +6,7 @@ import type { EngineOptions } from '../reference/engine.ts';
 import { createAdminGateway } from '../reference/admin.ts';
 import type { AdminOptions } from '../reference/admin.ts';
 import { createGateway } from '../reference/http.ts';
+import type { RuntimeObligationMode } from '../reference/http.ts';
 import type { Observability } from '../reference/observe.ts';
 import { MemoryStore } from '../reference/store.ts';
 import { kbFixture, bindings } from '../examples/fixture.ts';
@@ -30,7 +31,7 @@ export async function listen(server: Server) {
 export const close = async (...servers: Server[]) => {
   for (const s of servers) { s.closeAllConnections(); await new Promise<void>(resolve => s.close(() => resolve())); }
 };
-export async function start(options: { admin?: Partial<AdminOptions>; engine?: EngineOptions; agent?: Observability; state?: State } = {}) {
+export async function start(options: { admin?: Partial<AdminOptions>; engine?: EngineOptions; agent?: Observability & { runtimeObligations?: RuntimeObligationMode }; state?: State } = {}) {
   const store = new MemoryStore(options.state ?? world());
   const engine = new Engine(store, options.engine);
   const control = new ControlPlane(store);

@@ -105,6 +105,8 @@ export function createScim(control: ControlPlane) {
     if (r.code === 'NOT_AUTHORIZED') throw new Refusal(403, 'Not authorized');
     if (r.code === 'CONFLICT') throw new Refusal(409, 'Conflicting resource', 'uniqueness');
     if (r.code === 'SOD_VIOLATION') throw new Refusal(409, 'Separation-of-duty constraint violated');
+    // R158 (0.6b): a change that makes a principal a security-admin waits for other security-admins; nothing changed yet.
+    if (r.code === 'APPROVAL_REQUIRED') throw new Refusal(403, `Approval required: pending approval ${r.approval ?? ''}`.trim());
     throw bad('Invalid resource');
   };
   const need = <T>(r: ControlResult<T>): T => r.ok ? r.value : fromControl(r);

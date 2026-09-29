@@ -4,10 +4,17 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+  # Also updates the slsa-framework/slsa-github-generator reusable workflow references in
+  # release.yml, which must stay tag-pinned (`@vX.Y.Z`); see governance/ADR-017.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
   - package-ecosystem: docker
     directory: /
     schedule:

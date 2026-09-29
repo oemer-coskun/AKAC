@@ -8,9 +8,11 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM base AS runtime
+# The runtime only ever runs `node`; npm, npx, corepack and yarn (with their bundled dependencies) are not needed and only add attack surface.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 ARG BUILD_DATE
 ARG VCS_REF
-ARG VERSION=0.5.0
+ARG VERSION=0.6.0
 LABEL org.opencontainers.image.title="AKAC gateway" \
       org.opencontainers.image.description="Agent Knowledge Access Control reference gateway" \
       org.opencontainers.image.source="https://github.com/oemer-coskun/AKAC" \

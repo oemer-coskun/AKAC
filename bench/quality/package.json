@@ -1,0 +1,14 @@
+{
+  "name": "@akac/bench-quality",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Retrieval-quality evaluation with a local open sentence-embedding model. Kept out of the root dependency tree on purpose.",
+  "type": "module",
+  "license": "MIT-0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.0"
+  }
+}

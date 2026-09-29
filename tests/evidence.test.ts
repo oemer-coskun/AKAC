@@ -6,7 +6,7 @@ import { canonicalize } from '../reference/jcs.ts';
 import { EMPTY_ROOT, Frontier, consistencyRanges, inclusionRanges, leafHash, leafLookup, nodeHash, perfectKeys, rangeHash, rootKeys, rootOf,
   verifyConsistency, verifyInclusion } from '../reference/merkle.ts';
 import { appendAudit, auditHash, auditLeaf, GENESIS, verifyAudit } from '../reference/audit.ts';
-import { signCheckpoint, signCheckpointV2, signTreeHead, verifyCheckpoint, verifyCheckpointExtension, verifyCheckpointV2 } from '../reference/checkpoint.ts';
+import { signCheckpoint, signCheckpointV2, signTreeHead, verifyCheckpoint, verifyCheckpointExtension, verifyCheckpointV2, verifyAuditCheckpoint } from '../reference/checkpoint.ts';
 import { consistencyProof, inclusionProof, treeHead } from '../reference/evidence.ts';
 import { Engine } from '../reference/engine.ts';
 import { ControlPlane } from '../reference/control.ts';
@@ -268,7 +268,7 @@ test('control plane: auditor proofs are audited, range-checked and verify agains
   const latest = await control.latestCheckpoint('acme', 'aud'); assert.ok(latest.ok);
   const { head, checkpoint } = latest.value;
   assert.equal(head.treeSize, 5, 'four decisions plus the checkpoint read itself');
-  assert.ok(checkpoint && verifyCheckpointV2(checkpoint, publicPem, 'acme', 'server-key', { entries: await store.auditLog('acme') }));
+  assert.ok(checkpoint && verifyAuditCheckpoint(checkpoint, publicPem, 'acme', 'server-key', { entries: await store.auditLog('acme') }));
   const proof = await control.auditProof('acme', 'aud', 1, head.treeSize); assert.ok(proof.ok);
   const entries = await store.auditLog('acme');
   assert.ok(verifyInclusion(auditLeaf(entries[1]!), 1, head.treeSize, proof.value.path, head.rootHash));

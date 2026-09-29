@@ -1,0 +1,55 @@
+name: Formal model (TLA+)
+# Bounded model checking of formal/AKAC.tla with TLC (docs/FORMAL-MODEL.md, ADR-015).
+# Fails when the faithful model violates an invariant, and when a broken-model or
+# non-vacuity configuration does NOT produce the violation it names.
+on:
+  push:
+    paths: ['formal/**', '.github/workflows/formal.yml']
+  pull_request:
+    paths: ['formal/**', '.github/workflows/formal.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tlc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: faithful-delegation
+            configs: MC.cfg
+          - name: faithful-administration
+            configs: MC_admin.cfg
+          - name: mutations-and-witnesses
+            configs: broken/*.cfg witness/*.cfg
+    name: tlc (${{ matrix.name }})
+    env:
+      # TLA+ tools v1.7.4 (latest non-prerelease tlaplus/tlaplus release). The release
+      # publishes no digest for this asset; this SHA-256 was computed from the release
+      # download and pins it. Updating the version means recomputing and reviewing it.
+      TLA2TOOLS_URL: https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+      TLA2TOOLS_SHA256: 936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Fetch and verify pinned tla2tools.jar
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/tla2tools.jar" "$TLA2TOOLS_URL"
+          echo "$TLA2TOOLS_SHA256  $RUNNER_TEMP/tla2tools.jar" | sha256sum -c -
+          echo "TLA2TOOLS=$RUNNER_TEMP/tla2tools.jar" >> "$GITHUB_ENV"
+      - name: Run TLC
+        env:
+          TLC_OUT: ${{ runner.temp }}/tlc
+          CONFIGS: ${{ matrix.configs }}
+        run: |
+          cd formal
+          # Word splitting and glob expansion of the config list are intended.
+          # shellcheck disable=SC2086
+          bash check.sh $CONFIGS

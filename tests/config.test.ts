@@ -123,3 +123,13 @@ test('config: DPoP is off by default and configured per listener with a public U
   fails({ AKAC_ADMIN_JWT_CONFIG_FILE: adminJwt, AKAC_ADMIN_DPOP: 'required' }, 'AKAC_ADMIN_PUBLIC_URL is required');
   assert.ok(problems({ AKAC_ADMIN_CREDENTIALS_FILE: file('admin.json', JSON.stringify([{}])), AKAC_ADMIN_DPOP: 'required', AKAC_ADMIN_PUBLIC_URL: 'https://admin.example.test' }).some(p => p.includes('opaque credentials')));
 });
+
+test('config: AKAC_RUNTIME_OBLIGATIONS defaults to deny and accepts only deny or trusted-enforcer (R123)', () => {
+  const agentOnly = { AKAC_CREDENTIALS_FILE: base.AKAC_CREDENTIALS_FILE };
+  assert.equal(loadConfig(agentOnly).agent.runtimeObligations, 'deny');
+  assert.equal(loadConfig({ ...agentOnly, AKAC_RUNTIME_OBLIGATIONS: 'trusted-enforcer' }).agent.runtimeObligations, 'trusted-enforcer');
+  for (const bad of ['allow', 'off', 'Deny']) {
+    try { loadConfig({ ...agentOnly, AKAC_RUNTIME_OBLIGATIONS: bad }); assert.fail(bad); }
+    catch (error) { assert.ok(error instanceof ConfigError); assert.ok(error.problems.some(p => p.startsWith('AKAC_RUNTIME_OBLIGATIONS')), bad); }
+  }
+});

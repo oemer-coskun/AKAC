@@ -16,6 +16,12 @@ import type { DpopOptions } from '../adapters/dpop.ts';
 import { observe } from './observe.ts';
 import { EXECUTION_HEADER, executionHeader } from './http.ts';
 import type { Observability } from './observe.ts';
+import { MemoryRateLimits } from './limits.ts';
+import type { RateLimitStore, RateVerdict } from './limits.ts';
+import { Equaliser } from './protection.ts';
+import type { TimingOptions } from './protection.ts';
+import type { DecisionCache } from './decision-cache.ts';
+import type { RiskProvider } from './risk.ts';
 
 /**
  * AuthZEN PDP facade (AKAC 0.4, ADR-011, spec/drafts/0.4-authzen.md). A read-only,
@@ -38,6 +44,18 @@ export type AuthzenOptions = Observability & {
   publicUrl?: string;
   /** Same event hook as the engine (metrics); events carry no content or resource ids. */
   onEvent?: (event: EngineEvent) => void;
+  /** Rate windows shared by several instances (0.6, ADR-016); default per process (MemoryRateLimits). */
+  limiter?: RateLimitStore;
+  /**
+   * Response-time floor with jitter (0.6, ADR-020), so a deny and an allow take the same time within the floor. It applies to
+   * every response after authentication (200, 400, 404, 405, 413, 429, 500, 503), so a malformed or failing request cannot be
+   * told apart from an evaluation by its timing either.
+   */
+  timing?: TimingOptions;
+  /** In-process cache of allow verdicts (0.6, ADR-020); off unless given. Invalidated by the tenant epoch. */
+  decisionCache?: DecisionCache;
+  /** External risk source (0.6, R152), applied exactly as the agent engine applies it: it can only lower clearance; a failure denies. */
+  risk?: RiskProvider;
 };
 export const AUTHZEN_LIMITS = { concurrent: 64, perMinute: 1200, body: 262144, evaluations: 64 } as const;
 /** The actions of the AKAC profile (declassify is not exposed). */
@@ -92,10 +110,11 @@ export class AuthzenPdp {
   private store: Store; private hook?: PolicyHook; private clock: () => number;
   private emit: (event: EngineEvent) => void;
   private engine: Engine;
-  constructor(store: Store, options: Pick<AuthzenOptions, 'policy' | 'clock' | 'onEvent'> = {}) {
+  constructor(store: Store, options: Pick<AuthzenOptions, 'policy' | 'clock' | 'onEvent' | 'decisionCache' | 'risk'> = {}) {
     if (options.policy && (!options.policy.revision || options.policy.revision.length > 128)) throw new Error('Policy revision required');
     this.store = store; this.hook = options.policy; this.clock = options.clock ?? Date.now;
-    this.engine = new Engine(store, { ...(options.policy ? { policy: options.policy } : {}), clock: this.clock, ...(options.onEvent ? { onEvent: options.onEvent } : {}) });
+    this.engine = new Engine(store, { ...(options.policy ? { policy: options.policy } : {}), clock: this.clock, ...(options.onEvent ? { onEvent: options.onEvent } : {}), ...(options.decisionCache ? { decisionCache: options.decisionCache } : {}),
+      ...(options.risk ? { risk: options.risk } : {}) });
     const listener = options.onEvent;
     this.emit = event => { try { listener?.(event); } catch { /* metrics never affect decisions */ } };
   }
@@ -180,7 +199,17 @@ export function createAuthzenGateway(store: Store, options: AuthzenOptions = {})
     auth.set(digest(c.token), { tenant: c.binding.tenant, pep: c.binding.pep });
   }
   const pdp = new AuthzenPdp(store, options);
-  const buckets = new Map<string, { minute: number; count: number }>();
+  const equaliser = options.timing ? new Equaliser(options.timing) : undefined;
+  const limiter = options.limiter ?? new MemoryRateLimits({ maxBuckets: 10_000 });
+  /** Charges `cost` units to the PEP's window; true when the request was answered (refused). */
+  const limited = async (res: ServerResponse, pep: PepIdentity, cost: number, reply: (status: number, body: unknown) => Promise<void>): Promise<boolean> => {
+    let r: RateVerdict;
+    try { r = await limiter.take(pep.tenant, 'authzen', digest(`${pep.tenant}\u0000${pep.pep}`), AUTHZEN_LIMITS.perMinute, 60_000, cost); }
+    catch { options.metrics?.rateLimited('authzen', 'unavailable'); await reply(503, { error: 'UNAVAILABLE' }); return true; }
+    if (r.ok) return false;
+    options.metrics?.rateLimited('authzen', r.reason);
+    res.setHeader('retry-after', String(r.retryAfter)); await reply(r.status, { error: r.status === 429 ? 'RATE_LIMITED' : 'BUSY' }); return true;
+  };
   let active = 0;
   const routes = new Set(['/access/v1/evaluation', '/access/v1/evaluations', '/.well-known/authzen-configuration', '/health']);
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -195,6 +224,12 @@ export function createAuthzenGateway(store: Store, options: AuthzenOptions = {})
     }
     if (active >= AUTHZEN_LIMITS.concurrent) { req.resume(); send(res, 503, { error: 'BUSY' }); return; }
     active++;
+    /** Set once the PEP is authenticated: from then on every response is padded to the timing floor (ADR-020). */
+    let started: number | undefined;
+    const reply = async (status: number, body: unknown) => {
+      if (equaliser && started !== undefined) { try { await equaliser.pad(started); } catch { /* padding never changes the answer */ } }
+      send(res, status, body);
+    };
     try {
       if (path === '/health' && req.method === 'GET') { send(res, 200, { status: 'ok', listener: 'authzen' }); return; }
       if (path === '/.well-known/authzen-configuration') {
@@ -213,45 +248,40 @@ export function createAuthzenGateway(store: Store, options: AuthzenOptions = {})
         pep = options.authenticator ? await options.authenticator.authenticate(token) : auth.get(token.length <= 512 ? digest(token) : '');
       }
       if (!pep) { req.resume(); res.setHeader('www-authenticate', challenge); send(res, 401, { error: 'UNAUTHENTICATED' }); return; }
-      const minute = Math.floor(Date.now() / 60000), key = digest(`${pep.tenant}\u0000${pep.pep}`);
-      for (const [k, v] of buckets) if (v.minute !== minute) buckets.delete(k);
-      if (!buckets.has(key) && buckets.size >= 10000) { req.resume(); send(res, 503, { error: 'BUSY' }); return; }
-      const bucket = buckets.get(key) ?? { minute, count: 0 };
-      buckets.set(key, bucket);
-      if (++bucket.count > AUTHZEN_LIMITS.perMinute) { req.resume(); send(res, 429, { error: 'RATE_LIMITED' }); return; }
+      started = equaliser ? equaliser.start() : 0;
+      if (await limited(res, pep, 1, reply)) { req.resume(); return; }
       const single = path === '/access/v1/evaluation', batch = path === '/access/v1/evaluations';
-      if (!single && !batch) { req.resume(); send(res, 404, { error: 'NOT_FOUND' }); return; }
-      if (req.method !== 'POST') { req.resume(); send(res, 405, { error: 'METHOD_NOT_ALLOWED' }); return; }
-      if (req.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/json') { req.resume(); send(res, 400, { error: 'INVALID_REQUEST' }); return; }
+      if (!single && !batch) { req.resume(); await reply(404, { error: 'NOT_FOUND' }); return; }
+      if (req.method !== 'POST') { req.resume(); await reply(405, { error: 'METHOD_NOT_ALLOWED' }); return; }
+      if (req.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/json') { req.resume(); await reply(400, { error: 'INVALID_REQUEST' }); return; }
       const chunks: Buffer[] = []; let size = 0;
       for await (const chunk of req) {
         size += chunk.length;
-        if (size > AUTHZEN_LIMITS.body) { send(res, 413, { error: 'REQUEST_TOO_LARGE' }); return; }
+        if (size > AUTHZEN_LIMITS.body) { await reply(413, { error: 'REQUEST_TOO_LARGE' }); return; }
         chunks.push(Buffer.from(chunk));
       }
       let body: unknown;
-      try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { send(res, 400, { error: 'INVALID_JSON' }); return; }
-      if (!plain(body)) { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
+      try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { await reply(400, { error: 'INVALID_JSON' }); return; }
+      if (!plain(body)) { await reply(400, { error: 'INVALID_REQUEST' }); return; }
       // The agent execution the PEP evaluates for (0.5, R117): recorded with every evaluation, correlation only; malformed is a 400.
       const executionId = executionHeader(req.headers[EXECUTION_HEADER]);
-      if (executionId === null) { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
+      if (executionId === null) { await reply(400, { error: 'INVALID_REQUEST' }); return; }
       const call: Call = { trace: { traceId: obs.traceId, ...(executionId ? { executionId } : {}) } };
       if (single) {
         const mapped = mapEvaluation(pep.tenant, body);
         // A missing or mistyped required member is a protocol error (400); nothing was evaluated.
-        if (!mapped.ok && mapped.kind === 'malformed') { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
+        if (!mapped.ok && mapped.kind === 'malformed') { await reply(400, { error: 'INVALID_REQUEST' }); return; }
         const out = mapped.ok ? await pdp.evaluate(pep.tenant, mapped, call) : await pdp.refuse(pep.tenant, mapped, call);
-        send(res, 200, render(out, reasons)); return;
+        await reply(200, render(out, reasons)); return;
       }
       const list = body.evaluations, options_ = body.options;
-      if (!Array.isArray(list) || !list.length || list.length > AUTHZEN_LIMITS.evaluations) { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
-      if (options_ !== undefined && !plain(options_)) { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
+      if (!Array.isArray(list) || !list.length || list.length > AUTHZEN_LIMITS.evaluations) { await reply(400, { error: 'INVALID_REQUEST' }); return; }
+      if (options_ !== undefined && !plain(options_)) { await reply(400, { error: 'INVALID_REQUEST' }); return; }
       const semantic = plain(options_) && options_.evaluations_semantic !== undefined ? options_.evaluations_semantic : 'execute_all';
       // The specification does not say what an unknown semantic means: refuse it rather than guess.
-      if (!(SEMANTICS as readonly unknown[]).includes(semantic)) { send(res, 400, { error: 'INVALID_REQUEST' }); return; }
+      if (!(SEMANTICS as readonly unknown[]).includes(semantic)) { await reply(400, { error: 'INVALID_REQUEST' }); return; }
       // Each evaluation costs one unit of the PEP's rate limit.
-      bucket.count += list.length - 1;
-      if (bucket.count > AUTHZEN_LIMITS.perMinute) { send(res, 429, { error: 'RATE_LIMITED' }); return; }
+      if (list.length > 1 && await limited(res, pep, list.length - 1, reply)) return;
       const defaults: Record<string, unknown> = {};
       for (const k of ['subject', 'action', 'resource', 'context']) if (Object.hasOwn(body, k)) defaults[k] = body[k];
       const evaluations: unknown[] = [];
@@ -263,8 +293,8 @@ export function createAuthzenGateway(store: Store, options: AuthzenOptions = {})
         evaluations.push(render(out, reasons, !mapped.ok && mapped.kind === 'malformed' ? { status: 400, message: 'Bad Request' } : undefined));
         if ((semantic === 'deny_on_first_deny' && !out.decision) || (semantic === 'permit_on_first_permit' && out.decision)) break;
       }
-      send(res, 200, { evaluations });
-    } catch { if (!res.headersSent) send(res, 500, { error: 'UNAVAILABLE' }); }
+      await reply(200, { evaluations });
+    } catch { if (!res.headersSent) await reply(500, { error: 'UNAVAILABLE' }); }
     finally { active--; }
   });
   server.requestTimeout = 10000; server.headersTimeout = 5000; server.timeout = 15000; server.maxHeadersCount = 32;

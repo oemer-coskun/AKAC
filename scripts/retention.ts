@@ -1,11 +1,14 @@
 import { ConfigError, configuredRetrieval, configuredStore, loadRetrievalConfig } from '../reference/config.ts';
 import { ControlPlane } from '../reference/control.ts';
+import { jobLock } from './job-lock.ts';
 // Usage: node scripts/retention.ts <tenant> <admin-actor> [now-ms]
 // Erases (with cascade) every record of the tenant whose retainUntil is at or before
 // `now` and whose lineage carries no legal hold, in bounded batches until done. The
 // admin actor must hold security-admin; every batch and every erasure is audited.
 // With AKAC_RETRIEVAL=vector the vector index is reconciled afterwards, which drops
 // the chunks of erased documents. Backups are NOT reached: see docs/RETENTION.md.
+// Runs are serialized per tenant across instances and CronJob pods (job lock, ADR-016):
+// when another run holds the lock this run is skipped (exit 0, logged).
 const [tenant, admin, at] = process.argv.slice(2);
 if (!tenant || !admin || (at !== undefined && !/^\d{1,16}$/.test(at))) {
   console.error('Usage: node scripts/retention.ts <tenant> <admin-actor> [now-ms]'); process.exit(2);
@@ -19,20 +22,26 @@ const store = configuredStore(), control = new ControlPlane(store);
 const now = at === undefined ? Date.now() : Number(at);
 let code = 0;
 const totals = { erased: 0, held: 0, deferred: 0, batches: 0 };
+const lock = jobLock();
 try {
-  let after: string | undefined;
-  do {
-    const batch = await control.applyRetention(tenant, admin, now, after ? { after } : {});
-    if (!batch.ok) { console.error(JSON.stringify({ level: 'error', msg: 'retention refused', code: batch.code, decisionId: batch.decisionId })); code = 3; break; }
-    totals.erased += batch.value.erased; totals.held += batch.value.held; totals.deferred += batch.value.deferred; totals.batches++;
-    after = batch.value.next;
-  } while (after);
-  if (!code && config) {
-    const retrieval = configuredRetrieval(config, store, control);
-    try { const result = await retrieval.ingestor.reconcile(tenant); if (result.failed) code = 1; }
-    finally { await retrieval.close(); }
+  const outcome = await lock.run('retention', tenant, async () => {
+    let after: string | undefined;
+    do {
+      const batch = await control.applyRetention(tenant, admin, now, after ? { after } : {});
+      if (!batch.ok) { console.error(JSON.stringify({ level: 'error', msg: 'retention refused', code: batch.code, decisionId: batch.decisionId })); code = 3; break; }
+      totals.erased += batch.value.erased; totals.held += batch.value.held; totals.deferred += batch.value.deferred; totals.batches++;
+      after = batch.value.next;
+    } while (after);
+    if (!code && config) {
+      const retrieval = configuredRetrieval(config, store, control);
+      try { const result = await retrieval.ingestor.reconcile(tenant); if (result.failed) code = 1; }
+      finally { await retrieval.close(); }
+    }
+  });
+  if (!outcome.ran) console.log(JSON.stringify({ level: 'warn', time: new Date().toISOString(), msg: 'retention skipped: another run holds the job lock' }));
+  else {
+    console.log(JSON.stringify({ level: code ? 'warn' : 'info', time: new Date().toISOString(), msg: 'retention complete', ...totals }));
+    if (!code && totals.deferred) code = 1;
   }
-  console.log(JSON.stringify({ level: code ? 'warn' : 'info', time: new Date().toISOString(), msg: 'retention complete', ...totals }));
-  if (!code && totals.deferred) code = 1;
-} finally { await store.close(); }
+} finally { await lock.close?.(); await store.close(); }
 process.exit(code);

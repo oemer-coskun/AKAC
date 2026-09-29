@@ -1,0 +1,11 @@
+# Extends the default gitleaks ruleset; everything stays scanned except one exact, reviewed false positive.
+title = "AKAC gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "SHA-256 digests of public model weights are content hashes, not credentials (generic-api-key false positive)"
+condition = "AND"
+paths = ['''^bench/quality/model\.lock$''']
+regexes = ['''[0-9a-f]{64}''']

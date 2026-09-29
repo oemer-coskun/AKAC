@@ -8,3 +8,9 @@ test('AuthZEN mapping vectors pass', () => {
   for (const r of results) assert.equal(r.pass, true, r.id);
   assert.deepEqual([...new Set(results.map(r => r.expected))].sort(), ['allow', 'deny', 'malformed', 'unsupported']);
 });
+
+test('broken oracle: an evaluator that allows share/export without a destination is UNSAFE_SUCCESS (R121)', () => {
+  const results = runAuthzenVectors({ targetNamed: () => true });
+  const unsafe = results.filter(r => r.outcome === 'UNSAFE_SUCCESS').map(r => r.id);
+  assert.deepEqual(unsafe, ['Z21', 'Z22']);
+});

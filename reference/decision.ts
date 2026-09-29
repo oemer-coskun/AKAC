@@ -17,10 +17,16 @@ export const REASON_CODES = [...ALLOW_CODES,
   // decide() (R29), in evaluation order
   'INVALID_REQUEST', 'NOT_AUTHORIZED', 'INVALID_CONTEXT', 'IDENTITY_BOUNDARY', 'INVALID_DELEGATION', 'OUT_OF_SCOPE',
   'UNSUPPORTED_OBLIGATION', 'SOD_VIOLATION', 'KNOWLEDGE_BOUNDARY',
+  // decide(): risk cap of a principal (0.6, R151)
+  'RISK_CAP',
   // supplemental policy
   'POLICY_DENIED', 'POLICY_UNAVAILABLE',
   // operation level (engine)
   'STALE_CONTEXT', 'STALE_SOURCE', 'EXPIRED', 'RECIPIENT', 'CANDIDATES_UNAVAILABLE', 'BUDGET_EXCEEDED', 'STORE_ERROR',
+  // release and retrieval protection (0.6, ADR-020)
+  'RELEASE_FILTER', 'SANITIZER', 'VOLUME_EXCEEDED', 'APPROVAL_REQUIRED', 'RETRIEVAL_DISABLED',
+  // knowledge semantics (0.6, ADR-022)
+  'LINEAGE_DEPTH', 'RESIDENCY', 'COMBINATION', 'WRITE_DOWN',
   // control plane
   'NOT_ADMIN', 'CONFLICT', 'IDEMPOTENCY_KEY_REUSED'] as const;
 export type ReasonCode = typeof REASON_CODES[number];
@@ -37,8 +43,18 @@ export type ReasonCode = typeof REASON_CODES[number];
  *   one profile per domain; two different profiles for one domain are unsatisfiable.
  * - max_output_classification (0.5, ADR-012): every output derived from the
  *   content MUST carry at least this classification outside AKAC.
+ * - release_filter (0.6, ADR-020): the release MUST pass every listed release
+ *   filter (by id) before the content leaves AKAC. The engine enforces it at
+ *   share/export itself (a required filter that is not configured denies); an
+ *   external enforcement point that cannot run the listed filters treats the
+ *   decision as a deny.
+ * - approval_required (0.6, ADR-020): a human or system approval MUST be obtained
+ *   before the content is used. No built-in enforcement point can obtain one, so
+ *   each denies an allow that carries it (fail closed); an approval workflow is an
+ *   extension that can only narrow.
  */
-export const OBLIGATION_TYPES = ['audit_level', 'max_context_ttl_ms', 'no_persist', 'destination_restricted', 'runtime_profile', 'max_output_classification'] as const;
+export const OBLIGATION_TYPES = ['audit_level', 'max_context_ttl_ms', 'no_persist', 'destination_restricted', 'runtime_profile', 'max_output_classification',
+  'release_filter', 'approval_required'] as const;
 export type ObligationType = typeof OBLIGATION_TYPES[number];
 /** Runtime containment domains (0.5), in their canonical obligation order. */
 export const RUNTIME_DOMAINS = ['network', 'filesystem', 'tool', 'credential'] as const;
@@ -49,7 +65,9 @@ export type Obligation =
   | { type: 'no_persist' }
   | { type: 'destination_restricted'; value: string[] }
   | { type: 'runtime_profile'; domain: RuntimeDomain; profile: string }
-  | { type: 'max_output_classification'; value: Level };
+  | { type: 'max_output_classification'; value: Level }
+  | { type: 'release_filter'; value: string[] }
+  | { type: 'approval_required'; value: string };
 export const OBLIGATION_LIMIT = 16;
 const plain = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 /** No holes and no extra members: `every` skips holes, so a sparse array would otherwise validate. */
@@ -65,17 +83,22 @@ export function validObligation(x: unknown): x is Obligation {
       && dense(x.value) && x.value.every(validId) && new Set(x.value).size === x.value.length;
     case 'runtime_profile': return only(x, ['type', 'domain', 'profile']) && (RUNTIME_DOMAINS as readonly unknown[]).includes(x.domain) && validId(x.profile);
     case 'max_output_classification': return only(x, ['type', 'value']) && (LEVELS as readonly unknown[]).includes(x.value);
+    case 'release_filter': return only(x, ['type', 'value']) && Array.isArray(x.value) && x.value.length >= 1 && x.value.length <= 16
+      && dense(x.value) && x.value.every(validId) && new Set(x.value).size === x.value.length;
+    case 'approval_required': return only(x, ['type', 'value']) && validId(x.value);
     default: return false;
   }
 }
 /**
  * True when no enforcement point can satisfy the list: a destination_restricted
- * with no destination left, or two different runtime profiles for one domain.
+ * with no destination left, two different runtime profiles for one domain, or
+ * more than 16 required release filters.
  */
 export function unsatisfiable(obligations: readonly Obligation[]): boolean {
   const profiles = new Map<string, string>();
   for (const o of obligations) {
     if (o.type === 'destination_restricted' && !o.value.length) return true;
+    if (o.type === 'release_filter' && o.value.length > 16) return true;
     if (o.type === 'runtime_profile') {
       const prior = profiles.get(o.domain);
       if (prior !== undefined && prior !== o.profile) return true;
@@ -116,8 +139,13 @@ export function merge(...lists: Obligation[][]): Obligation[] {
     // An empty intersection is kept as an impossible restriction, which no PEP can satisfy: deny.
     if (o.type === 'destination_restricted' && prior.type === o.type) prior.value = prior.value.filter(d => o.value.includes(d));
     if (o.type === 'max_output_classification' && prior.type === o.type && LEVELS.indexOf(o.value) > LEVELS.indexOf(prior.value)) prior.value = o.value;
+    // Every filter required by any source applies: the union, sorted (more filters is more restrictive).
+    if (o.type === 'release_filter' && prior.type === o.type) prior.value = [...new Set([...prior.value, ...o.value])].sort();
+    // One approval requirement per operation; the first reason stays (the record is a marker, not a list).
   }
-  return OBLIGATION_TYPES.flatMap(t => t === 'runtime_profile' ? RUNTIME_DOMAINS.flatMap(d => profiles.get(d) ?? []) : byType.has(t) ? [byType.get(t)!] : []);
+  const out = OBLIGATION_TYPES.flatMap(t => t === 'runtime_profile' ? RUNTIME_DOMAINS.flatMap(d => profiles.get(d) ?? []) : byType.has(t) ? [byType.get(t)!] : []);
+  for (const o of out) if (o.type === 'release_filter') o.value.sort();
+  return out;
 }
 /** True when every obligation type is in `supported`, every obligation is well-formed and the list is satisfiable. A PEP denies otherwise. */
 export const enforceable = (obligations: readonly unknown[], supported: readonly ObligationType[]) =>
@@ -134,8 +162,38 @@ export const validTraceId = (x: unknown): x is string => typeof x === 'string' &
  * sandbox or job id; `x-akac-execution-id` over HTTP). `runtimeRevision` (0.5)
  * identifies the runtime policy revision a trusted runtime enforcer applied; only
  * trusted in-process callers (ProtectedRuntime) set it, never an agent over HTTP.
+ *
+ * `unenforceable` (0.6, R123) lists obligation types the calling enforcement
+ * point cannot enforce (for example the agent HTTP listener without a runtime
+ * enforcer: runtime_profile). A disclosure that would carry one of them is denied
+ * (UNSUPPORTED_OBLIGATION, R38) and nothing of the operation is persisted. It can only
+ * add denials; an invalid value denies every allow of the call.
  */
-export type Call = { trace?: { traceId?: string; executionId?: string; runtimeRevision?: string } };
+export type Call = { trace?: { traceId?: string; executionId?: string; runtimeRevision?: string }; unenforceable?: readonly ObligationType[];
+  /**
+   * 0.6 (ADR-020): the caller asks for a denial hint (HTTP listener with AKAC_DENIAL_HINTS). A hint is computed from the
+   * caller's own grant and credential state only, never from the resource (see DENIAL_HINTS).
+   */
+  hints?: boolean;
+  /** 0.6 (ADR-020): release filter ids the calling enforcement point requires for this operation (ProtectedRuntime passes the context's release_filter ids). It can only add requirements. */
+  requireFilters?: readonly string[] };
+/**
+ * Closed denial hints (0.6, ADR-020). Opt-in and off by default. A hint states a fact about the caller's own
+ * grant, credential or budget that by itself denies the request whatever the resource is; it is never derived
+ * from the existence, labels or ACL of a resource, so hint presence is the same for an existing and a missing resource.
+ */
+export const DENIAL_HINTS = ['GRANT_EXPIRED', 'PURPOSE_NOT_GRANTED', 'ACTION_NOT_GRANTED', 'RATE_LIMITED', 'APPROVAL_REQUIRED', 'RUNTIME_ENFORCER_REQUIRED'] as const;
+export type DenialHint = typeof DENIAL_HINTS[number];
+/** Closed, content-free audit findings (0.6, ADR-020): at most 32, each 1-128 characters of A-Z a-z 0-9 . _ : - */
+export const FINDING = /^[A-Za-z0-9._:-]{1,128}$/;
+export const FINDINGS_LIMIT = 32;
+export const validFindings = (x: unknown): x is string[] => Array.isArray(x) && x.length <= FINDINGS_LIMIT && dense(x) && x.every(f => typeof f === 'string' && FINDING.test(f));
+/** Obligation types the caller cannot enforce; null when the value is malformed (fail closed). */
+export const unenforceableOf = (call?: Call): readonly ObligationType[] | null => {
+  const u = call?.unenforceable;
+  if (u === undefined) return [];
+  return Array.isArray(u) && u.every(t => (OBLIGATION_TYPES as readonly unknown[]).includes(t)) ? u : null;
+};
 export const traceOf = (call?: Call): string | undefined => validTraceId(call?.trace?.traceId) ? call!.trace!.traceId : undefined;
 export const executionOf = (call?: Call): string | undefined => validId(call?.trace?.executionId) ? call!.trace!.executionId : undefined;
 export const runtimeRevisionOf = (call?: Call): string | undefined => validId(call?.trace?.runtimeRevision) ? call!.trace!.runtimeRevision : undefined;

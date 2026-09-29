@@ -247,7 +247,7 @@ holds no legal hold, in bounded batches (reference: 100) that are resumable by
 cursor, re-checking the deadline inside each erasure transaction. Each erasure
 MUST be its own audited decision.
 
-**R58 — Bounded cascades fail closed.** An operation that must change a
+**R58 — Bounded cascades fail closed.** An operation that changes a
 whole lineage (erasure, lineage revocation) MUST either establish the complete
 lineage within its bound (reference: 1000 records) or change nothing and return a
 deferred denial (`BUDGET_EXCEEDED`). Quarantine remains available for lineages of
@@ -316,6 +316,8 @@ the AuthZEN `context.destination` member) for share/export that names a
 Destination MUST apply R62 and R63. One that names none, under a
 restricted run, MUST be allowed only with `destination_restricted` listing the
 run's destinations; the enforcement point MUST then send only there.
+(AKAC 0.6: an evaluation of share/export that names no Destination is denied
+under every run, [R121](AKAC-0.6.md).)
 
 **R68 — Attenuation.** A child grant of a parent with `destinations` MUST
 carry `destinations` that are a subset of the parent's; a child of a parent
@@ -334,9 +336,6 @@ by itself.
 
 **R71 — Administration.** Destination changes MUST be security-admin
 operations, audited, and an update MUST advance the tenant epoch.
-
-Denials of R62/4/7/8 use the existing reason code `RECIPIENT`; public
-responses stay non-distinguishing.
 
 Denials under R62, R63, R66 and R67 use the existing reason code `RECIPIENT`; public responses stay
 non-distinguishing.
@@ -537,7 +536,7 @@ Partitions MUST NOT share entries across any of these dimensions.
 
 **R93 — Epoch invalidation.** When the operator advances a tenant's epoch (e.g., on revocation, deprovisioning, or classification change per R28), all entries in that tenant's cache partitions MUST be invalidated or made permanently unusable. Entries older than the tenant's current epoch MUST NOT be served. A context bound to an earlier epoch MUST NOT access caches of a later epoch.
 
-**R94 — Cache keys must not derive from protected content alone.** Cache keys MUST NOT be computable solely from protected content (e.g., a SHA-256 hash of plaintext retrieval results, embeddings, or model output). An adversary who observes a key must not thereby learn what content is cached. Keys MUST incorporate non-content elements such as tenant, principal, classification, or a server-held salt, making keys non-invertible without access control context.
+**R94 — Cache keys not derived from protected content alone.** Cache keys MUST NOT be computable solely from protected content (e.g., a SHA-256 hash of plaintext retrieval results, embeddings, or model output). The purpose is that an adversary who observes a key does not thereby learn what content is cached. Keys MUST incorporate non-content elements such as tenant, principal, classification, or a server-held salt, making keys non-invertible without access control context.
 
 **R95 — Quantization and compression preserve classification.** Quantization, compression, or lossy embedding of protected content does not lower its classification. A quantized vector, compressed embedding, cached embedding, or dimensionally-reduced activation inherits the classification of its source and is subject to the same partitioning and invalidation rules as the original content.
 

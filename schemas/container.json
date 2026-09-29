@@ -85,6 +85,33 @@
     },
     "active": {
       "type": "boolean"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+        "not": {
+          "enum": [
+            "constructor",
+            "prototype",
+            "__proto__"
+          ]
+        }
+      },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "description": "0.6 (R186): tags every descendant carries."
+    },
+    "residency": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9-]{1,15}$"
+      },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "description": "0.6 (R187): residency every descendant must respect (intersection)."
     }
   },
   "required": [

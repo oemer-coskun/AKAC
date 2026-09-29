@@ -140,7 +140,7 @@ test('tenant isolation: one tenant never sees the other tenant\'s chunks', async
 test('ranking uses only authorized candidates: unauthorized documents leave no trace in scores', async () => {
   const { index } = await rig();
   const clean = new MemoryVectorIndex(), e = hash;
-  for (const [docId, text] of [['handbook', 'Product handbook: our public product is a notebook.'], ['staff-faq', 'Staff FAQ: synthetic office hours.']] as const) {
+  for (const [docId, text] of [['handbook', 'Product handbook: our public product is a laptop.'], ['staff-faq', 'Staff FAQ: synthetic office hours.']] as const) {
     const state = await index.state('acme'); assert.ok(state.has(docId));
     await clean.upsert([{ tenant: 'acme', docId, docVersion: 1, chunkId: `${docId}#1#0`, ordinal: 0, compartment: docId === 'handbook' ? 'public' : 'internal',
       readTokens: ['role:staff'], requiredProjects: [], containerTokens: docId === 'handbook' ? [] : [['role:staff']], model: e.model, vector: (await e.embed([text]))[0]! }]);

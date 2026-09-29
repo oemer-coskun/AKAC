@@ -134,6 +134,62 @@
           ]
         }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "value"
+      ],
+      "description": "0.6 (ADR-020): the release MUST pass every listed release filter (by id) before the content leaves AKAC. The engine enforces it at share/export itself; an enforcement point that cannot run the listed filters treats the decision as a deny. At most 16 ids after merging (a union beyond 16 is unsatisfiable).",
+      "properties": {
+        "type": {
+          "const": "release_filter"
+        },
+        "value": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+            "not": {
+              "enum": [
+                "constructor",
+                "prototype",
+                "__proto__"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "value"
+      ],
+      "description": "0.6 (ADR-020): an approval MUST be obtained before the content is used. An enforcement point without an approval workflow treats the decision as a deny.",
+      "properties": {
+        "type": {
+          "const": "approval_required"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          }
+        }
+      }
     }
   ]
 }

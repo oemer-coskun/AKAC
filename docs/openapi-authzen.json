@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AKAC AuthZEN PDP facade",
-    "version": "0.5.0-draft",
+    "version": "0.6.0-draft",
     "description": "Optional listener (AKAC_AUTHZEN_PORT, default off, loopback) implementing the OpenID AuthZEN Authorization API 1.0 (Final, 11 January 2026) Access Evaluation and Access Evaluations endpoints for trusted policy enforcement points. It is a read-only, audited policy decision point: it never discloses content. The tenant comes from the PEP credential only. Unknown request members are ignored (AuthZEN 1.0 section 10.1.1). This is an implementation profile, not a claim of AuthZEN interoperability certification. Mapping: docs/AUTHZEN.md."
   },
   "servers": [
@@ -545,7 +545,7 @@
           "destination": {
             "type": "string",
             "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
-            "description": "Optional Destination profile id the enforcement point will send to (share/export). Present but invalid: decision:false."
+            "description": "Destination profile id the enforcement point will send to. Required for share and export (R121): absent, the decision is false (RECIPIENT). Present but invalid: decision:false."
           }
         }
       },
@@ -749,6 +749,62 @@
                   "confidential",
                   "restricted"
                 ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "description": "0.6 (ADR-020): the release MUST pass every listed release filter (by id) before the content leaves AKAC. The engine enforces it at share/export itself; an enforcement point that cannot run the listed filters treats the decision as a deny. At most 16 ids after merging (a union beyond 16 is unsatisfiable).",
+            "properties": {
+              "type": {
+                "const": "release_filter"
+              },
+              "value": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                  "not": {
+                    "enum": [
+                      "constructor",
+                      "prototype",
+                      "__proto__"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "description": "0.6 (ADR-020): an approval MUST be obtained before the content is used. An enforcement point without an approval workflow treats the decision as a deny.",
+            "properties": {
+              "type": {
+                "const": "approval_required"
+              },
+              "value": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
               }
             }
           }

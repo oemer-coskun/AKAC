@@ -26,6 +26,12 @@ export type VectorQuery = {
   /** Compartments the caller may see. Others MUST NOT be queried. */
   compartments: Level[];
   tokens: string[]; projects: string[]; vector: Float32Array; k: number;
+  /**
+   * The agent's tokens and projects (0.6, ADR-020). When present a chunk must be admitted for BOTH audiences (decide() requires
+   * the user and the agent to see a document), so candidates the agent cannot see are never fetched. An index that ignores it
+   * stays correct (the engine re-checks every hit) but loses recall to invisible candidates.
+   */
+  agent?: { tokens: string[]; projects: string[] };
 };
 export type VectorHit = { docId: string; chunkId: string; score: number };
 export type IndexedDocument = { version: number; model: string; digest: string };
@@ -47,13 +53,16 @@ export function labelDigest(c: Pick<IndexedChunk, 'compartment' | 'readTokens' |
 }
 const anyOf = (need: readonly string[], have: ReadonlySet<string>) => need.some(t => have.has(t));
 /** The pre-filter as a pure predicate. Empty ACL lists match nobody. */
-export function admits(c: IndexedChunk, q: { tenant: string; compartments: readonly Level[]; tokens: ReadonlySet<string>; projects: ReadonlySet<string> }): boolean {
+export function admits(c: IndexedChunk, q: { tenant: string; compartments: readonly Level[]; tokens: ReadonlySet<string>; projects: ReadonlySet<string>;
+  agent?: { tokens: ReadonlySet<string>; projects: ReadonlySet<string> } }): boolean {
   return c.tenant === q.tenant && q.compartments.includes(c.compartment) && anyOf(c.readTokens, q.tokens)
-    && c.containerTokens.every(level => anyOf(level, q.tokens)) && c.requiredProjects.every(p => q.projects.has(p));
+    && c.containerTokens.every(level => anyOf(level, q.tokens)) && c.requiredProjects.every(p => q.projects.has(p))
+    && (!q.agent || (anyOf(c.readTokens, q.agent.tokens) && c.containerTokens.every(level => anyOf(level, q.agent!.tokens)) && c.requiredProjects.every(p => q.agent!.projects.has(p))));
 }
 export function checkQuery(q: VectorQuery): void {
   if (!q || !validId(q.tenant) || !Array.isArray(q.compartments) || q.compartments.some(l => !LEVELS.includes(l)) || !Array.isArray(q.tokens)
-    || !Array.isArray(q.projects) || !(q.vector instanceof Float32Array) || !Number.isInteger(q.k) || q.k < 1 || q.k > QUERY_LIMIT) throw new Error('Invalid vector query');
+    || !Array.isArray(q.projects) || !(q.vector instanceof Float32Array) || !Number.isInteger(q.k) || q.k < 1 || q.k > QUERY_LIMIT
+    || (q.agent !== undefined && (!q.agent || !Array.isArray(q.agent.tokens) || !Array.isArray(q.agent.projects)))) throw new Error('Invalid vector query');
 }
 export function checkChunk(c: IndexedChunk): void {
   if (!validId(c.tenant) || !validId(c.docId) || !Number.isSafeInteger(c.docVersion) || c.docVersion < 1 || typeof c.chunkId !== 'string' || !c.chunkId
@@ -113,7 +122,8 @@ export class MemoryVectorIndex implements VectorIndex {
   }
   async query(q: VectorQuery): Promise<VectorHit[]> {
     checkQuery(q);
-    const filter = { tenant: q.tenant, compartments: q.compartments, tokens: new Set(q.tokens), projects: new Set(q.projects) };
+    const filter = { tenant: q.tenant, compartments: q.compartments, tokens: new Set(q.tokens), projects: new Set(q.projects),
+      ...(q.agent ? { agent: { tokens: new Set(q.agent.tokens), projects: new Set(q.agent.projects) } } : {}) };
     const hits: VectorHit[] = [];
     for (const level of new Set(q.compartments)) {
       for (const c of this.partitions.get(this.key(q.tenant, level))?.values() ?? []) {

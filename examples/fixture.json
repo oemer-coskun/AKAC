@@ -1,0 +1,81 @@
+{
+  "$schema": "../schemas/fixture.json",
+  "format": "akac-fixture/1",
+  "description": "Synthetic company of the AKAC conformance vectors. Every name, id and content string is synthetic. Language-neutral: start from an empty state, merge the records of the named fixture (after those of the fixture it extends), add the vector clock to every clock-relative field, then apply the vector patches.",
+  "clockRelative": [["grants","notBefore"],["grants","expiresAt"]],
+  "bindings": {
+    "intern": {
+      "tenant": "acme",
+      "subject": "intern",
+      "agent": "intern-agent",
+      "grant": "intern-run"
+    },
+    "chief": {
+      "tenant": "acme",
+      "subject": "chief",
+      "agent": "chief-agent",
+      "grant": "chief-run"
+    },
+    "lead": {
+      "tenant": "acme",
+      "subject": "lead",
+      "agent": "lead-agent",
+      "grant": "lead-run"
+    }
+  },
+  "fixtures": {
+    "fixture": {
+      "description": "Base company: users, agents, one grant per user, three documents.",
+      "records": {
+        "actors": {
+          "intern": {"id":"intern","tenant":"acme","kind":"user","roles":["staff"],"clearance":"internal","projects":[],"active":true},
+          "intern-agent": {"id":"intern-agent","tenant":"acme","kind":"agent","roles":["staff"],"clearance":"internal","projects":[],"active":true},
+          "chief": {"id":"chief","tenant":"acme","kind":"user","roles":["staff","executive"],"clearance":"restricted","projects":["alpha"],"active":true},
+          "chief-agent": {"id":"chief-agent","tenant":"acme","kind":"agent","roles":["staff","executive"],"clearance":"restricted","projects":["alpha"],"active":true},
+          "lead": {"id":"lead","tenant":"acme","kind":"user","roles":["staff","project"],"clearance":"confidential","projects":["alpha"],"active":true},
+          "lead-agent": {"id":"lead-agent","tenant":"acme","kind":"agent","roles":["staff","project"],"clearance":"confidential","projects":["alpha"],"active":true},
+          "admin": {"id":"admin","tenant":"acme","kind":"user","roles":["security-admin"],"clearance":"restricted","projects":[],"active":true},
+          "outsider": {"id":"outsider","tenant":"other","kind":"user","roles":["staff","executive"],"clearance":"restricted","projects":["alpha"],"active":true}
+        },
+        "grants": {
+          "intern-run": {"id":"intern-run","tenant":"acme","subject":"intern","agent":"intern-agent","actions":["read","derive","write_memory","share","export"],"resources":["*"],"purposes":["work"],"notBefore":-1000,"expiresAt":3600000,"active":true},
+          "chief-run": {"id":"chief-run","tenant":"acme","subject":"chief","agent":"chief-agent","actions":["read","derive","write_memory","share","export"],"resources":["*"],"purposes":["work"],"notBefore":-1000,"expiresAt":3600000,"active":true},
+          "lead-run": {"id":"lead-run","tenant":"acme","subject":"lead","agent":"lead-agent","actions":["read","derive","write_memory","share","export"],"resources":["*"],"purposes":["work"],"notBefore":-1000,"expiresAt":3600000,"active":true}
+        },
+        "knowledge": {
+          "handbook": {"id":"handbook","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Product handbook: our public product is a laptop.","classification":"public","readerRoles":["staff"],"projects":[],"readers":[],"sources":[],"active":true},
+          "strategy": {"id":"strategy","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Product acquisition strategy: confidential purchase budget is 900000.","classification":"restricted","readerRoles":["executive"],"projects":[],"readers":[],"sources":[],"active":true},
+          "project-alpha": {"id":"project-alpha","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Product project alpha schedule: launch in November.","classification":"confidential","readerRoles":["project","executive"],"projects":["alpha"],"readers":[],"sources":[],"active":true}
+        }
+      }
+    },
+    "kbFixture": {
+      "description": "fixture plus a role hierarchy, an inactive group, separation-of-duty constraints and a knowledge base with nested folders (AKAC-KB/0.3).",
+      "extends": "fixture",
+      "records": {
+        "knowledge": {
+          "board-notes": {"id":"board-notes","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Board notes: synthetic quarterly agenda.","classification":"public","readerRoles":["staff"],"projects":[],"readers":[],"sources":[],"active":true,"container":"f-executive"},
+          "vault-memo": {"id":"vault-memo","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Vault memo: synthetic reserve figure 42.","classification":"public","readerRoles":["staff"],"projects":[],"readers":[],"sources":[],"active":true,"container":"f-vault"},
+          "staff-faq": {"id":"staff-faq","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Staff FAQ: synthetic office hours.","classification":"public","readerRoles":["staff"],"projects":[],"readers":[],"sources":[],"active":true,"container":"kb-corporate"}
+        },
+        "roles": {
+          "staff": {"id":"staff","tenant":"acme","inherits":[],"active":true},
+          "executive": {"id":"executive","tenant":"acme","inherits":["staff"],"active":true},
+          "board": {"id":"board","tenant":"acme","inherits":["executive"],"active":true}
+        },
+        "groups": {
+          "leadership": {"id":"leadership","tenant":"acme","members":["lead","lead-agent"],"roles":["board"],"active":false}
+        },
+        "containers": {
+          "kb-corporate": {"id":"kb-corporate","tenant":"acme","kind":"knowledge-base","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true},
+          "f-executive": {"id":"f-executive","tenant":"acme","kind":"folder","parent":"kb-corporate","classification":"confidential","readerRoles":["executive"],"readers":[],"projects":[],"active":true},
+          "f-vault": {"id":"f-vault","tenant":"acme","kind":"folder","parent":"f-executive","classification":"restricted","readerRoles":["executive"],"readers":[],"projects":[],"active":true}
+        },
+        "constraints": {
+          "ssd-payments": {"id":"ssd-payments","tenant":"acme","kind":"static","roles":["requester","approver"],"cardinality":2},
+          "dsd-review": {"id":"dsd-review","tenant":"acme","kind":"dynamic","roles":["auditor-role","project"],"cardinality":2}
+        }
+      }
+    }
+  }
+}

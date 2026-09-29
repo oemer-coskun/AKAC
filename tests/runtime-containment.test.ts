@@ -4,12 +4,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { Engine } from '../reference/engine.ts';
+import { createGateway } from '../reference/http.ts';
 import { ControlPlane } from '../reference/control.ts';
 import { ProtectedRuntime, RUNTIME_OBLIGATIONS } from '../reference/runtime.ts';
 import type { RuntimeEnforcer, RuntimeProfileRef } from '../reference/runtime.ts';
 import { AuthzenPdp, mapEvaluation, render } from '../reference/authzen.ts';
 import { MemoryStore, SqliteStore, importState } from '../reference/store.ts';
-import { containment } from '../reference/containment.ts';
+import { containment, containmentAcross } from '../reference/containment.ts';
 import { enforceable, merge, parseObligations } from '../reference/decision.ts';
 import type { Obligation } from '../reference/decision.ts';
 import { verifyAudit } from '../reference/audit.ts';
@@ -148,7 +149,8 @@ test('ProtectedRuntime applies exactly the governing profiles before the provide
   const runtime = new ProtectedRuntime(engine, { principal: 'provider', generate: async () => { order.push('provider'); return 'Synthetic answer'; } }, { enforcer });
   const r = await runtime.answer(bindings.chief, ['strategy'], 'work', 'Summarize', { trace: { traceId: '4bf92f3577b34da6a3ce929d0e0e4736', executionId: 'job-17', runtimeRevision: 'forged' } });
   assert.ok(r.ok);
-  assert.deepEqual(order, ['apply', 'provider', 'current', 'release']);
+  // The revision is checked before and again after the final release (R124), then the lease is released.
+  assert.deepEqual(order, ['apply', 'provider', 'current', 'current', 'release']);
   assert.equal(held, 'job-17', 'the enforcer is scoped to the caller execution id');
   assert.deepEqual(applied, [{ domain: 'network', profile: 'deny-all' }, { domain: 'filesystem', profile: 'workspace-only' }, { domain: 'tool', profile: 'read-only-http' }, { domain: 'credential', profile: 'none' }]);
   assert.ok(r.obligations.some(o => o.type === 'max_output_classification' && o.value === 'restricted'));
@@ -195,7 +197,7 @@ test('audit correlation: execution id and runtime revision are format 2 optional
 });
 
 test('HTTP: x-akac-execution-id is recorded; a malformed one is refused; a runtime revision is never taken from an agent request', async () => {
-  const t = await start({ state: contained() });
+  const t = await start({ state: contained(), agent: { runtimeObligations: 'trusted-enforcer' } });
   try {
     const post = (headers: Record<string, string>) => t.call(tokens.intern, 'POST', '/v1/contexts', { resources: ['handbook'], purpose: 'work' }, headers, t.agentUrl);
     const ok = await post({ 'x-akac-execution-id': 'job-42', 'x-akac-runtime-revision': 'forged-rev' });
@@ -210,6 +212,40 @@ test('HTTP: x-akac-execution-id is recorded; a malformed one is refused; a runti
     assert.equal((await t.store.auditLog('acme')).at(-1)!.executionId, 'change-7');
     assert.equal((await t.call(tokens.sec, 'GET', '/admin/v1/audit', undefined, { 'x-akac-execution-id': '../x' })).status, 400);
   } finally { await t.stop(); }
+});
+
+test('regression: the agent listener denies disclosures carrying runtime_profile unless declared behind an enforcer (R123)', async () => {
+  // Default 'deny': an allow that would carry runtime_profile is refused, rolled back and audited as a denial.
+  const t = await start({ state: contained() });
+  try {
+    const post = (path: string, body: unknown) => t.call(tokens.intern, 'POST', path, body, { 'x-akac-execution-id': 'job-7' }, t.agentUrl);
+    const denied = await post('/v1/contexts', { resources: ['handbook'], purpose: 'work' });
+    assert.equal(denied.status, 403);
+    const body = await denied.json() as Record<string, unknown>;
+    assert.deepEqual(Object.keys(body).sort(), ['code', 'decisionId', 'ok']); assert.equal(body.code, 'NOT_AUTHORIZED');
+    const entry = (await t.store.auditLog('acme')).at(-1)!;
+    assert.equal(entry.decision, 'deny'); assert.equal(entry.reason, 'DENIED:UNSUPPORTED_OBLIGATION'); assert.equal(entry.decisionId, body.decisionId);
+    assert.equal(entry.executionId, 'job-7'); assert.deepEqual(entry.obligations, []);
+    await t.store.transaction('acme', async tx => { assert.equal(Object.keys(tx.state.contexts).length, 0, 'no context persisted'); });
+    assert.equal((await post('/v1/retrieve', { query: 'handbook', purpose: 'work' })).status, 403);
+    assert.ok(verifyAudit(await t.store.auditLog('acme')));
+  } finally { await t.stop(); }
+  // A tenant without runtime profile policies is unaffected by the default.
+  const plain = await start();
+  try { assert.equal((await plain.call(tokens.intern, 'POST', '/v1/contexts', { resources: ['handbook'], purpose: 'work' }, {}, plain.agentUrl)).status, 200); }
+  finally { await plain.stop(); }
+  // 'trusted-enforcer': the operator declares an enforcer; the obligations are returned to it.
+  const trusted = await start({ state: contained(), agent: { runtimeObligations: 'trusted-enforcer' } });
+  try {
+    const ok = await trusted.call(tokens.intern, 'POST', '/v1/contexts', { resources: ['handbook'], purpose: 'work' }, {}, trusted.agentUrl);
+    assert.equal(ok.status, 200);
+    assert.ok((await ok.json() as { obligations: Obligation[] }).obligations.some(o => o.type === 'runtime_profile'));
+  } finally { await trusted.stop(); }
+  assert.throws(() => createGateway(new Engine(new MemoryStore(contained())), [{ token: tokens.intern, binding: bindings.intern }], { runtimeObligations: 'off' as never }));
+  // Engine level: an invalid unenforceable list refuses every allow (fail closed).
+  const engine = new Engine(new MemoryStore(world()));
+  assert.equal((await engine.openContext(bindings.intern, ['handbook'], 'work', { unenforceable: ['nonsense'] as never })).ok, false);
+  assert.equal((await engine.openContext(bindings.intern, ['handbook'], 'work', { unenforceable: ['runtime_profile'] })).ok, true, 'no runtime policy: nothing to refuse');
 });
 
 test('admin routes: PUT and GET /admin/v1/runtime-profiles/{id}', async () => {
@@ -273,6 +309,22 @@ function sandbox(isolation?: RuntimeEnforcer['isolation']) {
   } };
   return { enforcer, provider, seen };
 }
+test('regression: a runtime change between the last check and the final release withholds the answer and audits it (R124)', async () => {
+  const { enforcer: inner, provider } = sandbox();
+  let checks = 0;
+  const enforcer: RuntimeEnforcer = { ...inner, current: id => checks++ === 0 ? inner.current(id) : 'changed-out-of-band' };
+  const store = new MemoryStore(tiered());
+  const r = await new ProtectedRuntime(new Engine(store), provider as never, { enforcer }).answer(bindings.chief, ['strategy'], 'work', 'summarize', { trace: { executionId: 'job-late' } });
+  assert.equal(r.ok, false); assert.equal(checks, 2, 'verified before and after the final release');
+  const log = await store.auditLog('acme'), last = log.at(-1)!, before = log.at(-2)!;
+  assert.equal(before.operation, 'share'); assert.equal(before.decision, 'allow');
+  assert.equal(last.operation, 'share'); assert.equal(last.decision, 'deny'); assert.equal(last.reason, 'DENIED:UNSUPPORTED_OBLIGATION');
+  assert.equal(last.executionId, 'job-late'); assert.equal(last.runtimeRevision, 'rev-deny-all'); assert.equal(r.decisionId, last.decisionId);
+  assert.ok(verifyAudit(log));
+  // Unchanged revision: the same answer is released.
+  const ok = await new ProtectedRuntime(new Engine(new MemoryStore(tiered())), sandbox().provider as never, { enforcer: sandbox().enforcer }).answer(bindings.chief, ['strategy'], 'work', 'summarize');
+  assert.equal(ok.ok, true);
+});
 function tiered(): State {
   const s = contained();
   s.runtimeProfiles = { pub: policy('pub', 'public', { network: 'internal-only' }), res: policy('res', 'restricted', { network: 'deny-all' }) };
@@ -353,14 +405,18 @@ test('regression: share/export without a destination is never weaker than for an
   const engine = new Engine(new MemoryStore(structuredClone(s)));
   const named = await engine.evaluate(bindings.chief, 'strategy', 'share', 'work', { destination: 'ext' });
   assert.ok(named.decision); assert.ok(named.obligations.some(o => o.type === 'runtime_profile' && o.profile === 'deny-all'));
+  // R121: an evaluation naming no destination is denied outright (RECIPIENT).
   const unnamed = await engine.evaluate(bindings.chief, 'strategy', 'share', 'work', {});
-  assert.equal(unnamed.decision, false, 'no weaker unnarrowed profile'); assert.equal(unnamed.code, 'UNSUPPORTED_OBLIGATION');
+  assert.equal(unnamed.decision, false, 'no weaker unnarrowed profile'); assert.equal(unnamed.code, 'RECIPIENT');
   const exported = await engine.evaluate(bindings.chief, 'strategy', 'export', 'work', {});
   assert.equal(exported.decision, false);
-  // Restricted to the external Destination by id: its narrowed profile applies without naming it.
+  // Restricted to the external Destination by id: denied without naming it, its narrowed profile applies when named.
   const restricted = structuredClone(s); restricted.grants['chief-run']!.destinations = ['ext'];
-  const byId = await new Engine(new MemoryStore(restricted)).evaluate(bindings.chief, 'strategy', 'share', 'work', {});
+  assert.equal((await new Engine(new MemoryStore(structuredClone(restricted))).evaluate(bindings.chief, 'strategy', 'share', 'work', {})).code, 'RECIPIENT');
+  const byId = await new Engine(new MemoryStore(restricted)).evaluate(bindings.chief, 'strategy', 'share', 'work', { destination: 'ext' });
   assert.ok(byId.decision); assert.deepEqual(runtimeOnly(byId.obligations).filter(o => o.type === 'runtime_profile'), [{ type: 'runtime_profile', domain: 'network', profile: 'deny-all' }]);
+  // R122: no reachable destination class denies; it never falls back to the unnarrowed derivation.
+  assert.deepEqual(containmentAcross(s, 'acme', 'restricted', []), { ok: false, reason: 'DENIED:RECIPIENT' });
   // A release to a service principal without a Destination profile may forward anywhere: contained for every class.
   const svc = structuredClone(s);
   svc.actors['svc-bot'] = { id: 'svc-bot', tenant: 'acme', kind: 'service', roles: ['staff', 'executive', 'project'], projects: ['alpha'], clearance: 'restricted', active: true };

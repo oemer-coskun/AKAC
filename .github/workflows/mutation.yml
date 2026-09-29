@@ -1,0 +1,45 @@
+name: AKAC mutation testing
+# Mutation testing of the reference decision core (reference/policy.ts, containment.ts, decision.ts, lifecycle.ts)
+# with StrykerJS. Slow, so it does not gate pull requests: it runs weekly and on demand, publishes the HTML and JSON
+# reports as an artifact and the score in the job summary, and fails when the score drops below the break threshold
+# in stryker.config.json. See docs/CONFORMANCE-COVERAGE.md.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: mutation
+  cancel-in-progress: false
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Stryker run (fails below the break threshold)
+        id: stryker
+        run: npm run test:mutation
+      - name: Score in the job summary
+        if: always()
+        run: |
+          if [ -f reports/mutation/mutation.json ]; then
+            node scripts/mutation-summary.ts reports/mutation/mutation.json --markdown >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No mutation report was produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: warn
+          retention-days: 90

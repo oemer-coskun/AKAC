@@ -1,0 +1,111 @@
+name: AKAC benchmarks
+# Performance (bench/) and retrieval quality (bench/quality/) on the GitHub-hosted
+# ubuntu runner. Manual or weekly; never on push, so it gates nothing. Results are
+# uploaded as artifacts and rendered into the job summary; docs/PERFORMANCE.md quotes
+# them with the run link. The runner is shared hardware: treat run-to-run variance of
+# tens of percent as normal and compare runs, not single numbers.
+on:
+  workflow_dispatch:
+    inputs:
+      scales:
+        description: 'Comma-separated scales (tiny, small, medium, large)'
+        required: false
+        default: 'medium,large'
+      concurrency:
+        description: 'Comma-separated caller counts'
+        required: false
+        default: '1,8,32'
+  schedule:
+    - cron: '17 3 * * 1'
+permissions:
+  contents: read
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      scales: ${{ steps.scales.outputs.scales }}
+    steps:
+      - id: scales
+        env:
+          SCALES: ${{ github.event.inputs.scales || 'medium,large' }}
+        run: |
+          set -euo pipefail
+          echo "$SCALES" | grep -Eq '^(tiny|small|medium|large)(,(tiny|small|medium|large))*$' || { echo "::error::invalid scales"; exit 1; }
+          echo "scales=$(echo "$SCALES" | jq -Rc 'split(",")')" >> "$GITHUB_OUTPUT"
+  performance:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        scale: ${{ fromJSON(needs.plan.outputs.scales) }}
+    services:
+      # Same pinned image and trust-authenticated, job-local database as ci.yml; the
+      # harness creates its own runtime role (no BYPASSRLS) with a generated password.
+      postgres:
+        image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+        env:
+          POSTGRES_USER: akac_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: akac_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U akac_test -d akac_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      AKAC_BENCH_DATABASE_URL: postgresql://akac_test@127.0.0.1:5432/akac_test
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Run the benchmark (MemoryStore and PostgreSQL + pgvector)
+        env:
+          SCALE: ${{ matrix.scale }}
+          CONCURRENCY: ${{ github.event.inputs.concurrency || '1,8,32' }}
+        run: |
+          set -euo pipefail
+          echo "$CONCURRENCY" | grep -Eq '^[0-9]{1,3}(,[0-9]{1,3})*$' || { echo "::error::invalid concurrency"; exit 1; }
+          mkdir -p bench-results
+          node bench/run.ts --scale "$SCALE" --backend memory,postgres --concurrency "$CONCURRENCY" \
+            --out "bench-results/$SCALE.json" --markdown "bench-results/$SCALE.md" > /dev/null
+          cat "bench-results/$SCALE.md" >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: akac-bench-${{ matrix.scale }}
+          path: bench-results/
+          if-no-files-found: warn
+          retention-days: 90
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      # The embedding model is fetched once per pinned revision (bench/quality/model.lock) and cached.
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: bench/quality/.cache
+          key: akac-quality-${{ hashFiles('bench/quality/model.lock') }}
+      - name: Retrieval quality (real embedding model vs HashEmbedder)
+        run: bash bench/quality/ci.sh bench/results/quality.json
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: akac-retrieval-quality
+          path: bench/results/
+          if-no-files-found: warn
+          retention-days: 90

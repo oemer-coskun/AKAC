@@ -12,55 +12,83 @@ import { validId } from '../reference/validation.ts';
 import { BudgetExceeded } from '../reference/hydrate.ts';
 import { LIFECYCLE } from '../reference/lifecycle.ts';
 import { LIMITS } from '../reference/policy.ts';
-import { RUNTIME_PROFILE_LIMIT } from '../reference/types.ts';
+import { KNOWLEDGE, RUNTIME_PROFILE_LIMIT } from '../reference/types.ts';
 
 type Kind = 'text' | 'int' | 'bool' | 'list' | 'json';
 type Column = [column: string, field: string, kind: Kind, optional?: true];
-type Collection = 'actors' | 'roles' | 'groups' | 'constraints' | 'containers' | 'knowledge' | 'grants' | 'contexts' | 'destinations' | 'runtimeProfiles';
+type Collection = 'actors' | 'roles' | 'groups' | 'constraints' | 'containers' | 'knowledge' | 'grants' | 'contexts' | 'destinations' | 'runtimeProfiles'
+  | 'riskSignals' | 'settings' | 'approvals' | 'combinationRules';
 const common: Column[] = [['id', 'id', 'text'], ['tenant', 'tenant', 'text']];
 /** Real columns for identifiers, tenant, lifecycle, versions, parents, labels and expiry. JSONB only for source references. */
 const TABLES: Record<Collection, { table: string; columns: Column[] }> = {
   actors: { table: 'akac_actors', columns: [...common, ['kind', 'kind', 'text'], ['roles', 'roles', 'list'], ['projects', 'projects', 'list'],
     ['clearance', 'clearance', 'text'], ['active', 'active', 'bool'],
     // Destination profile reference (migration 006, ADR-008).
-    ['destination', 'destination', 'text', true]] },
+    ['destination', 'destination', 'text', true],
+    // Runtime binding of a runtime principal (migration 010, 0.6b R147).
+    ['runtime_for', 'runtimeFor', 'list', true]] },
   roles: { table: 'akac_roles', columns: [...common, ['inherits', 'inherits', 'list'], ['active', 'active', 'bool']] },
   groups: { table: 'akac_groups', columns: [...common, ['members', 'members', 'list'], ['roles', 'roles', 'list'], ['active', 'active', 'bool']] },
   constraints: { table: 'akac_constraints', columns: [...common, ['kind', 'kind', 'text'], ['roles', 'roles', 'list'], ['cardinality', 'cardinality', 'int']] },
   containers: { table: 'akac_containers', columns: [...common, ['kind', 'kind', 'text'], ['parent', 'parent', 'text', true],
     ['classification', 'classification', 'text'], ['reader_roles', 'readerRoles', 'list'], ['readers', 'readers', 'list'],
-    ['projects', 'projects', 'list'], ['active', 'active', 'bool']] },
+    ['projects', 'projects', 'list'], ['active', 'active', 'bool'],
+    // Tags and residency (migration 011, ADR-022).
+    ['tags', 'tags', 'list', true], ['residency', 'residency', 'list', true]] },
   knowledge: { table: 'akac_knowledge', columns: [...common, ['version', 'version', 'int'], ['kind', 'kind', 'text'], ['origin', 'origin', 'text'],
     ['content', 'content', 'text'], ['classification', 'classification', 'text'], ['projects', 'projects', 'list'],
     ['reader_roles', 'readerRoles', 'list'], ['readers', 'readers', 'list'], ['sources', 'sources', 'json'], ['active', 'active', 'bool'],
     ['access_expires_at', 'accessExpiresAt', 'int', true], ['container', 'container', 'text', true],
     // Lifecycle (migration 005, ADR-007).
     ['lifecycle', 'lifecycle', 'text', true], ['lifecycle_at', 'lifecycleAt', 'int', true], ['quarantine_reason', 'quarantineReason', 'text', true],
-    ['retain_until', 'retainUntil', 'int', true], ['legal_holds', 'legalHolds', 'list', true], ['revoked_at', 'revokedAt', 'int', true]] },
+    ['retain_until', 'retainUntil', 'int', true], ['legal_holds', 'legalHolds', 'list', true], ['revoked_at', 'revokedAt', 'int', true],
+    // Knowledge semantics (migration 011, ADR-022). Session-scoped (ephemeral) records are never written (flush refuses them).
+    ['modality', 'modality', 'text', true], ['tags', 'tags', 'list', true], ['residency', 'residency', 'list', true], ['model', 'model', 'json', true],
+    ['erasure_requested_at', 'erasureRequestedAt', 'int', true]] },
   grants: { table: 'akac_grants', columns: [...common, ['subject', 'subject', 'text'], ['agent', 'agent', 'text'], ['actions', 'actions', 'list'],
     ['resources', 'resources', 'list'], ['purposes', 'purposes', 'list'], ['not_before', 'notBefore', 'int'], ['expires_at', 'expiresAt', 'int'],
     ['active', 'active', 'bool'], ['parent', 'parent', 'text', true], ['active_roles', 'activeRoles', 'list', true],
     // Run destinations and result limit (migration 006, ADR-008).
-    ['destinations', 'destinations', 'list', true], ['max_results', 'maxResults', 'int', true]] },
+    ['destinations', 'destinations', 'list', true], ['max_results', 'maxResults', 'int', true],
+    // Heartbeat binding and break-glass flag (migration 010, ADR-019).
+    ['heartbeat_ttl_ms', 'heartbeatTtlMs', 'int', true], ['last_heartbeat_at', 'lastHeartbeatAt', 'int', true], ['break_glass', 'breakGlass', 'bool', true]] },
   contexts: { table: 'akac_contexts', columns: [...common, ['subject', 'subject', 'text'], ['agent', 'agent', 'text'], ['grant_id', 'grant', 'text'],
     ['purpose', 'purpose', 'text'], ['sources', 'sources', 'json'], ['expires_at', 'expiresAt', 'int'], ['policy_version', 'policyVersion', 'text'],
     ['epoch', 'epoch', 'int'], ['active', 'active', 'bool']] },
   // Destination profiles (migration 006, ADR-008).
   destinations: { table: 'akac_destinations', columns: [...common, ['class', 'class', 'text'], ['max_classification', 'maxClassification', 'text'],
-    ['purposes', 'purposes', 'list'], ['active', 'active', 'bool']] },
+    ['purposes', 'purposes', 'list'], ['active', 'active', 'bool'],
+    // Region (migration 011, ADR-022).
+    ['region', 'region', 'text', true]] },
   // Runtime profile policies (migration 008, ADR-012). One real column per domain; `profiles.x` maps to record.profiles.x.
   runtimeProfiles: { table: 'akac_runtime_profiles', columns: [...common, ['classification', 'classification', 'text'],
     ['destination_class', 'destinationClass', 'text', true], ['profile_network', 'profiles.network', 'text', true],
     ['profile_filesystem', 'profiles.filesystem', 'text', true], ['profile_tool', 'profiles.tool', 'text', true],
-    ['profile_credential', 'profiles.credential', 'text', true], ['active', 'active', 'bool']] }
+    ['profile_credential', 'profiles.credential', 'text', true], ['active', 'active', 'bool']] },
+  // Identity and authority (migration 010, ADR-019).
+  riskSignals: { table: 'akac_risk_signals', columns: [...common, ['principal', 'principal', 'text'], ['level', 'level', 'text'], ['source', 'source', 'text'],
+    ['issued_at', 'issuedAt', 'int'], ['expires_at', 'expiresAt', 'int'], ['event', 'event', 'text', true]] },
+  settings: { table: 'akac_tenant_settings', columns: [...common, ['approval_quorum', 'approvalQuorum', 'json', true], ['approval_ttl_ms', 'approvalTtlMs', 'int', true],
+    ['risk_caps', 'riskCaps', 'json', true],
+    // Derivation depth limit (migration 011, ADR-022).
+    ['lineage_depth', 'lineageDepth', 'int', true]] },
+  approvals: { table: 'akac_approvals', columns: [...common, ['class', 'class', 'text'], ['operation', 'operation', 'text'], ['requester', 'requester', 'text'],
+    ['payload', 'payload', 'json'], ['digest', 'digest', 'text'], ['approvers', 'approvers', 'list'], ['required', 'required', 'int'], ['external', 'external', 'bool'],
+    ['created_at', 'createdAt', 'int'], ['expires_at', 'expiresAt', 'int'], ['status', 'status', 'text'], ['executed_at', 'executedAt', 'int', true]] },
+  // Combination rules (migration 011, ADR-022).
+  combinationRules: { table: 'akac_combination_rules', columns: [...common, ['tags_a', 'tagsA', 'list'], ['tags_b', 'tagsB', 'list'], ['effect', 'effect', 'text'],
+    ['uplift_to', 'upliftTo', 'text', true], ['active', 'active', 'bool']] }
 };
 const AUDIT: (keyof Audit)[] = ['tenant', 'sequence', 'time', 'actor', 'operation', 'decision', 'reason', 'policyVersion', 'epoch', 'previous', 'hash',
   'formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId',
   // Evidence correlation (migration 008, ADR-012).
-  'executionId', 'runtimeRevision'];
+  'executionId', 'runtimeRevision',
+  // Actor chain and break-glass flag (migration 010, ADR-019).
+  'actorChain', 'breakGlass'];
 const AUDIT_COLUMNS = AUDIT.map(f => f.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`));
 /** Format 2 evidence columns (migration 004); NULL for format 1 entries, which then omit the field. */
-const OPTIONAL_AUDIT = new Set<keyof Audit>(['formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId', 'executionId', 'runtimeRevision']);
+const OPTIONAL_AUDIT = new Set<keyof Audit>(['formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId', 'executionId', 'runtimeRevision',
+  'actorChain', 'breakGlass']);
 /**
  * Per-load bounds. A load never truncates: when a request or its closure exceeds
  * the bound, the load throws BudgetExceeded and the caller denies (deferred).
@@ -68,7 +96,7 @@ const OPTIONAL_AUDIT = new Set<keyof Audit>(['formatVersion', 'decisionId', 'rea
  * chain stays incomplete, which the decision treats as a missing record (deny).
  */
 export const BOUNDS = { contexts: 512, memberships: 256, constraints: 1024, roles: 512, grants: 64, knowledge: 1100, containers: 256,
-  principals: 2048, groups: 1024, runtimeProfiles: RUNTIME_PROFILE_LIMIT } as const;
+  principals: 2048, groups: 1024, runtimeProfiles: RUNTIME_PROFILE_LIMIT, risks: 1024, approvals: 256, combinationRules: KNOWLEDGE.combinationRules } as const;
 
 /** `a.b` addresses member b of the object member a (created, possibly empty, for every loaded row). */
 const nested = (field: string) => { const dot = field.indexOf('.'); return dot < 0 ? null : [field.slice(0, dot), field.slice(dot + 1)] as const; };
@@ -231,6 +259,20 @@ class PgTx implements Tx {
     if (need.runtimeProfiles && this.once('runtimeProfiles')) {
       await this.rows('runtimeProfiles', 'SELECT * FROM akac_runtime_profiles WHERE tenant=$1 ORDER BY id LIMIT $2', [BOUNDS.runtimeProfiles + 1], BOUNDS.runtimeProfiles);
     }
+    // Identity and authority (migration 010): risk signals of loaded principals, the tenant settings, approvals.
+    if (need.risks?.length) {
+      await this.rows('riskSignals', 'SELECT * FROM akac_risk_signals WHERE tenant=$1 AND principal = ANY($2::text[]) ORDER BY id LIMIT $3',
+        [bounded(need.risks, BOUNDS.risks, 'risk signals'), BOUNDS.risks + 1], BOUNDS.risks);
+    }
+    if (need.settings && this.once('settings')) await this.rows('settings', 'SELECT * FROM akac_tenant_settings WHERE tenant=$1 AND id=$1', []);
+    if (need.approvals?.length) await this.rows('approvals', 'SELECT * FROM akac_approvals WHERE tenant=$1 AND id = ANY($2::text[])', [bounded(need.approvals, BOUNDS.approvals, 'approvals')]);
+    if (need.pendingApprovals !== undefined && this.once('pendingApprovals')) {
+      await this.rows('approvals', "SELECT * FROM akac_approvals WHERE tenant=$1 AND status='pending' AND expires_at > $2 ORDER BY created_at, id LIMIT $3",
+        [need.pendingApprovals, BOUNDS.approvals + 1], BOUNDS.approvals);
+    }
+    if (need.combinationRules && this.once('combinationRules')) {
+      await this.rows('combinationRules', 'SELECT * FROM akac_combination_rules WHERE tenant=$1 ORDER BY id LIMIT $2', [BOUNDS.combinationRules + 1], BOUNDS.combinationRules);
+    }
     if (need.destinations?.length) await this.rows('destinations', 'SELECT * FROM akac_destinations WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.destinations)]);
     if (need.contexts?.length) await this.rows('contexts', 'SELECT * FROM akac_contexts WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.contexts)]);
     const bindings = (need.bindings ?? []).filter(b => b.tenant === this.tenant);
@@ -239,6 +281,13 @@ class PgTx implements Tx {
       await this.rows('contexts', `SELECT c.* FROM akac_contexts c JOIN unnest($2::text[], $3::text[], $4::text[]) AS b(subject, agent, grant_id)
         ON c.subject=b.subject AND c.agent=b.agent AND c.grant_id=b.grant_id WHERE c.tenant=$1 LIMIT $5`,
         [bindings.map(b => b.subject), bindings.map(b => b.agent), bindings.map(b => b.grant), BOUNDS.contexts + 1], BOUNDS.contexts);
+    }
+    const pairs = (need.pairs ?? []).filter(p => validId(p?.subject) && validId(p?.agent) && Number.isSafeInteger(p?.since));
+    if (pairs.length) {
+      // Combination window (0.6b, R188): what the same user and agent read under any grant; overflow aborts (never a partial history).
+      await this.rows('contexts', `SELECT c.* FROM akac_contexts c JOIN unnest($2::text[], $3::text[], $4::bigint[]) AS p(subject, agent, since)
+        ON c.subject=p.subject AND c.agent=p.agent AND c.expires_at > p.since WHERE c.tenant=$1 LIMIT $5`,
+        [pairs.map(p => p.subject), pairs.map(p => p.agent), pairs.map(p => p.since), BOUNDS.contexts + 1], BOUNDS.contexts);
     }
     if (need.corpus) {
       // Measure before transferring: an over-budget corpus is never loaded.
@@ -276,6 +325,16 @@ class PgTx implements Tx {
     return (await this.client.query(`SELECT id FROM akac_knowledge WHERE tenant=$1 AND retain_until IS NOT NULL AND retain_until <= $2
       AND lifecycle IS DISTINCT FROM 'erased' AND COALESCE(cardinality(legal_holds), 0) = 0 AND id > $3 ORDER BY id LIMIT $4`,
       [this.tenant, now, after, limit])).rows.map(r => r.id as string);
+  }
+  /** Records produced by model `id` (migration 011 index), metadata only. */
+  async modelRecords(id: string, after: string, limit: number): Promise<KnowledgeMeta[]> {
+    const columns = TABLES.knowledge.columns.filter(c => c[0] !== 'content');
+    return (await this.client.query(`SELECT ${columns.map(c => c[0]).join(',')} FROM akac_knowledge WHERE tenant=$1 AND model->>'id' = $2 AND id > $3 ORDER BY id LIMIT $4`,
+      [this.tenant, id, after, limit])).rows.map(row => fromRow(columns, row) as KnowledgeMeta);
+  }
+  async pendingErasures(after: string, limit: number): Promise<string[]> {
+    return (await this.client.query(`SELECT id FROM akac_knowledge WHERE tenant=$1 AND erasure_requested_at IS NOT NULL AND lifecycle IS DISTINCT FROM 'erased'
+      AND id > $2 ORDER BY id LIMIT $3`, [this.tenant, after, limit])).rows.map(r => r.id as string);
   }
   async catalog(limit: number): Promise<KnowledgeMeta[]> {
     const columns = TABLES.knowledge.columns.filter(c => c[0] !== 'content');
@@ -327,6 +386,8 @@ class PgTx implements Tx {
       for (const [id, record] of Object.entries((this.state[collection] ?? {}) as Record<string, Record<string, unknown>>)) {
         if (seen.get(id) === JSON.stringify(record)) continue;
         if (record.tenant !== this.tenant || record.id !== id) throw new Error('Cross-tenant write');
+        // R190: session-scoped records live in the gateway's memory only; one reaching a persistent store is a defect.
+        if (collection === 'knowledge' && record.ephemeral !== undefined) throw new Error('Ephemeral record in a persistent store');
         await upsert(this.client, collection, record);
       }
     }

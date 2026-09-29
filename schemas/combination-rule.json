@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/combination-rule.json",
+  "description": "Combination rule (AKAC 0.6, R188, ADR-022): when one run's accumulated sources carry a tag of tagsA and a tag of tagsB, 'deny' refuses the run's context or derivation (COMBINATION) and 'uplift' raises the classification of what it derives (to upliftTo, or one level). Never lowers.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+      "not": {
+        "enum": [
+          "constructor",
+          "prototype",
+          "__proto__"
+        ]
+      }
+    },
+    "tenant": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+      "not": {
+        "enum": [
+          "constructor",
+          "prototype",
+          "__proto__"
+        ]
+      }
+    },
+    "tagsA": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+        "not": {
+          "enum": [
+            "constructor",
+            "prototype",
+            "__proto__"
+          ]
+        }
+      },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "minItems": 1
+    },
+    "tagsB": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+        "not": {
+          "enum": [
+            "constructor",
+            "prototype",
+            "__proto__"
+          ]
+        }
+      },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "minItems": 1
+    },
+    "effect": {
+      "enum": [
+        "deny",
+        "uplift"
+      ]
+    },
+    "upliftTo": {
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ]
+    },
+    "active": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "tenant",
+    "tagsA",
+    "tagsB",
+    "effect",
+    "active"
+  ],
+  "if": {
+    "properties": {
+      "effect": {
+        "const": "deny"
+      }
+    }
+  },
+  "then": {
+    "not": {
+      "required": [
+        "upliftTo"
+      ]
+    }
+  }
+}

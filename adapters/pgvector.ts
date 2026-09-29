@@ -119,9 +119,11 @@ export class PgVectorIndex implements VectorIndex {
       const hits: VectorHit[] = [];
       // Only the permitted compartments are ever queried.
       for (const level of new Set(q.compartments)) {
+        // With the agent's audience (ADR-020) a chunk must be admitted for the agent as well ($6, $7).
+        const both = q.agent ? ' AND read_tokens && $6::text[] AND required_projects <@ $7::text[] AND akac_levels_ok(container_tokens, $6::text[])' : '';
         const rows = (await c.query(`SELECT doc_id, chunk_id, ${distance} AS distance FROM ${table(level)}
-          WHERE tenant=$2 AND read_tokens && $3::text[] AND required_projects <@ $4::text[] AND akac_levels_ok(container_tokens, $3::text[])
-          ORDER BY ${distance} LIMIT $5`, [vector, q.tenant, tokens, projects, q.k])).rows;
+          WHERE tenant=$2 AND read_tokens && $3::text[] AND required_projects <@ $4::text[] AND akac_levels_ok(container_tokens, $3::text[])${both}
+          ORDER BY ${distance} LIMIT $5`, [vector, q.tenant, tokens, projects, q.k, ...(q.agent ? [[...new Set(q.agent.tokens)], [...new Set(q.agent.projects)]] : [])])).rows;
         for (const r of rows) hits.push({ docId: r.doc_id, chunkId: r.chunk_id, score: 1 - Number(r.distance) });
       }
       // relaxed_order scans return approximately ordered rows; rank exactly here.

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "akac"
+version = "0.6.0"
+description = "AKAC (Agent Knowledge Access Control) decisions and evidence verification: second implementation of the AKAC 0.5 draft"
+readme = "README.md"
+license = { text = "MIT-0" }
+requires-python = ">=3.10"
+dependencies = []
+classifiers = ["Private :: Do Not Upload"]
+
+[project.optional-dependencies]
+# Ed25519 verification of format 2 audit checkpoints, and of format 3 (ML-DSA and hybrid where the installed release ships it; never SLH-DSA).
+# Without it, checkpoint verification is reported as unavailable.
+crypto = ["cryptography>=41"]
+
+[project.scripts]
+akac = "akac.cli:main"
+
+[tool.setuptools]
+packages = ["akac"]

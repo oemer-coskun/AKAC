@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { kbFixture, bindings } from '../examples/fixture.ts';
 import { transitiveClassification } from '../reference/policy.ts';
-import { containment } from '../reference/containment.ts';
+import { containment, containmentAcross } from '../reference/containment.ts';
 import { Engine } from '../reference/engine.ts';
 import { ProtectedRuntime } from '../reference/runtime.ts';
 import type { RuntimeEnforcer } from '../reference/runtime.ts';
@@ -19,7 +19,8 @@ import type { Outcome, Row } from './outcome.ts';
  * Runtime containment vectors (AKAC 0.5 draft, ADR-012, profile AKAC-RuntimeContainment/0.5-draft).
  * - profiles: the pure derivation (reference/containment.ts containment()) over
  *   kbFixture(clock) with patches, for the highest transitive classification of
- *   `sources` and an optional `destinationClass`; expected {ok, obligations} or {ok: false, reason}.
+ *   `sources` and an optional `destinationClass` (or, with `destinationClasses`, the merged
+ *   containmentAcross() over those classes); expected {ok, obligations} or {ok: false, reason}.
  * - engine: the same through Engine (openContext, release after openContext, evaluate,
  *   derive after openContext); only the runtime obligations (runtime_profile,
  *   max_output_classification) are compared; expected {effect, obligations?, code?}.
@@ -28,16 +29,17 @@ import type { Outcome, Row } from './outcome.ts';
  *   value recorded on the answer's audit entry (absent: none recorded) and applied the
  *   profiles passed to apply(). The scripted enforcer is execution-scoped (R112):
  *   `fail: 'drift'` reports another revision for the execution after the provider
- *   call, `fail: 'release'` rejects the lease release; both must deny the answer.
+ *   call, `fail: 'late-drift'` only after the final release (R124), `fail: 'release'`
+ *   rejects the lease release; all must deny the answer.
  *
  * Outcomes: an allow that lacks an expected runtime profile, names a different one,
  * or carries a lower max_output_classification is UNSAFE_SUCCESS (containment would
  * silently disappear); so is a provider call where the vector requires a denial
  * before the provider.
  */
-type Enforcer = null | { supports: string[]; revision?: string; fail?: 'reject' | 'throw-supports' | 'drift' | 'release' };
+type Enforcer = null | { supports: string[]; revision?: string; fail?: 'reject' | 'throw-supports' | 'drift' | 'late-drift' | 'release' };
 type Vector = { id: string; kind: 'profiles' | 'engine' | 'enforcer'; description?: string; patch: Patch[]; tags?: string[];
-  sources?: string[]; destinationClass?: DestinationClass;
+  sources?: string[]; destinationClass?: DestinationClass; destinationClasses?: DestinationClass[];
   binding?: keyof typeof bindings; operation?: 'openContext' | 'release' | 'evaluate' | 'derive'; resources?: string[]; recipient?: string;
   action?: Action; destination?: string; purpose?: string; enforcer?: Enforcer; callRevision?: string;
   expected: { ok?: boolean; reason?: string; obligations?: Obligation[]; effect?: 'allow' | 'deny'; code?: string; providerCalled?: boolean; runtimeRevision?: string; applied?: { domain: RuntimeDomain; profile: string }[] } };
@@ -63,6 +65,7 @@ function classify(v: Vector, allowed: boolean, pass: boolean, obligations: reado
 function scripted(spec: Enforcer, applied: { domain: RuntimeDomain; profile: string }[][]): RuntimeEnforcer | undefined {
   if (!spec) return undefined;
   const current = new Map<string, string>();
+  let checks = 0;
   return {
     supports: (domain: RuntimeDomain, profile: string) => { if (spec.fail === 'throw-supports') throw new Error('enforcer unavailable'); return spec.supports.includes(`${domain}/${profile}`); },
     apply: async (profiles, { executionId }) => {
@@ -72,7 +75,8 @@ function scripted(spec: Enforcer, applied: { domain: RuntimeDomain; profile: str
       current.set(executionId, runtimeRevision);
       return { runtimeRevision, release: async () => { current.delete(executionId); if (spec.fail === 'release') throw new Error('release failed'); } };
     },
-    current: executionId => spec.fail === 'drift' ? 'other-rev' : current.get(executionId)
+    // 'late-drift': the applied revision is in force at the first check, another one at every later check.
+    current: executionId => spec.fail === 'drift' || (spec.fail === 'late-drift' && checks++ > 0) ? 'other-rev' : current.get(executionId)
   };
 }
 
@@ -88,7 +92,7 @@ export async function runRuntimeVectors(hooks: RuntimeHooks = {}): Promise<Row[]
       if (v.kind === 'profiles') {
         const levels = v.sources!.map(id => Object.hasOwn(state.knowledge, id) ? transitiveClassification(state, state.knowledge[id]!) : null);
         const top = levels.some(l => !l) ? null : LEVELS[Math.max(...levels.map(l => LEVELS.indexOf(l!)))]! as Level;
-        const c = derive(state, 'acme', top, v.destinationClass);
+        const c = v.destinationClasses !== undefined ? containmentAcross(state, 'acme', top, v.destinationClasses) : derive(state, 'acme', top, v.destinationClass);
         actual = c.ok ? { ok: true, obligations: c.obligations } : { ok: false, reason: c.reason };
         allowed = c.ok; obligations = c.ok ? c.obligations : undefined;
       } else {

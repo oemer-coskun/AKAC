@@ -25,6 +25,56 @@
         "memory",
         "artifact"
       ]
+    },
+    "modality": {
+      "enum": [
+        "text",
+        "image",
+        "audio",
+        "video",
+        "table",
+        "code",
+        "other"
+      ],
+      "description": "0.6 (R183): descriptive label of the derived content."
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype",
+              "__proto__"
+            ]
+          }
+        },
+        "ttlMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 86400000
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "description": "0.6 (R190): keep the result in the gateway's memory only, for this session of the run; DELETE /v1/sessions/{id} removes it."
+    },
+    "container": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+      "not": {
+        "enum": [
+          "constructor",
+          "prototype",
+          "__proto__"
+        ]
+      },
+      "description": "0.6 (R192): place the result into this knowledge base or folder; refused (WRITE_DOWN) when that would widen its static audience."
     }
   },
   "required": [

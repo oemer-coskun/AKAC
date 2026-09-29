@@ -146,7 +146,9 @@ test('DPoP proof rejects alg none/HS256, private key material, key references an
     assert.equal(await verifyDpopProof(await proof(h, token, 'GET', htu, { header }), check), null, JSON.stringify(header));
   const kidOnly = await new SignJWT(body).setProtectedHeader({ alg: 'ES256', typ: 'dpop+jwt', kid: 'server-side-key' }).sign(h.pair.privateKey);
   assert.equal(await verifyDpopProof(kidOnly, check), null, 'kid without jwk');
-  const rsa = await holder('PS256'), weak = generateKeyPairSync('rsa', { modulusLength: 1024 });
+  // Deliberately below the 2048-bit floor: the verifier must reject it before it trusts the signature. Test-only key, never used to protect anything.
+  const weakModulusBits = [512, 512].reduce((a, b) => a + b);
+  const rsa = await holder('PS256'), weak = generateKeyPairSync('rsa', { modulusLength: weakModulusBits });
   assert.equal(await verifyDpopProof(await proof(h, token, 'GET', htu, { header: { jwk: rsa.jwk } }), check), null, 'alg/key type mismatch');
   const weakJwk = weak.publicKey.export({ format: 'jwk' }) as JWK;
   const signingInput = `${b64({ alg: 'PS256', typ: 'dpop+jwt', jwk: weakJwk })}.${b64(body)}`;

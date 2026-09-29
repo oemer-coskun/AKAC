@@ -1301,6 +1301,800 @@
         "effect": "deny",
         "code": "KNOWLEDGE_BOUNDARY"
       }
+    },
+    {
+      "id": "E52",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_context_ttl_ms",
+          "value": 0
+        }
+      ],
+      "expected": null,
+      "note": "a lifetime below one millisecond is unsupported: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "E53",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_context_ttl_ms",
+          "value": 1
+        }
+      ],
+      "expected": [
+        {
+          "type": "max_context_ttl_ms",
+          "value": 1
+        }
+      ],
+      "note": "the smallest lifetime is accepted"
+    },
+    {
+      "id": "E54",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_context_ttl_ms",
+          "value": 1.5
+        }
+      ],
+      "expected": null,
+      "note": "a lifetime that is not an integer is unsupported"
+    },
+    {
+      "id": "E55",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "dest-0",
+            "dest-1",
+            "dest-2",
+            "dest-3",
+            "dest-4",
+            "dest-5",
+            "dest-6",
+            "dest-7",
+            "dest-8",
+            "dest-9",
+            "dest-10",
+            "dest-11",
+            "dest-12",
+            "dest-13",
+            "dest-14",
+            "dest-15",
+            "dest-16",
+            "dest-17",
+            "dest-18",
+            "dest-19",
+            "dest-20",
+            "dest-21",
+            "dest-22",
+            "dest-23",
+            "dest-24",
+            "dest-25",
+            "dest-26",
+            "dest-27",
+            "dest-28",
+            "dest-29",
+            "dest-30",
+            "dest-31",
+            "dest-32",
+            "dest-33",
+            "dest-34",
+            "dest-35",
+            "dest-36",
+            "dest-37",
+            "dest-38",
+            "dest-39",
+            "dest-40",
+            "dest-41",
+            "dest-42",
+            "dest-43",
+            "dest-44",
+            "dest-45",
+            "dest-46",
+            "dest-47",
+            "dest-48",
+            "dest-49",
+            "dest-50",
+            "dest-51",
+            "dest-52",
+            "dest-53",
+            "dest-54",
+            "dest-55",
+            "dest-56",
+            "dest-57",
+            "dest-58",
+            "dest-59",
+            "dest-60",
+            "dest-61",
+            "dest-62",
+            "dest-63"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "dest-0",
+            "dest-1",
+            "dest-2",
+            "dest-3",
+            "dest-4",
+            "dest-5",
+            "dest-6",
+            "dest-7",
+            "dest-8",
+            "dest-9",
+            "dest-10",
+            "dest-11",
+            "dest-12",
+            "dest-13",
+            "dest-14",
+            "dest-15",
+            "dest-16",
+            "dest-17",
+            "dest-18",
+            "dest-19",
+            "dest-20",
+            "dest-21",
+            "dest-22",
+            "dest-23",
+            "dest-24",
+            "dest-25",
+            "dest-26",
+            "dest-27",
+            "dest-28",
+            "dest-29",
+            "dest-30",
+            "dest-31",
+            "dest-32",
+            "dest-33",
+            "dest-34",
+            "dest-35",
+            "dest-36",
+            "dest-37",
+            "dest-38",
+            "dest-39",
+            "dest-40",
+            "dest-41",
+            "dest-42",
+            "dest-43",
+            "dest-44",
+            "dest-45",
+            "dest-46",
+            "dest-47",
+            "dest-48",
+            "dest-49",
+            "dest-50",
+            "dest-51",
+            "dest-52",
+            "dest-53",
+            "dest-54",
+            "dest-55",
+            "dest-56",
+            "dest-57",
+            "dest-58",
+            "dest-59",
+            "dest-60",
+            "dest-61",
+            "dest-62",
+            "dest-63"
+          ]
+        }
+      ],
+      "note": "64 distinct destinations are accepted"
+    },
+    {
+      "id": "E56",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "dest-0",
+            "dest-1",
+            "dest-2",
+            "dest-3",
+            "dest-4",
+            "dest-5",
+            "dest-6",
+            "dest-7",
+            "dest-8",
+            "dest-9",
+            "dest-10",
+            "dest-11",
+            "dest-12",
+            "dest-13",
+            "dest-14",
+            "dest-15",
+            "dest-16",
+            "dest-17",
+            "dest-18",
+            "dest-19",
+            "dest-20",
+            "dest-21",
+            "dest-22",
+            "dest-23",
+            "dest-24",
+            "dest-25",
+            "dest-26",
+            "dest-27",
+            "dest-28",
+            "dest-29",
+            "dest-30",
+            "dest-31",
+            "dest-32",
+            "dest-33",
+            "dest-34",
+            "dest-35",
+            "dest-36",
+            "dest-37",
+            "dest-38",
+            "dest-39",
+            "dest-40",
+            "dest-41",
+            "dest-42",
+            "dest-43",
+            "dest-44",
+            "dest-45",
+            "dest-46",
+            "dest-47",
+            "dest-48",
+            "dest-49",
+            "dest-50",
+            "dest-51",
+            "dest-52",
+            "dest-53",
+            "dest-54",
+            "dest-55",
+            "dest-56",
+            "dest-57",
+            "dest-58",
+            "dest-59",
+            "dest-60",
+            "dest-61",
+            "dest-62",
+            "dest-63",
+            "dest-64"
+          ]
+        }
+      ],
+      "expected": null,
+      "note": "65 destinations exceed the bound: unsupported"
+    },
+    {
+      "id": "E57",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-a",
+            "partner-a"
+          ]
+        }
+      ],
+      "expected": null,
+      "note": "a duplicate destination is unsupported"
+    },
+    {
+      "id": "E58",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-a",
+            "bad id"
+          ]
+        }
+      ],
+      "expected": null,
+      "note": "a destination outside the identifier syntax is unsupported"
+    },
+    {
+      "id": "E59",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-a"
+          ],
+          "note": "x"
+        }
+      ],
+      "expected": null,
+      "note": "an extra member is unsupported"
+    },
+    {
+      "id": "E60",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": "partner-a"
+        }
+      ],
+      "expected": null,
+      "note": "a destination that is not a list is unsupported"
+    },
+    {
+      "id": "E61",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted"
+        }
+      ],
+      "expected": null,
+      "note": "a destination_restricted obligation without a value is unsupported"
+    },
+    {
+      "id": "E62",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "deny-all"
+        }
+      ],
+      "expected": [
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "deny-all"
+        }
+      ],
+      "note": "a runtime profile of a known domain is accepted"
+    },
+    {
+      "id": "E63",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "runtime_profile",
+          "domain": "gpu",
+          "profile": "deny-all"
+        }
+      ],
+      "expected": null,
+      "note": "an unknown runtime domain is unsupported"
+    },
+    {
+      "id": "E64",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "bad id"
+        }
+      ],
+      "expected": null,
+      "note": "a profile that is not an identifier (free text) is unsupported"
+    },
+    {
+      "id": "E65",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "deny-all",
+          "note": "x"
+        }
+      ],
+      "expected": null,
+      "note": "an extra member of a runtime profile is unsupported"
+    },
+    {
+      "id": "E66",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_output_classification",
+          "value": "confidential"
+        }
+      ],
+      "expected": [
+        {
+          "type": "max_output_classification",
+          "value": "confidential"
+        }
+      ],
+      "note": "a known output classification is accepted"
+    },
+    {
+      "id": "E67",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_output_classification",
+          "value": "secret"
+        }
+      ],
+      "expected": null,
+      "note": "an unknown output classification is unsupported"
+    },
+    {
+      "id": "E68",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "deny-all"
+        },
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "internal-only"
+        }
+      ],
+      "expected": null,
+      "note": "two different profiles for one domain are unsatisfiable: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "E69",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "deny-all"
+        },
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "deny-all"
+        }
+      ],
+      "expected": [
+        {
+          "type": "runtime_profile",
+          "domain": "network",
+          "profile": "deny-all"
+        }
+      ],
+      "note": "the same profile twice merges into one"
+    },
+    {
+      "id": "E70",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_output_classification",
+          "value": "internal"
+        },
+        {
+          "type": "max_output_classification",
+          "value": "confidential"
+        }
+      ],
+      "expected": [
+        {
+          "type": "max_output_classification",
+          "value": "confidential"
+        }
+      ],
+      "note": "output classifications merge to the highest, lower first"
+    },
+    {
+      "id": "E71",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_output_classification",
+          "value": "confidential"
+        },
+        {
+          "type": "max_output_classification",
+          "value": "internal"
+        }
+      ],
+      "expected": [
+        {
+          "type": "max_output_classification",
+          "value": "confidential"
+        }
+      ],
+      "note": "output classifications merge to the highest, higher first"
+    },
+    {
+      "id": "E72",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-a",
+            "partner-b"
+          ]
+        },
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-b",
+            "partner-c"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-b"
+          ]
+        }
+      ],
+      "note": "destination restrictions merge by intersection"
+    },
+    {
+      "id": "E73",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        }
+      ],
+      "expected": [
+        {
+          "type": "audit_level",
+          "value": "full"
+        }
+      ],
+      "note": "sixteen obligations are within the bound (and merge)"
+    },
+    {
+      "id": "E74",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        }
+      ],
+      "expected": null,
+      "note": "seventeen obligations exceed the bound: unsupported"
+    },
+    {
+      "id": "E75",
+      "kind": "obligations",
+      "input": [
+        1
+      ],
+      "expected": null,
+      "note": "an element that is not an object is unsupported"
+    },
+    {
+      "id": "E76",
+      "kind": "obligations",
+      "input": [
+        null
+      ],
+      "expected": null,
+      "note": "a null element is unsupported"
+    },
+    {
+      "id": "E77",
+      "kind": "obligations",
+      "input": [
+        []
+      ],
+      "expected": null,
+      "note": "an array element is unsupported"
+    },
+    {
+      "id": "E78",
+      "kind": "obligations",
+      "input": null,
+      "expected": null,
+      "note": "null is not a list"
+    },
+    {
+      "id": "E79",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "no_persist"
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        }
+      ],
+      "expected": [
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "no_persist"
+        }
+      ],
+      "note": "merging keeps one obligation per type in canonical order"
+    },
+    {
+      "id": "E80",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_context_ttl_ms",
+          "value": 9007199254740992
+        }
+      ],
+      "expected": null,
+      "note": "a lifetime beyond the safe integer range is unsupported"
+    },
+    {
+      "id": "E81",
+      "kind": "reason",
+      "reason": "xDENIED:NOT_AUTHORIZED",
+      "expected": null
+    },
+    {
+      "id": "E82",
+      "kind": "reason",
+      "reason": "DENIED:NOT_AUTHORIZED ",
+      "expected": null
+    },
+    {
+      "id": "E83",
+      "kind": "reason",
+      "reason": "DENIED:lowercase",
+      "expected": null
+    },
+    {
+      "id": "E84",
+      "kind": "reason",
+      "reason": "DENIED:",
+      "expected": null
+    },
+    {
+      "id": "E85",
+      "kind": "reason",
+      "reason": "DENIED:NOT_AUTHORIZED",
+      "expected": {
+        "code": "NOT_AUTHORIZED",
+        "category": "deny"
+      }
     }
   ]
 }

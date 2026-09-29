@@ -67,13 +67,14 @@ test('PostgreSQL destinations: migration 006 upgrades a database at 005 and 007;
   const dir = mkdtempSync(join(tmpdir(), 'akac-at-007-'));
   try {
     cpSync(MIGRATIONS, dir, { recursive: true });
-    for (const f of readdirSync(dir)) if (f.startsWith('006')) rmSync(join(dir, f));
+    // 011 (knowledge semantics) builds on 006, so a database without 006 cannot have it either.
+    for (const f of readdirSync(dir)) if (f.startsWith('006') || f >= '011') rmSync(join(dir, f));
     const first = await migrate(url!, { schema: name, directory: dir });
     assert.ok(first.includes('005_knowledge_lifecycle') && first.includes('007_token_binding') && !first.some(v => v.startsWith('006')));
   } finally { rmSync(dir, { recursive: true }); }
   // A row written before 006 (no destination columns yet).
   await owner(c => c.query(`INSERT INTO ${name}.akac_actors (id, tenant, kind, roles, projects, clearance, active) VALUES ('legacy-svc', 'acme', 'service', '{staff}', '{}', 'restricted', true)`));
-  assert.deepEqual(await migrate(url!, { schema: name }), ['006_destinations']);
+  assert.deepEqual(await migrate(url!, { schema: name }), ['006_destinations', '011_knowledge_semantics']);
   const store = new PostgresStore(await appAccess(name), { schema: name, migrate: false, requireRls: true });
   try {
     await store.verify();

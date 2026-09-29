@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing of the reference decision core; see docs/CONFORMANCE-COVERAGE.md. node:test has no per-test coverage hook for Stryker, so the command runner reruns the suite for every mutant. The command is three stages joined by &&, cheapest first: the portable vectors (npm run conformance), the fast unit and property files, then the slower files that only run for mutants that survived both. A mutant is killed by the first stage that fails.",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "node conformance/run.ts && node --test --test-concurrency=2 tests/mutation-core.test.ts tests/mutation-core-2.test.ts tests/conformance.test.ts tests/conformance-authzen.test.ts tests/hardening.test.ts tests/decisions.test.ts tests/destinations.test.ts tests/runtime-containment.test.ts tests/regressions-0.6.test.ts tests/identity.test.ts tests/knowledge.test.ts tests/knowledge-monotonicity.test.ts tests/interop.test.ts tests/vector.test.ts tests/authzen.test.ts && node --test --test-concurrency=2 tests/differential-fuzz.test.ts tests/differential-knowledge.test.ts tests/kb.test.ts tests/lifecycle.test.ts tests/admin-lifecycle.test.ts"
+  },
+  "coverageAnalysis": "off",
+  "mutate": [
+    "reference/policy.ts",
+    "reference/containment.ts",
+    "reference/decision.ts",
+    "reference/lifecycle.ts"
+  ],
+  "ignorePatterns": [
+    ".git",
+    "node_modules/.cache",
+    "reports",
+    "bench",
+    "bonus",
+    "deploy",
+    "docs/*.md",
+    "docs/process",
+    "docs/profiles",
+    "docs/threat-models",
+    "docs/assets",
+    "formal",
+    "governance",
+    "legal",
+    "scripts"
+  ],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "json",
+    "html"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "thresholds": {
+    "high": 95,
+    "low": 92,
+    "break": 90
+  },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "concurrency": 4,
+  "timeoutMS": 90000,
+  "timeoutFactor": 2,
+  "dryRunTimeoutMinutes": 10
+}

@@ -25,7 +25,7 @@ export function validRuntimeProfile(p: unknown): p is RuntimeProfilePolicy {
 }
 
 export type Containment = { ok: true; obligations: Obligation[] }
-  | { ok: false; reason: 'DENIED:UNSUPPORTED_OBLIGATION' | 'DEFERRED:INVALID_CONTEXT' | 'DEFERRED:BUDGET_EXCEEDED' };
+  | { ok: false; reason: 'DENIED:UNSUPPORTED_OBLIGATION' | 'DENIED:RECIPIENT' | 'DEFERRED:INVALID_CONTEXT' | 'DEFERRED:BUDGET_EXCEEDED' };
 
 /**
  * Runtime obligations of a decision over material whose highest transitive
@@ -81,10 +81,12 @@ export function containment(s: State, tenant: string, level: Level | null, desti
  * the derivation runs once per class and the results are merged: the decision
  * is never weaker than for any single class it could reach. Two classes whose
  * winners name different profiles for one domain are a conflict
- * (UNSUPPORTED_OBLIGATION, R110): name the destination instead.
+ * (UNSUPPORTED_OBLIGATION, R110): name the destination instead. No reachable
+ * class (a run restricted to Destination ids that resolve to nothing) denies
+ * with RECIPIENT (R122); it never falls back to the unnarrowed derivation.
  */
 export function containmentAcross(s: State, tenant: string, level: Level | null, classes: readonly DestinationClass[]): Containment {
-  if (!classes.length) return containment(s, tenant, level);
+  if (!Array.isArray(classes) || !classes.length) return { ok: false, reason: 'DENIED:RECIPIENT' };
   const merged = new Map<string, Obligation>();
   let label: Obligation | undefined;
   for (const d of classes) {

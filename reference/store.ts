@@ -7,10 +7,12 @@ import { treeFromEntries } from './evidence.ts';
 import type { NodeKey } from './merkle.ts';
 import { validId } from './validation.ts';
 
-const COLLECTIONS = ['actors', 'grants', 'knowledge', 'contexts', 'roles', 'groups', 'containers', 'constraints', 'destinations', 'runtimeProfiles'] as const;
-/** A collection of a snapshot; `destinations` (0.4) is absent from 0.3 snapshots, `runtimeProfiles` (0.5) from 0.4 ones. */
+const COLLECTIONS = ['actors', 'grants', 'knowledge', 'contexts', 'roles', 'groups', 'containers', 'constraints', 'destinations', 'runtimeProfiles',
+  'riskSignals', 'settings', 'approvals', 'combinationRules'] as const;
+/** A collection of a snapshot; `destinations` (0.4) is absent from 0.3 snapshots, `runtimeProfiles` (0.5) from 0.4 ones, the 0.6 identity collections from 0.5 ones. */
 const records = (s: State, collection: typeof COLLECTIONS[number]): Record<string, { id?: unknown; tenant?: unknown }> => (s[collection] ?? {}) as Record<string, { id?: unknown; tenant?: unknown }>;
-const complete = (state: State, tenant: string): Tx => (state.destinations ??= {}, state.runtimeProfiles ??= {}, { state, complete: true, load: async () => {},
+const complete = (state: State, tenant: string): Tx => (state.destinations ??= {}, state.runtimeProfiles ??= {}, state.riskSignals ??= {}, state.settings ??= {}, state.approvals ??= {}, state.combinationRules ??= {},
+  { state, complete: true, load: async () => {},
   countSodHolders: async query => countSodHolders(state, tenant, query) });
 const blank = (policyVersion: string): State => ({ ...emptyState(), policyVersion });
 const sound = (shard: State) => shard.schema === SCHEMA && verifyAudit(shard.audits);
@@ -44,6 +46,8 @@ function confine(s: State, tenant: string): void {
     }
   }
   if (Object.keys(s.epochs).some(t => t !== tenant)) throw new Error('Cross-tenant epoch write');
+  // R190: session-scoped records live in the gateway's memory only (reference/ephemeral.ts), never in a store.
+  if (Object.values(s.knowledge).some(k => k?.ephemeral !== undefined)) throw new Error('Ephemeral record in a store');
   if (s.audits.some(a => a.tenant !== tenant)) throw new Error('Cross-tenant audit write');
   if (s.legacyAudits !== undefined) throw new Error('The legacy audit chain is read-only');
 }

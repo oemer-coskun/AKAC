@@ -6,3 +6,14 @@ data/
 *.log
 *.tgz
 test-results/
+bench-results/
+backup-drill-evidence.json
+
+# mutation testing output
+.stryker-tmp/
+reports/
+bench/results/
+.stryker-tmp-vectors/
+
+# rule coverage matrix (input of npm run coverage:matrix), not coverage output
+!conformance/coverage/

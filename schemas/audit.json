@@ -197,6 +197,15 @@
             "CANDIDATES_UNAVAILABLE",
             "BUDGET_EXCEEDED",
             "STORE_ERROR",
+            "RELEASE_FILTER",
+            "SANITIZER",
+            "VOLUME_EXCEEDED",
+            "APPROVAL_REQUIRED",
+            "RETRIEVAL_DISABLED",
+            "LINEAGE_DEPTH",
+            "RESIDENCY",
+            "COMBINATION",
+            "WRITE_DOWN",
             "NOT_ADMIN",
             "CONFLICT",
             "IDEMPOTENCY_KEY_REUSED"
@@ -252,6 +261,16 @@
             ]
           },
           "description": "Runtime policy revision a trusted runtime enforcer applied (0.5, ADR-012); never taken from an agent over HTTP"
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+          },
+          "description": "0.6 (ADR-020): closed, content-free findings of release filters, derive sanitizers and volume budgets, for example pii:redact or volume:confidential. Never content."
         }
       }
     }

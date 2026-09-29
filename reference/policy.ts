@@ -1,5 +1,5 @@
-import { ACTIONS, DESTINATION_CLASSES, LEVELS, MAX_RESULTS, ORIGINS } from './types.ts';
-import type { Actor, Container, Context, Decision, Destination, DestinationClass, Grant, HolderQuery, Knowledge, KnowledgeMeta, Level, PolicyInput, SodConstraint, State } from './types.ts';
+import { ACTIONS, BREAK_GLASS, DEFAULT_RISK_CAPS, DESTINATION_CLASSES, HEARTBEAT, LEVELS, MAX_RESULTS, ORIGINS, RISK_LEVELS } from './types.ts';
+import type { Action, Actor, Container, Context, Decision, Destination, DestinationClass, Grant, HolderQuery, Knowledge, KnowledgeMeta, Level, PolicyInput, SodConstraint, State } from './types.ts';
 import { exactKeys, validId, safeNumber } from './validation.ts';
 
 const deny = (code: string): Decision => ({ effect: 'deny', code, category: 'deny' });
@@ -13,12 +13,46 @@ const get = <T>(records: Record<string, T>, id: unknown): T | undefined =>
 export const LIMITS = { roles: 64, roleDepth: 16, containerDepth: 32, nodes: 1024, edges: 4096, path: 128, grants: 32 } as const;
 
 type Labelled = { tenant: string; classification: Level; projects: string[]; readers: string[]; readerRoles: string[] };
-function audience(actor: Actor, roles: ReadonlySet<string>, r: Labelled): boolean {
-  const clearance = LEVELS.indexOf(actor.clearance);
+/**
+ * `limit`: the risk cap of the actor (a LEVELS index; riskLimit()). `open` (break-glass,
+ * R149): the reader, reader-role and project clauses are not applied; tenant,
+ * activity, clearance and the risk cap still are.
+ */
+function audience(actor: Actor, roles: ReadonlySet<string>, r: Labelled, limit: number = LEVELS.length - 1, open = false): boolean {
+  const clearance = Math.min(LEVELS.indexOf(actor.clearance), limit);
   const classification = LEVELS.indexOf(r.classification);
   return actor.active === true && actor.tenant === r.tenant && classification >= 0 && clearance >= classification
-    && r.projects.every(p => actor.projects.includes(p))
-    && (r.readers.includes(actor.id) || r.readerRoles.some(role => roles.has(role)));
+    && (open || (r.projects.every(p => actor.projects.includes(p))
+      && (r.readers.includes(actor.id) || r.readerRoles.some(role => roles.has(role)))));
+}
+/**
+ * Risk cap of a principal (0.6, R151) as a LEVELS index; -1 denies everything.
+ * The highest unexpired risk level of the principal's same-tenant signals selects
+ * the cap; the cap of a level is the lowest cap configured for it or any lower
+ * level (so a higher risk never widens), and `critical` always denies. Throws when
+ * a signal of the principal or the tenant's cap configuration is malformed.
+ */
+export function riskLimit(state: State, actor: Pick<Actor, 'id' | 'tenant'>, now: number): number {
+  let level = 0;
+  for (const signal of Object.values(state.riskSignals ?? {})) {
+    if (signal?.tenant !== actor.tenant || signal.principal !== actor.id) continue;
+    const rank = RISK_LEVELS.indexOf(signal.level);
+    if (rank < 0 || !safeNumber(signal.expiresAt)) throw new Error('risk');
+    if (now < signal.expiresAt) level = Math.max(level, rank);
+  }
+  if (level === 0) return LEVELS.length - 1;
+  const found = get(state.settings ?? {}, actor.tenant);
+  const caps = found?.tenant === actor.tenant ? found.riskCaps : undefined;
+  if (caps !== undefined && (!caps || typeof caps !== 'object' || Array.isArray(caps))) throw new Error('risk');
+  let limit = LEVELS.length - 1;
+  for (const [rank, name] of RISK_LEVELS.entries()) {
+    if (rank > level) break;
+    const cap = name === 'critical' ? 'deny' : caps && Object.hasOwn(caps, name) ? caps[name] : DEFAULT_RISK_CAPS[name];
+    const index = cap === 'deny' ? -1 : LEVELS.indexOf(cap as Level);
+    if (cap !== 'deny' && index < 0) throw new Error('risk');
+    limit = Math.min(limit, index);
+  }
+  return limit;
 }
 
 /**
@@ -168,6 +202,23 @@ export function contextFresh(state: State, c: Context, now: number, revision: st
 /** A well-formed grant destination list: 1..64 distinct ids (destination classes are ids too). */
 const destinationList = (x: unknown): x is string[] => Array.isArray(x) && x.length >= 1 && x.length <= 64 && x.every(validId) && new Set(x).size === x.length;
 
+/**
+ * R147: a heartbeat-bound grant is valid only while its last trusted heartbeat is
+ * no older than its TTL (and not in the future). Without a TTL there is no condition.
+ */
+function heartbeatLive(grant: Grant, now: number): boolean {
+  if (grant.heartbeatTtlMs === undefined) return true;
+  const ttl = grant.heartbeatTtlMs, last = grant.lastHeartbeatAt;
+  return Number.isSafeInteger(ttl) && ttl >= HEARTBEAT.minTtlMs && ttl <= HEARTBEAT.maxTtlMs
+    && Number.isSafeInteger(last) && last! <= now && now - last! < ttl;
+}
+/** R149: a break-glass grant reads named resources only, for at most BREAK_GLASS.maxTtlMs, and is a root grant. */
+function breakGlassShape(grant: Grant): boolean {
+  if (grant.breakGlass === undefined) return true;
+  return grant.breakGlass === true && grant.parent === undefined && Array.isArray(grant.actions) && grant.actions.length === 1 && grant.actions[0] === 'read'
+    && Array.isArray(grant.resources) && grant.resources.length >= 1 && grant.resources.length <= BREAK_GLASS.resources && grant.resources.every(validId)
+    && grant.expiresAt - grant.notBefore <= BREAK_GLASS.maxTtlMs;
+}
 function grantValid(state: State, grant: Grant, now: number, seen = new Set<string>()): boolean {
   const subject = get(state.actors, grant.subject), agent = get(state.actors, grant.agent);
   if (!subject?.active || !agent?.active || subject.kind !== 'user' || agent.kind !== 'agent'
@@ -179,11 +230,15 @@ function grantValid(state: State, grant: Grant, now: number, seen = new Set<stri
     || (grant.activeRoles !== undefined && (!Array.isArray(grant.activeRoles) || grant.activeRoles.length > LIMITS.roles
       || grant.activeRoles.some(r => typeof r !== 'string' || !r)))
     || (grant.destinations !== undefined && !destinationList(grant.destinations))
-    || (grant.maxResults !== undefined && !(Number.isSafeInteger(grant.maxResults) && grant.maxResults >= 1 && grant.maxResults <= MAX_RESULTS))) return false;
+    || (grant.maxResults !== undefined && !(Number.isSafeInteger(grant.maxResults) && grant.maxResults >= 1 && grant.maxResults <= MAX_RESULTS))
+    || !heartbeatLive(grant, now) || !breakGlassShape(grant)) return false;
   seen.add(grant.id);
   if (!grant.parent) return true;
   const parent = get(state.grants, grant.parent);
+  // A break-glass grant is never delegated (R149); a heartbeat-bound parent needs a child bound at most as long (R147).
   return !!parent && parent.tenant === grant.tenant && parent.subject === grant.subject
+    && grant.breakGlass === undefined && parent.breakGlass === undefined
+    && (parent.heartbeatTtlMs === undefined || (grant.heartbeatTtlMs !== undefined && grant.heartbeatTtlMs <= parent.heartbeatTtlMs))
     && subset(grant.actions, parent.actions) && subset(grant.resources, parent.resources)
     && subset(grant.purposes, parent.purposes) && grant.notBefore >= parent.notBefore
     && grant.expiresAt <= parent.expiresAt
@@ -198,15 +253,36 @@ function grantValid(state: State, grant: Grant, now: number, seen = new Set<stri
  * Memoized DAG traversal: bounded nodes, edges and depth; cycles fail closed.
  * Every node and every ancestor container of every node must admit the actor.
  */
-export function visible(state: State, actor: Actor, r: Knowledge, now: number, roles?: ReadonlySet<string>): boolean {
+/**
+ * Options of visible() (0.6): `open` drops the audience clauses for a break-glass read
+ * (R149); `risk: false` evaluates without the risk cap (only to tell RISK_CAP from
+ * KNOWLEDGE_BOUNDARY, never to allow).
+ */
+export type VisibleOptions = { open?: boolean; risk?: boolean;
+  /** The run (grant id) asking (0.6, R190): a session-scoped record is visible only to its own run. Absent: expiry only (recipient checks). */
+  run?: string };
+/**
+ * R190: a session-scoped (ephemeral) record is live only while well-formed, before
+ * its expiry and, when a run is given, for that run only. A record without it is unaffected.
+ */
+export function ephemeralLive(k: Pick<Knowledge, 'ephemeral'>, now: number, run?: string): boolean {
+  const e = k.ephemeral;
+  if (e === undefined) return true;
+  return exactKeys(e, ['sessionId', 'run', 'expiresAt']) && validId(e.sessionId) && validId(e.run) && safeNumber(e.expiresAt)
+    && safeNumber(now) && now < e.expiresAt && (run === undefined || e.run === run);
+}
+export function visible(state: State, actor: Actor, r: Knowledge, now: number, roles?: ReadonlySet<string>, options: VisibleOptions = {}): boolean {
   const held = roles ?? standingRoles(state, actor);
   if (!held) return false;
+  let limit: number;
+  try { limit = options.risk === false ? LEVELS.length - 1 : riskLimit(state, actor, now); } catch { return false; }
+  const open = options.open === true;
   const visiting = new Set<string>(), completed = new Map<string, number>(), admitted = new Map<string, boolean>();
   let edges = 0, nodes = 0;
   const contained = (resource: Knowledge): boolean => {
     const chain = containerChain(state, resource);
     return !!chain && chain.every(c => {
-      if (!admitted.has(c.id)) admitted.set(c.id, c.active === true && audience(actor, held, c));
+      if (!admitted.has(c.id)) admitted.set(c.id, c.active === true && audience(actor, held, c, limit, open));
       return admitted.get(c.id)!;
     });
   };
@@ -215,10 +291,12 @@ export function visible(state: State, actor: Actor, r: Knowledge, now: number, r
     if (completed.has(resource.id)) return depth + completed.get(resource.id)! <= LIMITS.path;
     // Any lifecycle value (quarantined, erased, or unknown) hides the node and, through
     // this traversal, every record derived from it (R-LIFE-1).
-    if (++nodes > LIMITS.nodes || !resource.active || resource.lifecycle !== undefined || !safeNumber(resource.version) || resource.version < 1
+    // An unreadable record (0.6b, R195: its content could not be opened) hides the node like a lifecycle state.
+    if (++nodes > LIMITS.nodes || !resource.active || resource.lifecycle !== undefined || resource.unreadable !== undefined || !safeNumber(resource.version) || resource.version < 1
       || !ORIGINS.includes(resource.origin)
       || (resource.accessExpiresAt !== undefined && (!safeNumber(resource.accessExpiresAt) || now >= resource.accessExpiresAt))
-      || !audience(actor, held, resource) || !contained(resource)) return false;
+      || !ephemeralLive(resource, now, options.run)
+      || !audience(actor, held, resource, limit, open) || !contained(resource)) return false;
     visiting.add(resource.id);
     let height = 1;
     for (const ref of resource.sources) {
@@ -244,7 +322,7 @@ export function lineageLive(state: State, root: KnowledgeMeta, now: number): boo
   const visit = (k: KnowledgeMeta, depth: number): boolean => {
     if (depth >= LIMITS.path || visiting.has(k.id) || ++nodes > LIMITS.nodes) return false;
     if (done.has(k.id)) return true;
-    if (k.active !== true || k.lifecycle !== undefined || !Array.isArray(k.sources)
+    if (k.active !== true || k.lifecycle !== undefined || k.unreadable !== undefined || !Array.isArray(k.sources) || !ephemeralLive(k, now)
       || (k.accessExpiresAt !== undefined && (!safeNumber(k.accessExpiresAt) || now >= k.accessExpiresAt))) return false;
     visiting.add(k.id);
     for (const ref of k.sources) {
@@ -286,7 +364,17 @@ function evaluate(state: State, input: PolicyInput): Decision {
   if (sodViolated(state, b.tenant, 'static', userRoles) || sodViolated(state, b.tenant, 'static', agentRoles)
     || sodViolated(state, b.tenant, 'dynamic', session)) return deny('SOD_VIOLATION');
   if (!ORIGINS.includes(r.origin) || !containerChain(state, r)) return defer('INVALID_CONTEXT');
-  if (!visible(state, user, r, now, session) || !visible(state, agent, r, now, agentRoles)) return deny('KNOWLEDGE_BOUNDARY');
+  // Risk caps (R151): critical (or a cap below public) denies outright; otherwise the cap lowers the clearance in visible().
+  const risky = riskLimit(state, user, now) < LEVELS.length - 1 || riskLimit(state, agent, now) < LEVELS.length - 1;
+  if (riskLimit(state, user, now) < 0 || riskLimit(state, agent, now) < 0) return deny('RISK_CAP');
+  // A valid break-glass grant (read, named resources) lifts the audience clauses, never tenant, lifecycle, clearance or risk (R149).
+  const open = grant.breakGlass === true;
+  // R190: a session-scoped record (and anything derived from one) is visible to its own run only.
+  const run = b.grant;
+  if (!visible(state, user, r, now, session, { open, run }) || !visible(state, agent, r, now, agentRoles, { open, run })) {
+    return risky && visible(state, user, r, now, session, { open, risk: false, run }) && visible(state, agent, r, now, agentRoles, { open, risk: false, run })
+      ? deny('RISK_CAP') : deny('KNOWLEDGE_BOUNDARY');
+  }
   return allow;
 }
 
@@ -318,6 +406,13 @@ export type DestinationVerdict = { ok: false } | { ok: true;
   restrict?: string[];
   /** The resolved profile (class, and id when a record governs the release). */
   destination?: { id?: string; class: DestinationClass } };
+/**
+ * R121 (0.6): a read-only share/export evaluation (Engine.evaluate, AuthZEN) MUST
+ * name the Destination the enforcement point sends to. Without a recipient there is
+ * nothing to check the content against, so a missing destination denies (RECIPIENT).
+ */
+export const evaluationTargetNamed = (action: Action, destination: string | undefined): boolean =>
+  (action !== 'share' && action !== 'export') || destination !== undefined;
 /**
  * Destination gate of share/export (R-DEST-3..7). Pure. `top` is the highest
  * transitive effective classification of everything released (null: unknown, deny).

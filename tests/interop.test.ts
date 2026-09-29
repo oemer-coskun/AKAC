@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import fc from 'fast-check';
 import { decide } from '../reference/policy.ts';
 import { fixture, kbFixture, bindings } from '../examples/fixture.ts';
@@ -8,14 +7,13 @@ import { vectorCases } from '../conformance/run.ts';
 import { LEVELS } from '../reference/types.ts';
 import type { Origin, PolicyInput, State } from '../reference/types.ts';
 
-const now = 1800000000000;
-const python = (cases: { state: State; request: PolicyInput }[]) => {
-  const result = spawnSync('python3', ['implementations/python/akac.py'], { input: JSON.stringify({ cases }), encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 30000 });
-  assert.equal(result.status, 0, result.stderr || result.error?.message);
-  return JSON.parse(result.stdout) as unknown[];
-};
+import { evalPython, json, skipReason } from './differential-harness.ts';
 
-test('two language implementations agree on 1000 generated 0.2 authorization cases', () => {
+const now = 1800000000000;
+/** The Python implementation over the same JSON (runner contract, op decide). */
+const python = (cases: { state: State; request: PolicyInput }[]) => evalPython(json(cases).map(c => ({ op: 'decide', ...c })));
+
+test('two language implementations agree on 1000 generated 0.2 authorization cases', { skip: skipReason }, () => {
   const samples = fc.sample(fc.record({ user: fc.constantFrom(...LEVELS), agent: fc.constantFrom(...LEVELS),
     resource: fc.constantFrom(...LEVELS), active: fc.boolean(), role: fc.boolean(), project: fc.boolean(),
     expired: fc.boolean(), otherTenant: fc.boolean(), revokedSource: fc.boolean(), sourceVersion: fc.integer({ min: 1, max: 2 }) }),
@@ -35,13 +33,13 @@ test('two language implementations agree on 1000 generated 0.2 authorization cas
   });
   // Include unequivocal positive controls: all-deny agreement is insufficient.
   cases.push({ state: fixture(now), request: { binding: bindings.chief, action: 'read', resource: 'strategy', purpose: 'work', now } });
-  const expected = cases.map(c => decide(c.state, c.request));
+  const expected = json(cases).map(c => decide(c.state, c.request));
   assert.ok(expected.some(d => d.effect === 'allow'));
   assert.ok(expected.some(d => d.effect === 'deny'));
   assert.deepEqual(python(cases), expected);
 });
 
-test('two language implementations agree on 1500 generated hierarchy, SoD and container cases', () => {
+test('two language implementations agree on 1500 generated hierarchy, SoD and container cases', { skip: skipReason }, () => {
   const roleSets = [['staff', 'executive'], ['board'], ['staff'], ['board', 'requester', 'approver'], ['executive', 'project', 'auditor-role'], ['auditor-role', 'executive']];
   const samples = fc.sample(fc.record({
     roles: fc.constantFrom(...roleSets), agentRoles: fc.constantFrom(...roleSets),
@@ -86,15 +84,15 @@ test('two language implementations agree on 1500 generated hierarchy, SoD and co
     if (x.sourceInFolder && x.resource !== 'board-notes') target.sources = [{ id: 'board-notes', version: 1 }];
     return { state: s, request: { binding: { ...bindings.chief, grant }, action: 'read', resource: x.resource, purpose: 'work', now } };
   });
-  const expected = cases.map(c => decide(c.state, c.request));
+  const expected = json(cases).map(c => decide(c.state, c.request));
   const codes = new Set(expected.map(d => d.code));
   for (const code of ['AUTHORIZED', 'KNOWLEDGE_BOUNDARY', 'SOD_VIOLATION', 'INVALID_CONTEXT', 'INVALID_DELEGATION']) assert.ok(codes.has(code), `generator never produced ${code}`);
   assert.deepEqual(python(cases), expected);
 });
 
-test('the Python evaluator reproduces every portable decision vector', () => {
+test('the Python evaluator reproduces every portable decision vector', { skip: skipReason }, () => {
   const cases = vectorCases();
-  assert.deepEqual(python(cases.map(({ state, request }) => ({ state, request }))), cases.map(c => decide(c.state, c.request)));
+  assert.deepEqual(python(cases.map(({ state, request }) => ({ state, request }))), json(cases).map(c => decide(c.state, c.request)));
 });
 
 test('reducing clearance never creates an authorization', () => {

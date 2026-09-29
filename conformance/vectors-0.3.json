@@ -771,6 +771,510 @@
       "revision": "conformance-revision-2",
       "patch": [],
       "expected": "invalid"
+    },
+    {
+      "id": "KB-034-role-closure-of-64",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["actors","chief","roles",["staff","executive","extra-1","extra-2","extra-3","extra-4","extra-5","extra-6","extra-7","extra-8","extra-9","extra-10","extra-11","extra-12","extra-13","extra-14","extra-15","extra-16","extra-17","extra-18","extra-19","extra-20","extra-21","extra-22","extra-23","extra-24","extra-25","extra-26","extra-27","extra-28","extra-29","extra-30","extra-31","extra-32","extra-33","extra-34","extra-35","extra-36","extra-37","extra-38","extra-39","extra-40","extra-41","extra-42","extra-43","extra-44","extra-45","extra-46","extra-47","extra-48","extra-49","extra-50","extra-51","extra-52","extra-53","extra-54","extra-55","extra-56","extra-57","extra-58","extra-59","extra-60","extra-61","extra-62"]]
+      ],
+      "expected": "allow",
+      "code": "AUTHORIZED"
+    },
+    {
+      "id": "KB-035-role-closure-of-65",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["actors","chief","roles",["staff","executive","extra-1","extra-2","extra-3","extra-4","extra-5","extra-6","extra-7","extra-8","extra-9","extra-10","extra-11","extra-12","extra-13","extra-14","extra-15","extra-16","extra-17","extra-18","extra-19","extra-20","extra-21","extra-22","extra-23","extra-24","extra-25","extra-26","extra-27","extra-28","extra-29","extra-30","extra-31","extra-32","extra-33","extra-34","extra-35","extra-36","extra-37","extra-38","extra-39","extra-40","extra-41","extra-42","extra-43","extra-44","extra-45","extra-46","extra-47","extra-48","extra-49","extra-50","extra-51","extra-52","extra-53","extra-54","extra-55","extra-56","extra-57","extra-58","extra-59","extra-60","extra-61","extra-62","extra-63"]]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-036-role-hierarchy-16-deep",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["roles","r1",{"id":"r1","tenant":"acme","inherits":["r2"],"active":true}],
+        ["roles","r2",{"id":"r2","tenant":"acme","inherits":["r3"],"active":true}],
+        ["roles","r3",{"id":"r3","tenant":"acme","inherits":["r4"],"active":true}],
+        ["roles","r4",{"id":"r4","tenant":"acme","inherits":["r5"],"active":true}],
+        ["roles","r5",{"id":"r5","tenant":"acme","inherits":["r6"],"active":true}],
+        ["roles","r6",{"id":"r6","tenant":"acme","inherits":["r7"],"active":true}],
+        ["roles","r7",{"id":"r7","tenant":"acme","inherits":["r8"],"active":true}],
+        ["roles","r8",{"id":"r8","tenant":"acme","inherits":["r9"],"active":true}],
+        ["roles","r9",{"id":"r9","tenant":"acme","inherits":["r10"],"active":true}],
+        ["roles","r10",{"id":"r10","tenant":"acme","inherits":["r11"],"active":true}],
+        ["roles","r11",{"id":"r11","tenant":"acme","inherits":["r12"],"active":true}],
+        ["roles","r12",{"id":"r12","tenant":"acme","inherits":["r13"],"active":true}],
+        ["roles","r13",{"id":"r13","tenant":"acme","inherits":["r14"],"active":true}],
+        ["roles","r14",{"id":"r14","tenant":"acme","inherits":["r15"],"active":true}],
+        ["roles","r15",{"id":"r15","tenant":"acme","inherits":["r16"],"active":true}],
+        ["roles","r16",{"id":"r16","tenant":"acme","inherits":[],"active":true}],
+        ["actors","chief","roles",["r1","executive"]]
+      ],
+      "expected": "allow",
+      "code": "AUTHORIZED"
+    },
+    {
+      "id": "KB-037-role-hierarchy-17-deep",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["roles","r1",{"id":"r1","tenant":"acme","inherits":["r2"],"active":true}],
+        ["roles","r2",{"id":"r2","tenant":"acme","inherits":["r3"],"active":true}],
+        ["roles","r3",{"id":"r3","tenant":"acme","inherits":["r4"],"active":true}],
+        ["roles","r4",{"id":"r4","tenant":"acme","inherits":["r5"],"active":true}],
+        ["roles","r5",{"id":"r5","tenant":"acme","inherits":["r6"],"active":true}],
+        ["roles","r6",{"id":"r6","tenant":"acme","inherits":["r7"],"active":true}],
+        ["roles","r7",{"id":"r7","tenant":"acme","inherits":["r8"],"active":true}],
+        ["roles","r8",{"id":"r8","tenant":"acme","inherits":["r9"],"active":true}],
+        ["roles","r9",{"id":"r9","tenant":"acme","inherits":["r10"],"active":true}],
+        ["roles","r10",{"id":"r10","tenant":"acme","inherits":["r11"],"active":true}],
+        ["roles","r11",{"id":"r11","tenant":"acme","inherits":["r12"],"active":true}],
+        ["roles","r12",{"id":"r12","tenant":"acme","inherits":["r13"],"active":true}],
+        ["roles","r13",{"id":"r13","tenant":"acme","inherits":["r14"],"active":true}],
+        ["roles","r14",{"id":"r14","tenant":"acme","inherits":["r15"],"active":true}],
+        ["roles","r15",{"id":"r15","tenant":"acme","inherits":["r16"],"active":true}],
+        ["roles","r16",{"id":"r16","tenant":"acme","inherits":["r17"],"active":true}],
+        ["roles","r17",{"id":"r17","tenant":"acme","inherits":[],"active":true}],
+        ["actors","chief","roles",["r1","executive"]]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-038-role-record-with-malformed-juniors",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["roles","staff","inherits","executive"]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-039-empty-role-name",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["actors","chief","roles",["staff","executive",""]]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-040-role-name-not-a-string",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["actors","chief","roles",["staff","executive",7]]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-041-group-with-malformed-members",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["groups","leadership","members","lead"]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-042-group-with-malformed-roles",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["groups","leadership","roles","board"]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-043-malformed-group-of-another-tenant-is-ignored",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["groups","leadership","tenant","other"],
+        ["groups","leadership","members","lead"]
+      ],
+      "expected": "allow",
+      "code": "AUTHORIZED",
+      "tags": ["cross-tenant"]
+    },
+    {
+      "id": "KB-044-actor-roles-not-a-list",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["actors","chief","roles","executive"]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-045-constraint-of-unknown-kind",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["constraints","ssd-payments","kind","weird"]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-046-constraint-with-cardinality-one",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["constraints","ssd-payments","cardinality",1]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-047-constraint-with-fractional-cardinality",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["constraints","ssd-payments","cardinality",2.5]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-048-constraint-with-malformed-roles",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["constraints","ssd-payments","roles","requester"]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
+    },
+    {
+      "id": "KB-049-constraint-of-another-tenant-is-ignored",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["constraints","ssd-payments","tenant","other"],
+        ["constraints","ssd-other",{"id":"ssd-other","tenant":"other","kind":"static","roles":["staff","executive"],"cardinality":2}],
+        ["actors","chief-agent","roles",["staff","executive"]]
+      ],
+      "expected": "allow",
+      "code": "AUTHORIZED",
+      "tags": ["cross-tenant"]
+    },
+    {
+      "id": "KB-050-activation-names-a-role-the-user-does-not-hold",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["grants","chief-run","activeRoles",["executive","ghost"]]
+      ],
+      "expected": "deny",
+      "code": "INVALID_DELEGATION"
+    },
+    {
+      "id": "KB-051-container-chain-of-32",
+      "binding": "chief",
+      "resource": "deep-doc",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["containers","deep-0",{"id":"deep-0","tenant":"acme","kind":"knowledge-base","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true}],
+        ["containers","deep-1",{"id":"deep-1","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-0"}],
+        ["containers","deep-2",{"id":"deep-2","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-1"}],
+        ["containers","deep-3",{"id":"deep-3","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-2"}],
+        ["containers","deep-4",{"id":"deep-4","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-3"}],
+        ["containers","deep-5",{"id":"deep-5","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-4"}],
+        ["containers","deep-6",{"id":"deep-6","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-5"}],
+        ["containers","deep-7",{"id":"deep-7","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-6"}],
+        ["containers","deep-8",{"id":"deep-8","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-7"}],
+        ["containers","deep-9",{"id":"deep-9","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-8"}],
+        ["containers","deep-10",{"id":"deep-10","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-9"}],
+        ["containers","deep-11",{"id":"deep-11","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-10"}],
+        ["containers","deep-12",{"id":"deep-12","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-11"}],
+        ["containers","deep-13",{"id":"deep-13","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-12"}],
+        ["containers","deep-14",{"id":"deep-14","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-13"}],
+        ["containers","deep-15",{"id":"deep-15","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-14"}],
+        ["containers","deep-16",{"id":"deep-16","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-15"}],
+        ["containers","deep-17",{"id":"deep-17","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-16"}],
+        ["containers","deep-18",{"id":"deep-18","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-17"}],
+        ["containers","deep-19",{"id":"deep-19","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-18"}],
+        ["containers","deep-20",{"id":"deep-20","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-19"}],
+        ["containers","deep-21",{"id":"deep-21","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-20"}],
+        ["containers","deep-22",{"id":"deep-22","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-21"}],
+        ["containers","deep-23",{"id":"deep-23","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-22"}],
+        ["containers","deep-24",{"id":"deep-24","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-23"}],
+        ["containers","deep-25",{"id":"deep-25","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-24"}],
+        ["containers","deep-26",{"id":"deep-26","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-25"}],
+        ["containers","deep-27",{"id":"deep-27","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-26"}],
+        ["containers","deep-28",{"id":"deep-28","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-27"}],
+        ["containers","deep-29",{"id":"deep-29","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-28"}],
+        ["containers","deep-30",{"id":"deep-30","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-29"}],
+        ["containers","deep-31",{"id":"deep-31","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-30"}],
+        ["knowledge","deep-doc",{"id":"deep-doc","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Synthetic chain node.","classification":"public","readerRoles":["staff"],"projects":[],"readers":[],"sources":[],"active":true,"container":"deep-31"}]
+      ],
+      "expected": "allow",
+      "code": "AUTHORIZED"
+    },
+    {
+      "id": "KB-052-container-chain-of-33",
+      "binding": "chief",
+      "resource": "deep-doc",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["containers","deep-0",{"id":"deep-0","tenant":"acme","kind":"knowledge-base","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true}],
+        ["containers","deep-1",{"id":"deep-1","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-0"}],
+        ["containers","deep-2",{"id":"deep-2","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-1"}],
+        ["containers","deep-3",{"id":"deep-3","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-2"}],
+        ["containers","deep-4",{"id":"deep-4","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-3"}],
+        ["containers","deep-5",{"id":"deep-5","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-4"}],
+        ["containers","deep-6",{"id":"deep-6","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-5"}],
+        ["containers","deep-7",{"id":"deep-7","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-6"}],
+        ["containers","deep-8",{"id":"deep-8","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-7"}],
+        ["containers","deep-9",{"id":"deep-9","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-8"}],
+        ["containers","deep-10",{"id":"deep-10","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-9"}],
+        ["containers","deep-11",{"id":"deep-11","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-10"}],
+        ["containers","deep-12",{"id":"deep-12","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-11"}],
+        ["containers","deep-13",{"id":"deep-13","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-12"}],
+        ["containers","deep-14",{"id":"deep-14","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-13"}],
+        ["containers","deep-15",{"id":"deep-15","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-14"}],
+        ["containers","deep-16",{"id":"deep-16","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-15"}],
+        ["containers","deep-17",{"id":"deep-17","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-16"}],
+        ["containers","deep-18",{"id":"deep-18","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-17"}],
+        ["containers","deep-19",{"id":"deep-19","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-18"}],
+        ["containers","deep-20",{"id":"deep-20","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-19"}],
+        ["containers","deep-21",{"id":"deep-21","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-20"}],
+        ["containers","deep-22",{"id":"deep-22","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-21"}],
+        ["containers","deep-23",{"id":"deep-23","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-22"}],
+        ["containers","deep-24",{"id":"deep-24","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-23"}],
+        ["containers","deep-25",{"id":"deep-25","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-24"}],
+        ["containers","deep-26",{"id":"deep-26","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-25"}],
+        ["containers","deep-27",{"id":"deep-27","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-26"}],
+        ["containers","deep-28",{"id":"deep-28","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-27"}],
+        ["containers","deep-29",{"id":"deep-29","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-28"}],
+        ["containers","deep-30",{"id":"deep-30","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-29"}],
+        ["containers","deep-31",{"id":"deep-31","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-30"}],
+        ["containers","deep-32",{"id":"deep-32","tenant":"acme","kind":"folder","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true,"parent":"deep-31"}],
+        ["knowledge","deep-doc",{"id":"deep-doc","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Synthetic chain node.","classification":"public","readerRoles":["staff"],"projects":[],"readers":[],"sources":[],"active":true,"container":"deep-32"}]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-053-container-record-with-another-id",
+      "binding": "chief",
+      "resource": "vault-memo",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["containers","f-vault","id","f-elsewhere"]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-054-container-of-unknown-kind",
+      "binding": "chief",
+      "resource": "board-notes",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["containers","f-executive","kind","drawer"]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-055-knowledge-base-with-a-parent",
+      "binding": "chief",
+      "resource": "child-doc",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["containers","kb-child",{"id":"kb-child","tenant":"acme","kind":"knowledge-base","parent":"kb-corporate","classification":"internal","readerRoles":["staff"],"readers":[],"projects":[],"active":true}],
+        ["knowledge","child-doc",{"id":"child-doc","tenant":"acme","version":1,"kind":"document","origin":"system","content":"Synthetic chain node.","classification":"public","readerRoles":["staff"],"projects":[],"readers":[],"sources":[],"active":true,"container":"kb-child"}]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-056-container-parent-id-malformed",
+      "binding": "chief",
+      "resource": "vault-memo",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["containers","f-vault","parent","bad id"]
+      ],
+      "expected": "deny",
+      "code": "INVALID_CONTEXT"
+    },
+    {
+      "id": "KB-057-container-classification-outside-the-closed-set",
+      "binding": "chief",
+      "resource": "staff-faq",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["containers","kb-corporate","classification","top-secret"]
+      ],
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "KB-058-context-expiring-now",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000000000,
+        "policyVersion": "conformance-revision",
+        "epoch": 0,
+        "active": true
+      },
+      "revision": "conformance-revision",
+      "patch": [],
+      "expected": "invalid"
+    },
+    {
+      "id": "KB-059-context-expiring-in-a-millisecond",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000000001,
+        "policyVersion": "conformance-revision",
+        "epoch": 0,
+        "active": true
+      },
+      "revision": "conformance-revision",
+      "patch": [],
+      "expected": "valid"
+    },
+    {
+      "id": "KB-060-context-marked-inactive",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000300000,
+        "policyVersion": "conformance-revision",
+        "epoch": 0,
+        "active": false
+      },
+      "revision": "conformance-revision",
+      "patch": [],
+      "expected": "invalid"
+    },
+    {
+      "id": "KB-061-context-of-a-newer-epoch",
+      "kind": "context",
+      "context": {
+        "id": "ctx-1",
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run",
+        "purpose": "work",
+        "sources": [
+          {
+            "id": "strategy",
+            "version": 1
+          }
+        ],
+        "expiresAt": 1800000300000,
+        "policyVersion": "conformance-revision",
+        "epoch": 1,
+        "active": true
+      },
+      "revision": "conformance-revision",
+      "patch": [],
+      "expected": "invalid"
+    },
+    {
+      "id": "KB-062-agent-holds-a-static-separation-of-duty-pair",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        ["actors","chief-agent","roles",["staff","executive","requester","approver"]]
+      ],
+      "expected": "deny",
+      "code": "SOD_VIOLATION"
     }
   ]
 }

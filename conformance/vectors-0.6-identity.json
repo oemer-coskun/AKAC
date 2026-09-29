@@ -1,0 +1,1834 @@
+{
+  "description": "AKAC 0.6 identity and authority vectors (ADR-019, spec/AKAC-0.6.md). Synthetic data. kind 'decision': decide() over kbFixture(clock) with patches (whole records: [collection, id, record]); the collections riskSignals and settings start empty. expected {effect, code}. Heartbeat-bound grants (ID-H*, R147), break-glass grants (ID-B*, R149) and risk caps (ID-R*, R151).",
+  "profile": "AKAC-Identity/0.6-draft",
+  "fixture": "kbFixture",
+  "clock": 1800000000000,
+  "cases": [
+    {
+      "id": "ID-H01",
+      "kind": "decision",
+      "description": "A heartbeat-bound run with a fresh heartbeat reads",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1799999999000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "ID-H02",
+      "kind": "decision",
+      "description": "A heartbeat exactly TTL old has lapsed",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1799999940000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      }
+    },
+    {
+      "id": "ID-H03",
+      "kind": "decision",
+      "description": "A heartbeat-bound run without any heartbeat is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      }
+    },
+    {
+      "id": "ID-H04",
+      "kind": "decision",
+      "description": "A heartbeat in the future is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1800000000001
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      }
+    },
+    {
+      "id": "ID-H05",
+      "kind": "decision",
+      "description": "A heartbeat TTL below 1000 ms is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 999,
+            "lastHeartbeatAt": 1800000000000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      }
+    },
+    {
+      "id": "ID-H06",
+      "kind": "decision",
+      "description": "A lapsed parent invalidates a child with a fresh heartbeat",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1799999880000
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800001800000,
+            "active": true,
+            "parent": "chief-run",
+            "heartbeatTtlMs": 30000,
+            "lastHeartbeatAt": 1800000000000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "ID-H07",
+      "kind": "decision",
+      "description": "A child without a TTL under a heartbeat-bound parent is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1800000000000
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800001800000,
+            "active": true,
+            "parent": "chief-run"
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "ID-H08",
+      "kind": "decision",
+      "description": "A child TTL longer than the parent's is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1800000000000
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800001800000,
+            "active": true,
+            "parent": "chief-run",
+            "heartbeatTtlMs": 60001,
+            "lastHeartbeatAt": 1800000000000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "ID-H09",
+      "kind": "decision",
+      "description": "A child bound no longer than its live parent reads",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1799999999000
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800001800000,
+            "active": true,
+            "parent": "chief-run",
+            "heartbeatTtlMs": 30000,
+            "lastHeartbeatAt": 1799999999000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "ID-H10",
+      "kind": "decision",
+      "description": "A lapsed child of a live parent is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "heartbeatTtlMs": 60000,
+            "lastHeartbeatAt": 1800000000000
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800001800000,
+            "active": true,
+            "parent": "chief-run",
+            "heartbeatTtlMs": 30000,
+            "lastHeartbeatAt": 1799999970000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "ID-B00",
+      "kind": "decision",
+      "description": "Control: an ordinary grant does not open a record outside the audience",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "ID-B01",
+      "kind": "decision",
+      "description": "A break-glass grant reads a named record outside the audience",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B02",
+      "kind": "decision",
+      "description": "Break-glass never lifts clearance",
+      "binding": "intern",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "strategy"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B03",
+      "kind": "decision",
+      "description": "A break-glass grant with more than read is invalid",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read",
+              "derive"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B04",
+      "kind": "decision",
+      "description": "A break-glass grant on every resource is invalid",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B05",
+      "kind": "decision",
+      "description": "A break-glass grant longer than two hours is invalid",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800007199001,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B06",
+      "kind": "decision",
+      "description": "Break-glass never lifts a quarantine",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "lifecycle": "quarantined",
+            "lifecycleAt": 1799999995000,
+            "quarantineReason": "incident"
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B07",
+      "kind": "decision",
+      "description": "Break-glass never lifts an erasure",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "",
+            "classification": "internal",
+            "readerRoles": [],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true,
+            "lifecycle": "erased",
+            "lifecycleAt": 1799999995000
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B08",
+      "kind": "decision",
+      "description": "A child of a break-glass grant is invalid",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ],
+        [
+          "grants",
+          "bg-2",
+          {
+            "id": "bg-2",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800000060000,
+            "active": true,
+            "parent": "bg-1"
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "bg-2"
+    },
+    {
+      "id": "ID-B09",
+      "kind": "decision",
+      "description": "A break-glass flag on a delegated grant is invalid",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true,
+            "parent": "intern-run"
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B10",
+      "kind": "decision",
+      "description": "A break-glass grant reads only its named resources",
+      "binding": "intern",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "OUT_OF_SCOPE"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B11",
+      "kind": "decision",
+      "description": "Break-glass never crosses tenants",
+      "binding": "intern",
+      "resource": "globex-memo",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "globex-memo",
+          {
+            "id": "globex-memo",
+            "tenant": "globex",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "public",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "globex-memo"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "IDENTITY_BOUNDARY"
+      },
+      "grant": "bg-1",
+      "tags": [
+        "cross-tenant"
+      ]
+    },
+    {
+      "id": "ID-B12",
+      "kind": "decision",
+      "description": "A break-glass flag other than true is invalid",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": false
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-B13",
+      "kind": "decision",
+      "description": "Break-glass never lifts a risk cap",
+      "binding": "intern",
+      "resource": "hr-note",
+      "action": "read",
+      "purpose": "incident",
+      "patch": [
+        [
+          "knowledge",
+          "hr-note",
+          {
+            "id": "hr-note",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "document",
+            "origin": "system",
+            "content": "HR note: synthetic incident contact list.",
+            "classification": "internal",
+            "readerRoles": [
+              "hr"
+            ],
+            "projects": [],
+            "readers": [],
+            "sources": [],
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "bg-1",
+          {
+            "id": "bg-1",
+            "tenant": "acme",
+            "subject": "intern",
+            "agent": "intern-agent",
+            "actions": [
+              "read"
+            ],
+            "resources": [
+              "hr-note"
+            ],
+            "purposes": [
+              "incident"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "breakGlass": true
+          }
+        ],
+        [
+          "riskSignals",
+          "sig-intern-high",
+          {
+            "id": "sig-intern-high",
+            "tenant": "acme",
+            "principal": "intern",
+            "level": "high",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ],
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "riskCaps": {
+              "high": "public"
+            }
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      },
+      "grant": "bg-1"
+    },
+    {
+      "id": "ID-R01",
+      "kind": "decision",
+      "description": "High risk caps the user at internal",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-high",
+          {
+            "id": "sig-chief-high",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "high",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      }
+    },
+    {
+      "id": "ID-R02",
+      "kind": "decision",
+      "description": "High risk still reads public knowledge",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-high",
+          {
+            "id": "sig-chief-high",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "high",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "ID-R03",
+      "kind": "decision",
+      "description": "Critical risk denies everything",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-critical",
+          {
+            "id": "sig-chief-critical",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "critical",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      }
+    },
+    {
+      "id": "ID-R04",
+      "kind": "decision",
+      "description": "An expired signal is ignored",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-critical",
+          {
+            "id": "sig-chief-critical",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "critical",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000000000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "ID-R05",
+      "kind": "decision",
+      "description": "Risk of the agent caps the decision too",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-agent-medium",
+          {
+            "id": "sig-chief-agent-medium",
+            "tenant": "acme",
+            "principal": "chief-agent",
+            "level": "medium",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      }
+    },
+    {
+      "id": "ID-R06",
+      "kind": "decision",
+      "description": "A configured cap never exceeds the cap of a lower risk level",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-high",
+          {
+            "id": "sig-chief-high",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "high",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ],
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "riskCaps": {
+              "high": "restricted"
+            }
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      }
+    },
+    {
+      "id": "ID-R07",
+      "kind": "decision",
+      "description": "Critical denies even when a cap is configured for it",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-critical",
+          {
+            "id": "sig-chief-critical",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "critical",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ],
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "riskCaps": {
+              "critical": "restricted"
+            }
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      }
+    },
+    {
+      "id": "ID-R08",
+      "kind": "decision",
+      "description": "A malformed signal of the principal cannot be established",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-severe",
+          {
+            "id": "sig-chief-severe",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "severe",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_CONTEXT"
+      }
+    },
+    {
+      "id": "ID-R09",
+      "kind": "decision",
+      "description": "A signal of another tenant is ignored",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-critical",
+          {
+            "id": "sig-chief-critical",
+            "tenant": "globex",
+            "principal": "chief",
+            "level": "critical",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      },
+      "tags": [
+        "cross-tenant"
+      ]
+    },
+    {
+      "id": "ID-R10",
+      "kind": "decision",
+      "description": "Low risk keeps the default clearance",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-low",
+          {
+            "id": "sig-chief-low",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "low",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "ID-R11",
+      "kind": "decision",
+      "description": "A tenant cap narrows low risk",
+      "binding": "chief",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-low",
+          {
+            "id": "sig-chief-low",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "low",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ],
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "riskCaps": {
+              "low": "public"
+            }
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      }
+    },
+    {
+      "id": "ID-R12",
+      "kind": "decision",
+      "description": "The highest unexpired level of several signals applies",
+      "binding": "chief",
+      "resource": "project-alpha",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-low",
+          {
+            "id": "sig-chief-low",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "low",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ],
+        [
+          "riskSignals",
+          "sig-2",
+          {
+            "id": "sig-2",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "high",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "RISK_CAP"
+      }
+    },
+    {
+      "id": "ID-R13",
+      "kind": "decision",
+      "description": "A knowledge boundary stays a knowledge boundary under risk",
+      "binding": "intern",
+      "resource": "strategy",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-intern-high",
+          {
+            "id": "sig-intern-high",
+            "tenant": "acme",
+            "principal": "intern",
+            "level": "high",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "ID-R14",
+      "kind": "decision",
+      "description": "A malformed cap configuration cannot be established",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "riskSignals",
+          "sig-chief-high",
+          {
+            "id": "sig-chief-high",
+            "tenant": "acme",
+            "principal": "chief",
+            "level": "high",
+            "source": "risk-connector",
+            "issuedAt": 1799999999000,
+            "expiresAt": 1800000600000
+          }
+        ],
+        [
+          "settings",
+          "acme",
+          {
+            "id": "acme",
+            "tenant": "acme",
+            "riskCaps": {
+              "high": "secret"
+            }
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_CONTEXT"
+      }
+    }
+  ]
+}

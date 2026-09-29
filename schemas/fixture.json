@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oemer-coskun/AKAC/schemas/fixture.json",
+  "title": "AKAC conformance fixture",
+  "description": "Language-neutral synthetic world of the conformance vectors (ADR-014). A loader starts from an empty state, merges the records of every fixture in the extends chain (base first), adds the vector clock to every clockRelative field and then applies the vector patches. After the clock is applied every record MUST validate against its record schema (grants against grant.json).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "description", "clockRelative", "bindings", "fixtures"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "akac-fixture/1" },
+    "description": { "type": "string" },
+    "clockRelative": {
+      "description": "[collection, field] pairs whose values are offsets (ms) from the vector clock.",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [{ "$ref": "#/$defs/collection" }, { "type": "string", "pattern": "^[a-zA-Z]+$" }],
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "bindings": {
+      "description": "Named credential bindings the vectors refer to by name.",
+      "type": "object",
+      "additionalProperties": { "$ref": "binding.json" }
+    },
+    "fixtures": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["records"],
+        "properties": {
+          "description": { "type": "string" },
+          "extends": { "type": "string" },
+          "records": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "actors": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "principal.json" } },
+              "grants": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "#/$defs/relativeGrant" } },
+              "knowledge": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "knowledge.json" } },
+              "contexts": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "context.json" } },
+              "roles": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "role.json" } },
+              "groups": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "group.json" } },
+              "containers": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "container.json" } },
+              "constraints": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "constraint.json" } },
+              "destinations": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "destination.json" } },
+              "runtimeProfiles": { "$ref": "#/$defs/records", "additionalProperties": { "$ref": "runtime-profile.json" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "collection": { "enum": ["actors", "grants", "knowledge", "contexts", "roles", "groups", "containers", "constraints", "destinations", "runtimeProfiles"] },
+    "records": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$", "not": { "enum": ["constructor", "prototype", "__proto__"] } }
+    },
+    "relativeGrant": {
+      "description": "A grant whose notBefore and expiresAt are clock offsets; the other members are those of grant.json.",
+      "type": "object",
+      "required": ["id", "tenant", "subject", "agent", "actions", "resources", "purposes", "notBefore", "expiresAt", "active"],
+      "properties": {
+        "notBefore": { "type": "integer" },
+        "expiresAt": { "type": "integer" }
+      }
+    }
+  }
+}

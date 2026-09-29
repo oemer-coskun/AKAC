@@ -63,6 +63,28 @@ test('single evaluation: AuthZEN 1.0 request and response shapes', async () => {
   } finally { await t.stop(); }
 });
 
+test('regression: AuthZEN share/export must name a Destination, also in an unrestricted run (R121)', async () => {
+  const state = world();
+  state.destinations = { crm: { id: 'crm', tenant: 'acme', class: 'tool', maxClassification: 'internal', purposes: ['work'], active: true } };
+  const t = await setup({ reasons: 'admin' }, state);
+  try {
+    const named = (action: string, destination?: string) => ({ ...chief('handbook', action), context: { purpose: 'work', ...(destination ? { destination } : {}) } });
+    for (const action of ['share', 'export']) {
+      const unnamed = await t.one(named(action));
+      assert.equal(unnamed.status, 200); assert.equal(unnamed.body.decision, false, `${action} without a destination`);
+      assert.deepEqual(unnamed.body.context.reason_admin, { code: 'RECIPIENT' });
+      const toCrm = await t.one(named(action, 'crm'));
+      assert.equal(toCrm.body.decision, true, `${action} to a named Destination`);
+      assert.deepEqual(toCrm.body.context.obligations.find((o: any) => o.type === 'destination_restricted')?.value, ['tool', 'crm']);
+    }
+    // A read needs no destination.
+    assert.equal((await t.one(chief('handbook'))).body.decision, true);
+    const log = await t.store.auditLog('acme');
+    assert.ok(verifyAudit(log));
+    assert.equal(log.filter(e => e.reason === 'DENIED:RECIPIENT').length, 2, 'both denials are audited');
+  } finally { await t.stop(); }
+});
+
 test('the AuthZEN agent-subject form maps to the same binding', async () => {
   const t = await setup();
   try {
@@ -125,7 +147,8 @@ test('batch evaluations: defaults, overrides, semantics and per-evaluation error
     const all = await call({ ...shared, evaluations: [res('handbook'), res('strategy'), { ...res('strategy'), action: { name: 'export' } }, res('nonexistent')] });
     assert.equal(all.status, 200);
     assert.equal(all.body.decision, undefined);
-    assert.deepEqual(all.body.evaluations.map((e: any) => e.decision), [true, true, true, false]);
+    // An export that names no Destination is denied (R121).
+    assert.deepEqual(all.body.evaluations.map((e: any) => e.decision), [true, true, false, false]);
     assert.ok(all.body.evaluations.every((e: any) => validDecisionId(e.context.id)));
     const denyFirst = await call({ ...shared, options: { evaluations_semantic: 'deny_on_first_deny' }, evaluations: [res('handbook'), res('nonexistent'), res('handbook')] });
     assert.deepEqual(denyFirst.body.evaluations.map((e: any) => e.decision), [true, false], 'the remaining evaluations are omitted');
@@ -225,7 +248,9 @@ test('parity: AuthZEN decisions equal decide() over generated requests', async (
     const mapped = mapEvaluation('acme', ask(user, agent, grant, resource, action, purpose));
     assert.ok(mapped.ok);
     const got = await pdp.evaluate('acme', mapped);
-    const want = decide(state, { binding: { tenant: 'acme', subject: user, agent, grant }, resource, action, purpose, now: Date.now() });
+    const decided = decide(state, { binding: { tenant: 'acme', subject: user, agent, grant }, resource, action, purpose, now: Date.now() });
+    // R121: none of these requests names a Destination, so an allowed share/export is denied (RECIPIENT).
+    const want = decided.effect === 'allow' && (action === 'share' || action === 'export') ? { effect: 'deny', code: 'RECIPIENT' } : decided;
     assert.equal(got.decision, want.effect === 'allow', JSON.stringify({ user, agent, grant, resource, action, purpose }));
     // Another tenant's records are invisible inside the tenant transaction, so a cross-tenant identity reads as absent (NOT_AUTHORIZED), as in the engine.
     if (want.effect !== 'allow' && want.code !== 'IDENTITY_BOUNDARY') assert.equal(got.code, want.code);

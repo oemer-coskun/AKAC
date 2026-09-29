@@ -1,0 +1,9 @@
+# Security contact data for the AKAC project, RFC 9116.
+# Contact: the first line is the private GitHub reporting form. The second is a placeholder that
+# the project owner MUST replace with a monitored mailto: or https: URI before relying on it.
+Contact: https://github.com/oemer-coskun/AKAC/security/advisories/new
+Contact: [OWNER TO SET SECURITY CONTACT]
+Expires: 2027-03-29T00:00:00.000Z
+Preferred-Languages: en, de
+Canonical: https://raw.githubusercontent.com/oemer-coskun/AKAC/main/.well-known/security.txt
+Policy: https://github.com/oemer-coskun/AKAC/blob/main/SECURITY.md

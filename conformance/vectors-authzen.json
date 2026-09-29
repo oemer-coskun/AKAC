@@ -537,7 +537,7 @@
     },
     {
       "id": "Z21",
-      "description": "export within the grant",
+      "description": "export within the grant that names no Destination: denied, a read-only evaluation has no recipient to check (R121)",
       "tenant": "acme",
       "request": {
         "subject": {
@@ -557,6 +557,61 @@
         },
         "context": {
           "purpose": "work"
+        }
+      },
+      "expected": "deny",
+      "code": "RECIPIENT"
+    },
+    {
+      "id": "Z22",
+      "description": "share of public material in an unrestricted run that names no Destination: denied RECIPIENT, never allowed without a recipient check (R121)",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "handbook"
+        },
+        "action": {
+          "name": "share"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "deny",
+      "code": "RECIPIENT"
+    },
+    {
+      "id": "Z23",
+      "description": "share that names a Destination passes the named-destination rule; the destination gate itself is exercised by the Engine vectors and tests (R67)",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "handbook"
+        },
+        "action": {
+          "name": "share"
+        },
+        "context": {
+          "purpose": "work",
+          "destination": "eu-llm"
         }
       },
       "expected": "allow",

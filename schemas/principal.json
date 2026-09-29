@@ -76,6 +76,16 @@
         ]
       },
       "description": "Id of the same-tenant Destination profile that governs releases to this principal (0.4, ADR-008)."
+    },
+    "runtimeFor": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+      },
+      "description": "Agent ids whose heartbeat-bound runs this runtime principal may keep alive (0.6b, R147). Absent: none."
     }
   },
   "required": [

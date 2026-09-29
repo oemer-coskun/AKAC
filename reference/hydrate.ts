@@ -13,6 +13,12 @@ export type Seed = {
   runtimeProfiles?: boolean;
   /** The Destination profiles named by id in the bindings' run restriction (0.5: share/export of unknown destination). */
   grantDestinations?: boolean;
+  /** Approvals by id (0.6). */
+  approvals?: string[];
+  /** The pending approvals of the tenant unexpired at this time (ms) (0.6; bounded). */
+  pendingApprovals?: number;
+  /** Contexts of these (subject, agent) pairs under any grant, expiring after `since` (0.6b, R188 combination window; bounded). */
+  pairs?: { subject: string; agent: string; since: number }[];
 };
 /** Hydration budgets. Anything not loaded within them stays missing, and missing denies. */
 export const HYDRATION = { rounds: 16, records: 8192 } as const;
@@ -42,14 +48,14 @@ const list = (x: unknown): unknown[] => Array.isArray(x) ? x : [];
  */
 export async function hydrate(tx: Tx, seed: Seed): Promise<void> {
   if (tx.complete) return;
-  const kinds = ['actors', 'grants', 'knowledge', 'containers', 'roles', 'memberships', 'contexts', 'groups', 'destinations'] as const;
+  const kinds = ['actors', 'grants', 'knowledge', 'containers', 'roles', 'memberships', 'contexts', 'groups', 'destinations', 'risks', 'approvals'] as const;
   const asked = Object.fromEntries(kinds.map(k => [k, new Set<string>()])) as Record<typeof kinds[number], Set<string>>;
   let total = 0;
   for (let round = 0; round < HYDRATION.rounds; round++) {
     const s = tx.state;
     const want = Object.fromEntries(kinds.map(k => [k, new Set<string>()])) as Record<typeof kinds[number], Set<string>>;
     const add = (kind: typeof kinds[number], id: unknown) => { if (validId(id) && !asked[kind].has(id)) want[kind].add(id); };
-    for (const kind of ['actors', 'grants', 'knowledge', 'containers', 'roles', 'contexts', 'groups', 'destinations'] as const) for (const id of seed[kind] ?? []) add(kind, id);
+    for (const kind of ['actors', 'grants', 'knowledge', 'containers', 'roles', 'contexts', 'groups', 'destinations', 'approvals'] as const) for (const id of seed[kind] ?? []) add(kind, id);
     for (const b of seed.bindings ?? []) {
       add('actors', b.subject); add('actors', b.agent); add('grants', b.grant);
       if (seed.grantDestinations && Object.hasOwn(s.grants, b.grant)) for (const d of list(s.grants[b.grant]?.destinations)) if (!(DESTINATION_CLASSES as readonly unknown[]).includes(d)) add('destinations', d);
@@ -61,13 +67,16 @@ export async function hydrate(tx: Tx, seed: Seed): Promise<void> {
       add('containers', k.container);
     }
     for (const c of Object.values(s.containers)) add('containers', c.parent);
-    for (const a of Object.values(s.actors)) { add('memberships', a.id); add('destinations', a.destination); for (const r of list(a.roles)) add('roles', r); }
+    // Risk signals (0.6, R151) of every loaded principal: a missing signal would read as no risk.
+    for (const a of Object.values(s.actors)) { add('memberships', a.id); add('risks', a.id); add('destinations', a.destination); for (const r of list(a.roles)) add('roles', r); }
     for (const g of Object.values(s.groups)) if (g.active !== false) for (const r of list(g.roles)) add('roles', r);
     for (const r of Object.values(s.roles)) if (r.active !== false) for (const j of list(r.inherits)) add('roles', j);
     const need: Need = {};
     for (const kind of kinds) if (want[kind].size) { need[kind] = [...want[kind]]; total += want[kind].size; }
-    if (round === 0) Object.assign(need, { constraints: true, epoch: true, audit: true, bindings: seed.bindings ?? [], ...(seed.principals ? { principals: true } : {}),
-      ...(seed.runtimeProfiles ? { runtimeProfiles: true } : {}) });
+    // Combination rules (0.6, R188) are tenant-wide conditions like SoD constraints: a missing rule would read as no restriction.
+    if (round === 0) Object.assign(need, { constraints: true, epoch: true, audit: true, settings: true, combinationRules: true, bindings: seed.bindings ?? [], ...(seed.principals ? { principals: true } : {}),
+      ...(seed.runtimeProfiles ? { runtimeProfiles: true } : {}), ...(seed.pendingApprovals !== undefined ? { pendingApprovals: seed.pendingApprovals } : {}),
+      ...(seed.pairs?.length ? { pairs: seed.pairs } : {}) });
     if (!Object.keys(need).length) return;
     // An unloaded role or membership could be mistaken for a flat role or a missing
     // restriction, so an incomplete closure aborts the transaction instead.
