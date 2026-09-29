@@ -1,3 +1,4 @@
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -73,7 +74,7 @@ const count = (c: pg.Client, table: string, where = 'true') => c.query(`SELECT c
 test('PostgreSQL vector: migration 002 is applied once, checksum-verified and creates one table per compartment', { skip }, async () => {
   const name = `akac_v_${randomBytes(6).toString('hex')}`; schemas.push(name);
   await owner(c => c.query(`CREATE SCHEMA ${name}`));
-  assert.deepEqual(await migrate(url!, { schema: name }), ['001_normalized_schema', '002_vector_compartments', '003_tenant_scoped_keys']);
+  assert.deepEqual((await migrate(url!, { schema: name })).slice(0, 3), ['001_normalized_schema', '002_vector_compartments', '003_tenant_scoped_keys']);
   assert.deepEqual(await migrate(url!, { schema: name }), []);
   await owner(async c => {
     for (const level of LEVELS) {
@@ -216,9 +217,9 @@ test('PostgreSQL vector: ingestion, reconciliation and permission-aware retrieva
     assert.equal(await count(audit, 'akac_chunks_restricted', "doc_id='strategy'"), 1);
     assert.equal(await count(audit, 'akac_chunks_public', "doc_id='strategy'"), 0);
     // New version replaces the old chunks; embedder failure yields INDEX_PENDING, then reconcile repairs.
-    assert.deepEqual(await ingestor.ingest('acme', 'admin', doc('memo', 'alpha bravo charlie.')), { ok: true, value: { id: 'memo', version: 1, chunks: 1 } });
+    assert.deepEqual(bare(await ingestor.ingest('acme', 'admin', doc('memo', 'alpha bravo charlie.'))), { ok: true, value: { id: 'memo', version: 1, chunks: 1 } });
     failing = true;
-    assert.deepEqual(await ingestor.ingest('acme', 'admin', doc('memo', 'delta echo foxtrot.', { version: 2 })), { ok: false, code: 'INDEX_PENDING', id: 'memo', version: 2 });
+    assert.deepEqual(bare(await ingestor.ingest('acme', 'admin', doc('memo', 'delta echo foxtrot.', { version: 2 }))), { ok: false, code: 'INDEX_PENDING', id: 'memo', version: 2 });
     failing = false;
     assert.deepEqual(await ask(bindings.intern, 'alpha bravo charlie'), ['memo'], 'stale chunks remain until repaired; the engine still serves the authoritative record');
     assert.deepEqual(await ingestor.reconcile('acme'), { indexed: 1, removed: 0, failed: 0, truncated: false });

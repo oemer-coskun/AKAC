@@ -92,3 +92,34 @@ test('config: NODE_ENV=production refuses inline database passwords and accepts 
   assert.equal(new URL(loadConfig({ ...base, ...prod, ...pg, AKAC_DATABASE_PASSWORD_FILE: pw }).retrieval!.databaseUrl!).password, secret);
   assert.equal(loadConfig({ ...base, ...prod, ...pg }).retrieval?.databaseUrl, pg.DATABASE_URL, 'no password at all (certificate or peer authentication) is allowed');
 });
+
+test('config: DPoP is off by default and configured per listener with a public URL', () => {
+  const jwt = file('jwt.json', '{}'), adminJwt = file('admin-jwt.json', JSON.stringify({ audience: 'admin' }));
+  const only = (env: Record<string, string>) => loadConfig({ AKAC_JWT_CONFIG_FILE: jwt, ...env });
+  const fails = (env: Record<string, string>, part: string) => { try { only(env); assert.fail(`no error: ${part}`); } catch (e) { assert.ok(e instanceof ConfigError && e.problems.some(p => p.includes(part)), `${part} in ${(e as ConfigError).problems}`); } };
+  assert.equal(only({}).agent.dpop, undefined); assert.equal(only({}).dpop, undefined);
+  const c = only({ AKAC_DPOP: 'required', AKAC_PUBLIC_URL: 'https://gw.example.test/akac' });
+  assert.deepEqual(c.agent.dpop, { mode: 'required', publicUrl: 'https://gw.example.test/akac' });
+  assert.deepEqual(c.dpop, { algorithms: ['ES256', 'EdDSA', 'PS256'], skewSeconds: 60, replay: 'memory' });
+  assert.equal(only({ AKAC_DPOP: 'optional', AKAC_PUBLIC_URL: 'http://127.0.0.1:8787', AKAC_DPOP_ALGS: 'EdDSA', AKAC_DPOP_SKEW_SECONDS: '30', DATABASE_URL: pg.DATABASE_URL }).dpop?.replay, 'postgres');
+  assert.deepEqual(only({ AKAC_DPOP: 'optional', AKAC_PUBLIC_URL: 'http://127.0.0.1:8787', AKAC_DPOP_ALGS: 'EdDSA', AKAC_DPOP_SKEW_SECONDS: '30' }).dpop, { algorithms: ['EdDSA'], skewSeconds: 30, replay: 'memory' });
+  fails({ AKAC_DPOP: 'always' }, 'AKAC_DPOP must be');
+  fails({ AKAC_DPOP: 'required' }, 'AKAC_PUBLIC_URL is required');
+  fails({ AKAC_PUBLIC_URL: 'https://gw.example.test' }, 'requires AKAC_DPOP');
+  for (const bad of ['gw.example.test', 'ftp://gw.example.test', 'https://gw.example.test/?q=1', 'https://gw.example.test/#f', 'https://user@gw.example.test']) fails({ AKAC_DPOP: 'required', AKAC_PUBLIC_URL: bad }, 'AKAC_PUBLIC_URL must be');
+  fails({ AKAC_DPOP: 'required', AKAC_PUBLIC_URL: 'http://gw.example.test', NODE_ENV: 'production' }, 'must be https');
+  for (const [name, value] of [['AKAC_DPOP_ALGS', 'HS256'], ['AKAC_DPOP_ALGS', 'ES256,ES256'], ['AKAC_DPOP_ALGS', 'none'], ['AKAC_DPOP_SKEW_SECONDS', '0'], ['AKAC_DPOP_SKEW_SECONDS', '301'], ['AKAC_DPOP_REPLAY', 'redis']])
+    fails({ AKAC_DPOP: 'required', AKAC_PUBLIC_URL: 'https://gw.example.test', [name!]: value! }, name!);
+  fails({ AKAC_DPOP: 'required', AKAC_PUBLIC_URL: 'https://gw.example.test', AKAC_DPOP_REPLAY: 'postgres' }, 'requires DATABASE_URL');
+  fails({ AKAC_DPOP_SKEW_SECONDS: '30' }, 'requires AKAC_DPOP, AKAC_ADMIN_DPOP or AKAC_AUTHZEN_DPOP');
+  // Opaque credentials cannot be sender-constrained.
+  for (const mode of ['optional', 'required']) assert.ok(problems({ AKAC_DPOP: mode, AKAC_PUBLIC_URL: 'https://gw.example.test' }).some(p => p.includes('opaque credentials cannot be sender-constrained')), mode);
+  // The admin listener is independent.
+  const both = only({ AKAC_ADMIN_JWT_CONFIG_FILE: adminJwt, AKAC_ADMIN_DPOP: 'required', AKAC_ADMIN_PUBLIC_URL: 'https://admin.example.test' });
+  assert.equal(both.agent.dpop, undefined); assert.equal(both.admin?.dpop?.mode, 'required'); assert.ok(both.dpop);
+  const mixed = only({ AKAC_DPOP: 'optional', AKAC_PUBLIC_URL: 'https://gw.example.test', AKAC_ADMIN_JWT_CONFIG_FILE: adminJwt, AKAC_ADMIN_DPOP: 'required', AKAC_ADMIN_PUBLIC_URL: 'https://admin.example.test' });
+  assert.equal(mixed.agent.dpop?.mode, 'optional'); assert.equal(mixed.admin?.dpop?.mode, 'required');
+  fails({ AKAC_ADMIN_DPOP: 'required', AKAC_ADMIN_PUBLIC_URL: 'https://admin.example.test' }, 'requires the admin listener');
+  fails({ AKAC_ADMIN_JWT_CONFIG_FILE: adminJwt, AKAC_ADMIN_DPOP: 'required' }, 'AKAC_ADMIN_PUBLIC_URL is required');
+  assert.ok(problems({ AKAC_ADMIN_CREDENTIALS_FILE: file('admin.json', JSON.stringify([{}])), AKAC_ADMIN_DPOP: 'required', AKAC_ADMIN_PUBLIC_URL: 'https://admin.example.test' }).some(p => p.includes('opaque credentials')));
+});

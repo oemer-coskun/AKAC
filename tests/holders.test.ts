@@ -1,3 +1,4 @@
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -55,18 +56,18 @@ test('PostgreSQL: a tenant beyond the principal budget can still add SoD constra
     const control = new ControlPlane(store, { clock: () => now });
     await assert.rejects(store.transaction('big', tx => tx.load({ principals: true })), BudgetExceeded, 'the principal load budget really is exceeded');
     const ssd = { id: 'ssd', tenant: 'big', kind: 'static' as const, roles: ['requester', 'approver'], cardinality: 2 };
-    assert.deepEqual(await control.upsertConstraint('big', 'admin', ssd), { ok: false, code: 'SOD_VIOLATION', holders: 1 }, 'counted in SQL and refused');
+    assert.deepEqual(bare(await control.upsertConstraint('big', 'admin', ssd)), { ok: false, code: 'SOD_VIOLATION', holders: 1 }, 'counted in SQL and refused');
     const stored = () => store.transaction('big', async tx => { await tx.load({ constraints: true }); return Object.keys(tx.state.constraints); });
     assert.deepEqual(await stored(), []);
     await store.transaction('big', async tx => { await tx.load({ actors: ['dual'] }); tx.state.actors.dual!.roles = ['requester']; });
-    assert.deepEqual(await control.upsertConstraint('big', 'admin', ssd), { ok: true, value: { id: 'ssd' } });
+    assert.deepEqual(bare(await control.upsertConstraint('big', 'admin', ssd)), { ok: true, value: { id: 'ssd' } });
     // Widening that would put a holder into a violation is refused with the count; unheld roles can be widened.
-    assert.deepEqual(await control.upsertRole('big', 'admin', { id: 'lead', tenant: 'big', inherits: ['requester', 'approver'], active: true }),
+    assert.deepEqual(bare(await control.upsertRole('big', 'admin', { id: 'lead', tenant: 'big', inherits: ['requester', 'approver'], active: true })),
       { ok: false, code: 'SOD_VIOLATION', holders: 1 });
-    assert.deepEqual(await control.upsertRole('big', 'admin', { id: 'unused', tenant: 'big', inherits: ['requester', 'approver'], active: true }), { ok: true, value: { id: 'unused' } });
+    assert.deepEqual(bare(await control.upsertRole('big', 'admin', { id: 'unused', tenant: 'big', inherits: ['requester', 'approver'], active: true })), { ok: true, value: { id: 'unused' } });
     // A 17-role path cannot be established: the count is unknown. Tightening is accepted and says so; widening is refused.
     await store.transaction('big', async tx => { await tx.load({ actors: ['u1'] }); tx.state.actors.u1!.roles = ['c0']; });
-    assert.deepEqual(await control.upsertConstraint('big', 'admin', { ...ssd, id: 'ssd-2', roles: ['requester', 'approver', 'lead'], cardinality: 3 }),
+    assert.deepEqual(bare(await control.upsertConstraint('big', 'admin', { ...ssd, id: 'ssd-2', roles: ['requester', 'approver', 'lead'], cardinality: 3 })),
       { ok: true, value: { id: 'ssd-2', holders: 'unknown' } });
     assert.deepEqual(await stored(), ['ssd', 'ssd-2']);
     await assert.rejects(control.upsertRole('big', 'admin', { id: 'unused', tenant: 'big', inherits: ['lead'], active: true }), BudgetExceeded);

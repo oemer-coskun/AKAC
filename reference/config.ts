@@ -1,12 +1,16 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { createHash, createPrivateKey } from 'node:crypto';
 import { dirname } from 'node:path';
 import { SqliteStore } from './store.ts';
 import { PostgresStore } from '../adapters/postgres.ts';
 import type { Store } from './types.ts';
 import type { Credential } from './http.ts';
 import type { AdminCredential } from './admin.ts';
-import type { AdminJwtConfiguration, JwtConfiguration } from '../adapters/jwt.ts';
+import type { AdminJwtConfiguration, JwtConfiguration, PepJwtConfiguration } from '../adapters/jwt.ts';
+import type { PepCredential } from './authzen.ts';
 import type { Level } from './log.ts';
+import { DPOP_ALGORITHMS, DPOP_LIMITS, checkPublicUrl } from '../adapters/dpop.ts';
+import type { DpopAlgorithm, DpopMode } from '../adapters/dpop.ts';
 import { PgVectorIndex } from '../adapters/pgvector.ts';
 import { Ingestor } from './ingest.ts';
 import type { IngestEvent } from './ingest.ts';
@@ -170,14 +174,47 @@ export function configuredRetrieval(config: RetrievalConfig, store: Store, contr
 }
 
 export type Listener = { host: string; port: number };
+/** Per-listener DPoP settings (absent = off). */
+export type ListenerDpop = { mode: DpopMode; publicUrl: string };
+export type DpopConfig = { algorithms: DpopAlgorithm[]; skewSeconds: number; replay: 'memory' | 'postgres' };
 export type ServerConfig = {
-  agent: Listener & { credentials: Credential[]; jwt?: JwtConfiguration };
-  admin?: Listener & { credentials: AdminCredential[]; jwt?: AdminJwtConfiguration };
+  agent: Listener & { credentials: Credential[]; jwt?: JwtConfiguration; dpop?: ListenerDpop };
+  admin?: Listener & { credentials: AdminCredential[]; jwt?: AdminJwtConfiguration; dpop?: ListenerDpop };
+  /** Optional AuthZEN PDP listener for trusted enforcement points (default off). */
+  authzen?: Listener & { credentials: PepCredential[]; jwt?: PepJwtConfiguration; dpop?: ListenerDpop; reasons: 'none' | 'admin'; publicUrl?: string };
+  /** Ed25519 key with which the control plane signs format 2 audit checkpoints (server-held; anchor offline-signed checkpoints for independence). */
+  checkpoint?: { privatePem: string; keyId: string };
+  /** Shared DPoP verification settings; present when either listener enables DPoP. */
+  dpop?: DpopConfig;
   metrics: Listener;
   opa?: { url: string; revision?: string };
   retrieval?: RetrievalConfig;
   logLevel: Level;
 };
+/**
+ * AKAC_CHECKPOINT_KEY_FILE holds an Ed25519 private key as PKCS#8/traditional PEM or as a JWK; AKAC_CHECKPOINT_KEY_ID
+ * names it (verifiers pin the id). With NODE_ENV=production the file must not be readable by group or others
+ * (checked where the platform reports POSIX modes): no access for others and no group write; group read is allowed because
+ * mounted Kubernetes secrets are group-readable under fsGroup. The key is normalised to PKCS#8 PEM in memory only.
+ */
+function checkpointConfig(env: Env, problems: string[]): { privatePem: string; keyId: string } | undefined {
+  const file = env.AKAC_CHECKPOINT_KEY_FILE, keyId = env.AKAC_CHECKPOINT_KEY_ID;
+  if (!file && !keyId) return undefined;
+  if (!file || !keyId) { problems.push('AKAC_CHECKPOINT_KEY_FILE and AKAC_CHECKPOINT_KEY_ID must be set together'); return undefined; }
+  if (!/^[A-Za-z0-9._:-]{1,128}$/.test(keyId)) { problems.push('AKAC_CHECKPOINT_KEY_ID must be 1-128 characters of A-Z a-z 0-9 . _ : -'); return undefined; }
+  let raw: string;
+  try {
+    if (env.NODE_ENV === 'production' && process.platform !== 'win32' && (statSync(file).mode & 0o027) !== 0) {
+      problems.push('AKAC_CHECKPOINT_KEY_FILE must not be accessible by others or writable by group (chmod 600 or 640) when NODE_ENV=production'); return undefined;
+    }
+    raw = readFileSync(file, 'utf8');
+  } catch { problems.push('AKAC_CHECKPOINT_KEY_FILE: file not readable'); return undefined; }
+  try {
+    const key = raw.trimStart().startsWith('{') ? createPrivateKey({ key: JSON.parse(raw), format: 'jwk' }) : createPrivateKey(raw);
+    if (key.asymmetricKeyType !== 'ed25519') { problems.push('AKAC_CHECKPOINT_KEY_FILE must contain an Ed25519 private key'); return undefined; }
+    return { privatePem: key.export({ type: 'pkcs8', format: 'pem' }).toString(), keyId };
+  } catch { problems.push('AKAC_CHECKPOINT_KEY_FILE: not a readable Ed25519 private key (PEM or JWK)'); return undefined; }
+}
 export class ConfigError extends Error {
   problems: string[];
   constructor(problems: string[]) { super(`Invalid configuration:\n- ${problems.join('\n- ')}`); this.problems = problems; }
@@ -215,23 +252,75 @@ export function loadConfig(env: Env = process.env): ServerConfig {
   const credentials = json<Credential[]>('AKAC_CREDENTIALS_FILE'), jwt = json<JwtConfiguration>('AKAC_JWT_CONFIG_FILE');
   if (credentials !== undefined && (!Array.isArray(credentials) || !credentials.length)) problems.push('AKAC_CREDENTIALS_FILE must contain a non-empty array');
   const agentPort = port('PORT', 'AKAC_PORT');
-  const agent = { host: host('HOST', '127.0.0.1'), port: agentPort.value ?? 8787, credentials: credentials ?? [], ...(jwt ? { jwt } : {}) };
+  const dpopMode = (name: string, urlName: string, signed: boolean, listener: string): ListenerDpop | undefined => {
+    const raw = env[name] || 'off', url = env[urlName];
+    if (!['off', 'optional', 'required'].includes(raw)) { problems.push(`${name} must be off, optional or required`); return undefined; }
+    if (raw === 'off') { if (url) problems.push(`${urlName} requires ${name} to be optional or required`); return undefined; }
+    if (!signed) problems.push(`${name}=${raw} requires JWT authentication on the ${listener} listener; opaque credentials cannot be sender-constrained`);
+    if (!url) { problems.push(`${urlName} is required with ${name}=${raw} (the externally visible base URL; the Host header is not trusted)`); return undefined; }
+    try { checkPublicUrl(url); if (env.NODE_ENV === 'production' && new URL(url).protocol !== 'https:') problems.push(`${urlName} must be https when NODE_ENV=production`); }
+    catch { problems.push(`${urlName} must be an http(s) URL without credentials, query or fragment`); return undefined; }
+    return { mode: raw as DpopMode, publicUrl: url };
+  };
+  const agentDpop = dpopMode('AKAC_DPOP', 'AKAC_PUBLIC_URL', jwt !== undefined, 'agent');
+  const agent = { host: host('HOST', '127.0.0.1'), port: agentPort.value ?? 8787, credentials: credentials ?? [], ...(jwt ? { jwt } : {}), ...(agentDpop ? { dpop: agentDpop } : {}) };
 
   one('AKAC_ADMIN_CREDENTIALS_FILE', 'AKAC_ADMIN_JWT_CONFIG_FILE', 'admin');
   const adminCredentials = json<AdminCredential[]>('AKAC_ADMIN_CREDENTIALS_FILE'), adminJwt = json<AdminJwtConfiguration>('AKAC_ADMIN_JWT_CONFIG_FILE');
   if (adminCredentials !== undefined && (!Array.isArray(adminCredentials) || !adminCredentials.length)) problems.push('AKAC_ADMIN_CREDENTIALS_FILE must contain a non-empty array');
   if (adminJwt && jwt && adminJwt.audience === jwt.audience) problems.push('The admin JWT audience must differ from the agent JWT audience');
   const adminPort = port('AKAC_ADMIN_PORT', 'ADMIN_PORT');
+  const adminDpop = dpopMode('AKAC_ADMIN_DPOP', 'AKAC_ADMIN_PUBLIC_URL', adminJwt !== undefined, 'admin');
+  if (adminDpop && !adminCredentials && !adminJwt) problems.push('AKAC_ADMIN_DPOP requires the admin listener (AKAC_ADMIN_JWT_CONFIG_FILE)');
   const admin = adminCredentials || adminJwt
-    ? { host: host('AKAC_ADMIN_HOST', '127.0.0.1'), port: adminPort.value ?? 8788, credentials: adminCredentials ?? [], ...(adminJwt ? { jwt: adminJwt } : {}) } : undefined;
+    ? { host: host('AKAC_ADMIN_HOST', '127.0.0.1'), port: adminPort.value ?? 8788, credentials: adminCredentials ?? [], ...(adminJwt ? { jwt: adminJwt } : {}), ...(adminDpop ? { dpop: adminDpop } : {}) } : undefined;
+  // Optional AuthZEN PDP listener for trusted enforcement points: its own credentials, audience and port.
+  const azNames = ['AKAC_AUTHZEN_HOST', 'AKAC_AUTHZEN_CREDENTIALS_FILE', 'AKAC_AUTHZEN_JWT_CONFIG_FILE', 'AKAC_AUTHZEN_REASONS', 'AKAC_AUTHZEN_PUBLIC_URL', 'AKAC_AUTHZEN_DPOP'];
+  const azPort = port('AKAC_AUTHZEN_PORT');
+  let authzen: ServerConfig['authzen'], authzenDpop: ListenerDpop | undefined;
+  if (azPort.value === undefined && !Number.isNaN(azPort.value)) { for (const n of azNames) if (env[n]) problems.push(`${n} requires AKAC_AUTHZEN_PORT`); }
+  else if (azPort.value !== undefined) {
+    one('AKAC_AUTHZEN_CREDENTIALS_FILE', 'AKAC_AUTHZEN_JWT_CONFIG_FILE', 'AuthZEN');
+    if (!env.AKAC_AUTHZEN_CREDENTIALS_FILE && !env.AKAC_AUTHZEN_JWT_CONFIG_FILE) problems.push('AKAC_AUTHZEN_PORT requires AKAC_AUTHZEN_CREDENTIALS_FILE or AKAC_AUTHZEN_JWT_CONFIG_FILE');
+    const pepCredentials = json<PepCredential[]>('AKAC_AUTHZEN_CREDENTIALS_FILE'), pepJwt = json<PepJwtConfiguration>('AKAC_AUTHZEN_JWT_CONFIG_FILE');
+    if (pepCredentials !== undefined && (!Array.isArray(pepCredentials) || !pepCredentials.length)) problems.push('AKAC_AUTHZEN_CREDENTIALS_FILE must contain a non-empty array');
+    if (pepJwt && ((jwt && pepJwt.audience === jwt.audience) || (adminJwt && pepJwt.audience === adminJwt.audience))) problems.push('The AuthZEN JWT audience must differ from the agent and admin JWT audiences');
+    // A credential is valid on exactly one listener.
+    const digests = (list: { token?: unknown }[] | undefined) => (Array.isArray(list) ? list : []).flatMap(c => typeof c?.token === 'string' ? [createHash('sha256').update(c.token).digest('hex')] : []);
+    const others = new Set([...digests(credentials), ...digests(adminCredentials)]);
+    if (digests(pepCredentials).some(d => others.has(d))) problems.push('AuthZEN credentials must not reuse agent or admin credentials');
+    // The public URL also serves the metadata document, so it is valid without DPoP.
+    if (env.AKAC_AUTHZEN_DPOP && env.AKAC_AUTHZEN_DPOP !== 'off') authzenDpop = dpopMode('AKAC_AUTHZEN_DPOP', 'AKAC_AUTHZEN_PUBLIC_URL', pepJwt !== undefined, 'AuthZEN');
+    const reasons = env.AKAC_AUTHZEN_REASONS || 'none';
+    if (!['none', 'admin'].includes(reasons)) problems.push('AKAC_AUTHZEN_REASONS must be none or admin');
+    const publicUrl = env.AKAC_AUTHZEN_PUBLIC_URL || undefined;
+    if (publicUrl) {
+      try { checkPublicUrl(publicUrl); if (new URL(publicUrl).pathname !== '/') problems.push('AKAC_AUTHZEN_PUBLIC_URL must be an origin without a path'); if (env.NODE_ENV === 'production' && new URL(publicUrl).protocol !== 'https:') problems.push('AKAC_AUTHZEN_PUBLIC_URL must be https when NODE_ENV=production'); }
+      catch { problems.push('AKAC_AUTHZEN_PUBLIC_URL must be an http(s) URL without credentials, query or fragment'); }
+    }
+    authzen = { host: env.AKAC_AUTHZEN_HOST ? host('AKAC_AUTHZEN_HOST', '127.0.0.1') : '127.0.0.1', port: azPort.value, credentials: pepCredentials ?? [], ...(pepJwt ? { jwt: pepJwt } : {}),
+      ...(authzenDpop ? { dpop: authzenDpop } : {}), reasons: reasons as 'none' | 'admin', ...(publicUrl ? { publicUrl } : {}) };
+  }
+  let dpop: DpopConfig | undefined;
+  if (agentDpop || adminDpop || authzenDpop) {
+    const algs = (env.AKAC_DPOP_ALGS || DPOP_ALGORITHMS.join(',')).split(',').map(a => a.trim());
+    if (!algs.length || algs.some(a => !(DPOP_ALGORITHMS as readonly string[]).includes(a)) || new Set(algs).size !== algs.length) problems.push(`AKAC_DPOP_ALGS must be a comma-separated subset of ${DPOP_ALGORITHMS.join(', ')}`);
+    const skew = env.AKAC_DPOP_SKEW_SECONDS ? int(env.AKAC_DPOP_SKEW_SECONDS) : DPOP_LIMITS.defaultSkewSeconds;
+    if (!Number.isInteger(skew) || skew < 1 || skew > DPOP_LIMITS.maxSkewSeconds) problems.push(`AKAC_DPOP_SKEW_SECONDS must be an integer 1-${DPOP_LIMITS.maxSkewSeconds}`);
+    const replay = env.AKAC_DPOP_REPLAY || (env.DATABASE_URL ? 'postgres' : 'memory');
+    if (!['memory', 'postgres'].includes(replay)) problems.push('AKAC_DPOP_REPLAY must be memory or postgres');
+    else if (replay === 'postgres' && !env.DATABASE_URL) problems.push('AKAC_DPOP_REPLAY=postgres requires DATABASE_URL');
+    dpop = { algorithms: algs as DpopAlgorithm[], skewSeconds: skew, replay: replay as 'memory' | 'postgres' };
+  } else for (const name of ['AKAC_DPOP_ALGS', 'AKAC_DPOP_SKEW_SECONDS', 'AKAC_DPOP_REPLAY']) if (env[name]) problems.push(`${name} requires AKAC_DPOP, AKAC_ADMIN_DPOP or AKAC_AUTHZEN_DPOP`);
 
   const metricsPort = port('AKAC_METRICS_PORT', 'METRICS_PORT');
   const metrics = { host: host('AKAC_METRICS_HOST', '127.0.0.1'), port: metricsPort.value ?? 9464 };
-  const ports = [['agent', agent.port], ...(admin ? [['admin', admin.port]] : []), ['metrics', metrics.port]] as [string, number][];
+  const ports = [['agent', agent.port], ...(admin ? [['admin', admin.port]] : []), ...(authzen ? [['authzen', authzen.port]] : []), ['metrics', metrics.port]] as [string, number][];
   for (const [i, [n, p]] of ports.entries()) if (p !== 0 && ports.some(([m, q], j) => j < i && q === p && (m !== n))) problems.push(`The ${n} listener port ${p} is already used by another listener`);
   if (env.OPA_URL) { try { if (!/^https?:$/.test(new URL(env.OPA_URL).protocol)) throw new Error(); } catch { problems.push('OPA_URL must be an http(s) URL'); } }
   connectionUrl(env, 'DATABASE_URL', problems); connectionUrl(env, 'AKAC_MIGRATION_DATABASE_URL', problems);
   const retrieval = retrievalConfig(env, problems);
+  const checkpoint = checkpointConfig(env, problems);
   if (problems.length) throw new ConfigError(problems);
-  return { agent, ...(retrieval ? { retrieval } : {}), ...(admin ? { admin } : {}), metrics, ...(env.OPA_URL ? { opa: { url: env.OPA_URL, ...(env.OPA_REVISION ? { revision: env.OPA_REVISION } : {}) } } : {}), logLevel: level };
+  return { agent, ...(authzen ? { authzen } : {}), ...(checkpoint ? { checkpoint } : {}), ...(dpop ? { dpop } : {}), ...(retrieval ? { retrieval } : {}), ...(admin ? { admin } : {}), metrics, ...(env.OPA_URL ? { opa: { url: env.OPA_URL, ...(env.OPA_REVISION ? { revision: env.OPA_REVISION } : {}) } } : {}), logLevel: level };
 }

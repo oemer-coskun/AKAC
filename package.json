@@ -1,10 +1,10 @@
 {
   "name": "@akac/reference",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Agent Knowledge Access Control: draft specification, reference implementation and conformance suite",
   "type": "module",
-  "license": "LicenseRef-AKAC-Attribution-1.0-draft",
+  "license": "MIT-0",
   "engines": {
     "node": ">=24 <25"
   },
@@ -18,7 +18,9 @@
     "seed": "node scripts/seed.ts",
     "migrate": "node scripts/migrate.ts",
     "conformance": "node conformance/run.ts",
-    "test:postgres": "node --test tests/postgres.test.ts"
+    "test:postgres": "node --test tests/postgres.test.ts",
+    "test:bonus": "node --test \"bonus/**/*.test.ts\"",
+    "check:all": "npm run check && npm run test:bonus"
   },
   "dependencies": {
     "jose": "6.2.12",

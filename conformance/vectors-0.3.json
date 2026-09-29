@@ -100,6 +100,7 @@
     },
     {
       "id": "KB-004-hierarchy-cross-tenant-record-is-flat",
+      "tags": ["cross-tenant"],
       "binding": "chief",
       "resource": "strategy",
       "action": "read",
@@ -159,6 +160,7 @@
     },
     {
       "id": "KB-007-group-cross-tenant",
+      "tags": ["cross-tenant"],
       "binding": "lead",
       "resource": "board-notes",
       "action": "read",
@@ -532,6 +534,7 @@
     },
     {
       "id": "KB-023-cross-tenant-container",
+      "tags": ["cross-tenant"],
       "binding": "chief",
       "resource": "board-notes",
       "action": "read",
@@ -683,6 +686,7 @@
     },
     {
       "id": "KB-031-other-tenant-revocation-isolated",
+      "tags": ["cross-tenant"],
       "kind": "context",
       "context": {
         "id": "ctx-1",

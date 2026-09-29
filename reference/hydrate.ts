@@ -4,6 +4,8 @@ import { validId } from './validation.ts';
 export type Seed = {
   bindings?: Binding[]; actors?: string[]; grants?: string[]; knowledge?: string[];
   containers?: string[]; roles?: string[]; contexts?: string[]; groups?: string[];
+  /** Destination profiles by id (0.4); the profiles of loaded actors are added automatically. */
+  destinations?: string[];
   /** Every active principal of the tenant with its memberships and roles (bounded; administrative holder checks). */
   principals?: boolean;
 };
@@ -22,7 +24,8 @@ const list = (x: unknown): unknown[] => Array.isArray(x) ? x : [];
 /**
  * Loads the authorization closure a decision can reach: grant ancestry and its
  * principals, group memberships, role hierarchy, knowledge sources, container
- * ancestry, run contexts, SoD constraints, the tenant epoch and audit head.
+ * ancestry, run contexts, SoD constraints, destination profiles of loaded
+ * principals, the tenant epoch and audit head.
  * decide() stays pure and synchronous over the resulting snapshot. Roles of
  * inactive groups and juniors of inactive roles are not requested: they never
  * contribute to a closure (R22, R23), and requesting them would only let
@@ -33,14 +36,14 @@ const list = (x: unknown): unknown[] => Array.isArray(x) ? x : [];
  */
 export async function hydrate(tx: Tx, seed: Seed): Promise<void> {
   if (tx.complete) return;
-  const kinds = ['actors', 'grants', 'knowledge', 'containers', 'roles', 'memberships', 'contexts', 'groups'] as const;
+  const kinds = ['actors', 'grants', 'knowledge', 'containers', 'roles', 'memberships', 'contexts', 'groups', 'destinations'] as const;
   const asked = Object.fromEntries(kinds.map(k => [k, new Set<string>()])) as Record<typeof kinds[number], Set<string>>;
   let total = 0;
   for (let round = 0; round < HYDRATION.rounds; round++) {
     const s = tx.state;
     const want = Object.fromEntries(kinds.map(k => [k, new Set<string>()])) as Record<typeof kinds[number], Set<string>>;
     const add = (kind: typeof kinds[number], id: unknown) => { if (validId(id) && !asked[kind].has(id)) want[kind].add(id); };
-    for (const kind of ['actors', 'grants', 'knowledge', 'containers', 'roles', 'contexts', 'groups'] as const) for (const id of seed[kind] ?? []) add(kind, id);
+    for (const kind of ['actors', 'grants', 'knowledge', 'containers', 'roles', 'contexts', 'groups', 'destinations'] as const) for (const id of seed[kind] ?? []) add(kind, id);
     for (const b of seed.bindings ?? []) { add('actors', b.subject); add('actors', b.agent); add('grants', b.grant); }
     for (const c of Object.values(s.contexts)) for (const ref of list(c.sources)) add('knowledge', (ref as { id?: unknown })?.id);
     for (const g of Object.values(s.grants)) { add('actors', g.subject); add('actors', g.agent); add('grants', g.parent); }
@@ -49,7 +52,7 @@ export async function hydrate(tx: Tx, seed: Seed): Promise<void> {
       add('containers', k.container);
     }
     for (const c of Object.values(s.containers)) add('containers', c.parent);
-    for (const a of Object.values(s.actors)) { add('memberships', a.id); for (const r of list(a.roles)) add('roles', r); }
+    for (const a of Object.values(s.actors)) { add('memberships', a.id); add('destinations', a.destination); for (const r of list(a.roles)) add('roles', r); }
     for (const g of Object.values(s.groups)) if (g.active !== false) for (const r of list(g.roles)) add('roles', r);
     for (const r of Object.values(s.roles)) if (r.active !== false) for (const j of list(r.inherits)) add('roles', j);
     const need: Need = {};

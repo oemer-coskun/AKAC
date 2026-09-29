@@ -1,0 +1,566 @@
+{
+  "profile": "AKAC-AuthZEN/0.4-draft",
+  "description": "AuthZEN mapping vectors (spec/drafts/0.4-authzen.md). Each request is mapped with the documented profile for the credential tenant and, when mapped, evaluated with decide() over kbFixture(clock). expected: allow | deny (decision) or malformed (HTTP 400) or unsupported (decision false).",
+  "clock": 1700000000000,
+  "fixture": "kbFixture",
+  "cases": [
+    {
+      "id": "Z01",
+      "description": "user subject, public document, in-scope purpose",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "intern",
+          "properties": {
+            "agent": "intern-agent",
+            "grant": "intern-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "handbook"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "allow",
+      "code": "AUTHORIZED"
+    },
+    {
+      "id": "Z02",
+      "description": "user subject, document above clearance",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "intern",
+          "properties": {
+            "agent": "intern-agent",
+            "grant": "intern-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "deny",
+      "code": "KNOWLEDGE_BOUNDARY"
+    },
+    {
+      "id": "Z03",
+      "description": "agent subject form maps to the same binding",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "agent",
+          "id": "chief-agent",
+          "properties": {
+            "subject": "chief",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "allow",
+      "code": "AUTHORIZED",
+      "binding": {
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run"
+      }
+    },
+    {
+      "id": "Z04",
+      "description": "unknown members are ignored (AuthZEN 1.0 section 10.1.1)",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "handbook",
+          "properties": {
+            "label": "public"
+          }
+        },
+        "action": {
+          "name": "read",
+          "properties": {
+            "x": 1
+          }
+        },
+        "context": {
+          "purpose": "work"
+        },
+        "extra": {
+          "any": 1
+        }
+      },
+      "expected": "allow",
+      "code": "AUTHORIZED"
+    },
+    {
+      "id": "Z05",
+      "tags": ["cross-tenant"],
+      "description": "a tenant in the request never selects the tenant; the credential tenant applies",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run",
+            "tenant": "other"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work",
+          "tenant": "other"
+        },
+        "tenant": "other"
+      },
+      "expected": "allow",
+      "code": "AUTHORIZED",
+      "binding": {
+        "tenant": "acme",
+        "subject": "chief",
+        "agent": "chief-agent",
+        "grant": "chief-run"
+      }
+    },
+    {
+      "id": "Z06",
+      "tags": ["cross-tenant"],
+      "description": "identities of another tenant are not honoured under a different credential tenant",
+      "tenant": "other",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "Z07",
+      "description": "missing context is malformed",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        }
+      },
+      "expected": "malformed"
+    },
+    {
+      "id": "Z08",
+      "description": "missing grant is malformed",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "malformed"
+    },
+    {
+      "id": "Z09",
+      "description": "non-string subject id is malformed",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": 7,
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "malformed"
+    },
+    {
+      "id": "Z10",
+      "description": "request that is not an object is malformed",
+      "tenant": "acme",
+      "request": [],
+      "expected": "malformed"
+    },
+    {
+      "id": "Z11",
+      "description": "unknown action name is unsupported (decision false)",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "delete"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "unsupported"
+    },
+    {
+      "id": "Z12",
+      "description": "declassify is not exposed",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "declassify"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "unsupported"
+    },
+    {
+      "id": "Z13",
+      "description": "resource type other than knowledge is unsupported",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "document",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "unsupported"
+    },
+    {
+      "id": "Z14",
+      "description": "subject type other than user or agent is unsupported",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "service",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "unsupported"
+    },
+    {
+      "id": "Z15",
+      "description": "purpose longer than 128 characters is unsupported",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+        }
+      },
+      "expected": "unsupported"
+    },
+    {
+      "id": "Z16",
+      "description": "purpose outside the grant",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "strategy"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "marketing"
+        }
+      },
+      "expected": "deny",
+      "code": "OUT_OF_SCOPE"
+    },
+    {
+      "id": "Z17",
+      "description": "write_memory within the grant",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "handbook"
+        },
+        "action": {
+          "name": "write_memory"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "allow",
+      "code": "AUTHORIZED"
+    },
+    {
+      "id": "Z18",
+      "description": "resource id that is an object prototype name is outside the identifier syntax (unsupported)",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "constructor"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "unsupported"
+    },
+    {
+      "id": "Z19",
+      "description": "identifier outside the identifier syntax is unsupported",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "has space"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "unsupported"
+    },
+    {
+      "id": "Z20",
+      "description": "grant that does not belong to the subject",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "intern-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "handbook"
+        },
+        "action": {
+          "name": "read"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "deny",
+      "code": "INVALID_DELEGATION"
+    },
+    {
+      "id": "Z21",
+      "description": "export within the grant",
+      "tenant": "acme",
+      "request": {
+        "subject": {
+          "type": "user",
+          "id": "chief",
+          "properties": {
+            "agent": "chief-agent",
+            "grant": "chief-run"
+          }
+        },
+        "resource": {
+          "type": "knowledge",
+          "id": "board-notes"
+        },
+        "action": {
+          "name": "export"
+        },
+        "context": {
+          "purpose": "work"
+        }
+      },
+      "expected": "allow",
+      "code": "AUTHORIZED"
+    }
+  ]
+}

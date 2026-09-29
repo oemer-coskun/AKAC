@@ -1,6 +1,6 @@
 # Governance
 
-AKAC is currently founder-maintained by Ömer Hüseyin Coşkun (@WestMoneyDE).
+AKAC is maintained by Ömer Hüseyin Coşkun.
 Maintainer status is a project-management role, not ownership of contributors'
 work or a claim of recognition by a standards organization.
 

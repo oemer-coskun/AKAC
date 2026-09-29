@@ -59,6 +59,23 @@
     },
     "active": {
       "type": "boolean"
+    },
+    "destination": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+      "not": {
+        "enum": [
+          "constructor",
+          "prototype",
+          "__proto__",
+          "internal-user",
+          "internal-service",
+          "model-provider",
+          "tool",
+          "external"
+        ]
+      },
+      "description": "Id of the same-tenant Destination profile that governs releases to this principal (0.4, ADR-008)."
     }
   },
   "required": [

@@ -1,0 +1,1306 @@
+{
+  "profile": "AKAC-Evidence/0.4-draft",
+  "description": "Decision and audit evidence vectors (spec/drafts/0.4-decisions-evidence.md). Merkle vectors: RFC 6962/9162 eight-leaf test tree (leaf inputs hex). Verification vectors (E35-E50): RFC 9162 inclusion and consistency proofs and format 2 checkpoints, valid controls and forged, resized, tampered or rolled-back variants that a verifier MUST reject; the checkpoint key pair was generated once and only its public key is published. Audit vectors: synthetic entries. Lifecycle vectors (L*): decide() over the kbFixture with patches (spec/drafts/0.4-knowledge-lifecycle.md).",
+  "cases": [
+    {
+      "id": "E01",
+      "kind": "merkle-root",
+      "leaves": [],
+      "size": 0,
+      "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "E02",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 1,
+      "expected": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+    },
+    {
+      "id": "E03",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 2,
+      "expected": "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"
+    },
+    {
+      "id": "E04",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 3,
+      "expected": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77"
+    },
+    {
+      "id": "E05",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 4,
+      "expected": "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+    },
+    {
+      "id": "E06",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 5,
+      "expected": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4"
+    },
+    {
+      "id": "E07",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 6,
+      "expected": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef"
+    },
+    {
+      "id": "E08",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 7,
+      "expected": "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c"
+    },
+    {
+      "id": "E09",
+      "kind": "merkle-root",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "size": 8,
+      "expected": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
+    },
+    {
+      "id": "E10",
+      "kind": "inclusion",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "index": 0,
+      "size": 8,
+      "expected": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ]
+    },
+    {
+      "id": "E11",
+      "kind": "consistency",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "first": 1,
+      "second": 8,
+      "expected": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ]
+    },
+    {
+      "id": "E12",
+      "kind": "consistency",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "first": 6,
+      "second": 8,
+      "expected": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ]
+    },
+    {
+      "id": "E13",
+      "kind": "consistency",
+      "leaves": [
+        "",
+        "00",
+        "10",
+        "2021",
+        "3031",
+        "40414243",
+        "5051525354555657",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "first": 2,
+      "second": 5,
+      "expected": [
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ]
+    },
+    {
+      "id": "E14",
+      "kind": "jcs",
+      "input": {
+        "1": 3,
+        "b": [
+          true,
+          false,
+          null,
+          0,
+          42,
+          "x\"\\\n\u001f"
+        ],
+        "a": {},
+        "€": 1,
+        "\r": 2,
+        "ö": 4
+      },
+      "expected": "{\"\\r\":2,\"1\":3,\"a\":{},\"b\":[true,false,null,0,42,\"x\\\"\\\\\\n\\u001f\"],\"ö\":4,\"€\":1}"
+    },
+    {
+      "id": "E15",
+      "kind": "jcs",
+      "input": 1.5,
+      "expected": null,
+      "note": "fractions are outside the AKAC JCS subset and are rejected"
+    },
+    {
+      "id": "E16",
+      "kind": "jcs",
+      "input": 9007199254740992,
+      "expected": null,
+      "note": "unsafe integers are rejected"
+    },
+    {
+      "id": "E17",
+      "kind": "audit-hash",
+      "entry": {
+        "sequence": 1,
+        "time": 1800000000001,
+        "tenant": "acme",
+        "actor": "intern",
+        "operation": "read",
+        "decision": "deny",
+        "reason": "DENIED:KNOWLEDGE_BOUNDARY",
+        "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+        "epoch": 0,
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30",
+      "note": "format 1: SHA-256 of sorted-key JSON"
+    },
+    {
+      "id": "E18",
+      "kind": "audit-hash",
+      "entry": {
+        "sequence": 2,
+        "time": 1800000000002,
+        "tenant": "acme",
+        "actor": "chief",
+        "operation": "read",
+        "decision": "allow",
+        "reason": "AUTHORIZED",
+        "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+        "epoch": 0,
+        "previous": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30",
+        "formatVersion": 2,
+        "decisionId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+        "reasonCode": "AUTHORIZED",
+        "policyDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "obligations": [
+          {
+            "type": "audit_level",
+            "value": "full"
+          },
+          {
+            "type": "max_context_ttl_ms",
+            "value": 300000
+          },
+          {
+            "type": "no_persist"
+          }
+        ],
+        "runId": "chief-run",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+      },
+      "expected": "51ff89e837c07d92eb3292e608fb2ec2247445aa5eacd28f7da9f02a8cd64956",
+      "note": "format 2: SHA-256 of the JCS body"
+    },
+    {
+      "id": "E19",
+      "kind": "audit-leaf",
+      "entry": {
+        "sequence": 1,
+        "time": 1800000000001,
+        "tenant": "acme",
+        "actor": "intern",
+        "operation": "read",
+        "decision": "deny",
+        "reason": "DENIED:KNOWLEDGE_BOUNDARY",
+        "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+        "epoch": 0,
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "hash": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30"
+      },
+      "expected": "05499df48ae5dd86647619745140e089a640df9c08dc0abc706c606bdcfc81c6"
+    },
+    {
+      "id": "E20",
+      "kind": "audit-leaf",
+      "entry": {
+        "sequence": 2,
+        "time": 1800000000002,
+        "tenant": "acme",
+        "actor": "chief",
+        "operation": "read",
+        "decision": "allow",
+        "reason": "AUTHORIZED",
+        "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+        "epoch": 0,
+        "previous": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30",
+        "formatVersion": 2,
+        "decisionId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+        "reasonCode": "AUTHORIZED",
+        "policyDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "obligations": [
+          {
+            "type": "audit_level",
+            "value": "full"
+          },
+          {
+            "type": "max_context_ttl_ms",
+            "value": 300000
+          },
+          {
+            "type": "no_persist"
+          }
+        ],
+        "runId": "chief-run",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "hash": "51ff89e837c07d92eb3292e608fb2ec2247445aa5eacd28f7da9f02a8cd64956"
+      },
+      "expected": "319fd6dd01f619dd9b89fa63807bb701b0a2f8eb923df0e365a22a771f8288d8"
+    },
+    {
+      "id": "E21",
+      "kind": "audit-chain",
+      "entries": [
+        {
+          "sequence": 1,
+          "time": 1800000000001,
+          "tenant": "acme",
+          "actor": "intern",
+          "operation": "read",
+          "decision": "deny",
+          "reason": "DENIED:KNOWLEDGE_BOUNDARY",
+          "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+          "epoch": 0,
+          "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30"
+        },
+        {
+          "sequence": 2,
+          "time": 1800000000002,
+          "tenant": "acme",
+          "actor": "chief",
+          "operation": "read",
+          "decision": "allow",
+          "reason": "AUTHORIZED",
+          "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+          "epoch": 0,
+          "previous": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30",
+          "formatVersion": 2,
+          "decisionId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "reasonCode": "AUTHORIZED",
+          "policyDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "obligations": [
+            {
+              "type": "audit_level",
+              "value": "full"
+            },
+            {
+              "type": "max_context_ttl_ms",
+              "value": 300000
+            },
+            {
+              "type": "no_persist"
+            }
+          ],
+          "runId": "chief-run",
+          "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+          "hash": "51ff89e837c07d92eb3292e608fb2ec2247445aa5eacd28f7da9f02a8cd64956"
+        }
+      ],
+      "expected": true,
+      "note": "the chain continues across the format change"
+    },
+    {
+      "id": "E22",
+      "kind": "audit-chain",
+      "entries": [
+        {
+          "sequence": 1,
+          "time": 1800000000001,
+          "tenant": "acme",
+          "actor": "intern",
+          "operation": "read",
+          "decision": "deny",
+          "reason": "DENIED:KNOWLEDGE_BOUNDARY",
+          "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+          "epoch": 0,
+          "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30"
+        },
+        {
+          "sequence": 2,
+          "time": 1800000000002,
+          "tenant": "acme",
+          "actor": "chief",
+          "operation": "read",
+          "decision": "allow",
+          "reason": "AUTHORIZED",
+          "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+          "epoch": 0,
+          "previous": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30",
+          "formatVersion": 2,
+          "decisionId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "reasonCode": "PROTECTED_DERIVATION",
+          "policyDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "obligations": [
+            {
+              "type": "audit_level",
+              "value": "full"
+            },
+            {
+              "type": "max_context_ttl_ms",
+              "value": 300000
+            },
+            {
+              "type": "no_persist"
+            }
+          ],
+          "runId": "chief-run",
+          "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+          "hash": "51ff89e837c07d92eb3292e608fb2ec2247445aa5eacd28f7da9f02a8cd64956"
+        }
+      ],
+      "expected": false,
+      "note": "reasonCode must match reason"
+    },
+    {
+      "id": "E23",
+      "kind": "audit-chain",
+      "entries": [
+        {
+          "sequence": 1,
+          "time": 1800000000001,
+          "tenant": "acme",
+          "actor": "intern",
+          "operation": "read",
+          "decision": "deny",
+          "reason": "DENIED:KNOWLEDGE_BOUNDARY",
+          "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+          "epoch": 0,
+          "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30"
+        },
+        {
+          "sequence": 2,
+          "time": 1800000000002,
+          "tenant": "acme",
+          "actor": "chief",
+          "operation": "read",
+          "decision": "allow",
+          "reason": "AUTHORIZED",
+          "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+          "epoch": 0,
+          "previous": "8894da51702e7b72e889458beed1c11f7d73974c85c20097df9b6029417f2a30",
+          "formatVersion": 2,
+          "decisionId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "reasonCode": "AUTHORIZED",
+          "policyDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "obligations": [
+            {
+              "type": "audit_level",
+              "value": "full"
+            },
+            {
+              "type": "max_context_ttl_ms",
+              "value": 300000
+            },
+            {
+              "type": "no_persist"
+            }
+          ],
+          "runId": "chief-run",
+          "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+          "hash": "51ff89e837c07d92eb3292e608fb2ec2247445aa5eacd28f7da9f02a8cd64956"
+        },
+        {
+          "sequence": 3,
+          "time": 1800000000001,
+          "tenant": "acme",
+          "actor": "intern",
+          "operation": "read",
+          "decision": "deny",
+          "reason": "DENIED:KNOWLEDGE_BOUNDARY",
+          "policyVersion": "akac-reference/0.3.0|akac-reference/0.3.0|core-only",
+          "epoch": 0,
+          "previous": "51ff89e837c07d92eb3292e608fb2ec2247445aa5eacd28f7da9f02a8cd64956",
+          "hash": "d69de8f00084a5b16334ce44e1253ee82d110237a3c7959fd8946249c35ad40a"
+        }
+      ],
+      "expected": false,
+      "note": "a format 1 entry after format 2 in one stream is a downgrade, even with a valid format 1 hash"
+    },
+    {
+      "id": "E24",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "max_context_ttl_ms",
+          "value": 900
+        },
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "max_context_ttl_ms",
+          "value": 300
+        }
+      ],
+      "expected": [
+        {
+          "type": "audit_level",
+          "value": "full"
+        },
+        {
+          "type": "max_context_ttl_ms",
+          "value": 300
+        }
+      ]
+    },
+    {
+      "id": "E25",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "retain_forever"
+        }
+      ],
+      "expected": null,
+      "note": "unknown type: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "E26",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "audit_level",
+          "value": "minimal"
+        }
+      ],
+      "expected": null,
+      "note": "unknown value: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "E27",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "no_persist",
+          "value": true
+        }
+      ],
+      "expected": null,
+      "note": "extra member: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "E28",
+      "kind": "obligations",
+      "input": {
+        "type": "no_persist"
+      },
+      "expected": null,
+      "note": "not an array: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "E29",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": []
+        }
+      ],
+      "expected": null,
+      "note": "empty destination set: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "E30",
+      "kind": "reason",
+      "reason": "AUTHORIZED",
+      "expected": {
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "E31",
+      "kind": "reason",
+      "reason": "DENIED:SOD_VIOLATION",
+      "expected": {
+        "code": "SOD_VIOLATION",
+        "category": "deny"
+      }
+    },
+    {
+      "id": "E32",
+      "kind": "reason",
+      "reason": "DEFERRED:BUDGET_EXCEEDED",
+      "expected": {
+        "code": "BUDGET_EXCEEDED",
+        "category": "defer"
+      }
+    },
+    {
+      "id": "E33",
+      "kind": "reason",
+      "reason": "DENIED:AUTHORIZED",
+      "expected": null
+    },
+    {
+      "id": "E34",
+      "kind": "reason",
+      "reason": "DENIED:INVENTED",
+      "expected": null
+    },
+    {
+      "id": "E35",
+      "kind": "verify-inclusion",
+      "note": "valid RFC 9162 inclusion proof of leaf 5 in the eight-leaf tree (control)",
+      "leaf": "40414243",
+      "index": 5,
+      "size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expected": true
+    },
+    {
+      "id": "E36",
+      "kind": "verify-inclusion",
+      "note": "forged inclusion proof: one path hash altered",
+      "leaf": "40414243",
+      "index": 5,
+      "size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "0a854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expected": false
+    },
+    {
+      "id": "E37",
+      "kind": "verify-inclusion",
+      "note": "wrong tree size: the size-8 proof presented for a tree of size 6",
+      "leaf": "40414243",
+      "index": 5,
+      "size": 6,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expected": false
+    },
+    {
+      "id": "E38",
+      "kind": "verify-inclusion",
+      "note": "wrong leaf index: the proof of leaf 5 presented for index 4",
+      "leaf": "40414243",
+      "index": 4,
+      "size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expected": false
+    },
+    {
+      "id": "E39",
+      "kind": "verify-inclusion",
+      "note": "index outside the tree",
+      "leaf": "40414243",
+      "index": 8,
+      "size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expected": false
+    },
+    {
+      "id": "E40",
+      "kind": "verify-inclusion",
+      "note": "extra path element appended",
+      "leaf": "40414243",
+      "index": 5,
+      "size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expected": false
+    },
+    {
+      "id": "E41",
+      "kind": "verify-consistency",
+      "note": "valid RFC 9162 consistency proof 3 -> 8 (control)",
+      "first": 3,
+      "second": 8,
+      "firstRoot": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "secondRoot": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0298d122906dcfc10892cb53a73992fc5b9f493ea4c9badb27b791b4127a7fe7",
+        "07506a85fd9dd2f120eb694f86011e5bb4662e5c415a62917033d4a9624487e7",
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expected": true
+    },
+    {
+      "id": "E42",
+      "kind": "verify-consistency",
+      "note": "tampered consistency proof: one path hash altered",
+      "first": 3,
+      "second": 8,
+      "firstRoot": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "secondRoot": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0298d122906dcfc10892cb53a73992fc5b9f493ea4c9badb27b791b4127a7fe7",
+        "17506a85fd9dd2f120eb694f86011e5bb4662e5c415a62917033d4a9624487e7",
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expected": false
+    },
+    {
+      "id": "E43",
+      "kind": "verify-consistency",
+      "note": "rewritten history: the older root is of a tree whose first leaf changed",
+      "first": 3,
+      "second": 8,
+      "firstRoot": "ad237c351a8bcc51094439f7427043fa043ac9f25aeeeb2ed175b841343b4243",
+      "secondRoot": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0298d122906dcfc10892cb53a73992fc5b9f493ea4c9badb27b791b4127a7fe7",
+        "07506a85fd9dd2f120eb694f86011e5bb4662e5c415a62917033d4a9624487e7",
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expected": false
+    },
+    {
+      "id": "E44",
+      "kind": "verify-consistency",
+      "note": "wrong tree size: the 3 -> 8 proof presented as 4 -> 8",
+      "first": 4,
+      "second": 8,
+      "firstRoot": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "secondRoot": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0298d122906dcfc10892cb53a73992fc5b9f493ea4c9badb27b791b4127a7fe7",
+        "07506a85fd9dd2f120eb694f86011e5bb4662e5c415a62917033d4a9624487e7",
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expected": false
+    },
+    {
+      "id": "E45",
+      "kind": "checkpoint-v2",
+      "note": "valid format 2 checkpoint of the eight-leaf tree (control)",
+      "checkpoint": {
+        "format": "akac-audit-checkpoint/2",
+        "stream": "acme",
+        "treeSize": 8,
+        "rootHash": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+        "issuedAt": 1800000000000,
+        "keyId": "vector-key",
+        "signature": "ckaKedLWOyfe-hyNcDDPRnQsnVWqEonDfI_4KlTqwylJfAOGGqr4_4HanjG3OHlkiA7_tYAYCRvSnBguFWB5Ag"
+      },
+      "publicKey": {
+        "crv": "Ed25519",
+        "x": "W1jNvzyw3edyDZLXAOSnT6LZU8CJKKWPqe9VXsa9rfU",
+        "kty": "OKP"
+      },
+      "stream": "acme",
+      "keyId": "vector-key",
+      "expected": true
+    },
+    {
+      "id": "E46",
+      "kind": "checkpoint-v2",
+      "note": "signature tampered (first byte changed)",
+      "checkpoint": {
+        "format": "akac-audit-checkpoint/2",
+        "stream": "acme",
+        "treeSize": 8,
+        "rootHash": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+        "issuedAt": 1800000000000,
+        "keyId": "vector-key",
+        "signature": "AkaKedLWOyfe-hyNcDDPRnQsnVWqEonDfI_4KlTqwylJfAOGGqr4_4HanjG3OHlkiA7_tYAYCRvSnBguFWB5Ag"
+      },
+      "publicKey": {
+        "crv": "Ed25519",
+        "x": "W1jNvzyw3edyDZLXAOSnT6LZU8CJKKWPqe9VXsa9rfU",
+        "kty": "OKP"
+      },
+      "stream": "acme",
+      "keyId": "vector-key",
+      "expected": false
+    },
+    {
+      "id": "E47",
+      "kind": "checkpoint-v2",
+      "note": "rootHash changed after signing",
+      "checkpoint": {
+        "format": "akac-audit-checkpoint/2",
+        "stream": "acme",
+        "treeSize": 8,
+        "rootHash": "0dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+        "issuedAt": 1800000000000,
+        "keyId": "vector-key",
+        "signature": "ckaKedLWOyfe-hyNcDDPRnQsnVWqEonDfI_4KlTqwylJfAOGGqr4_4HanjG3OHlkiA7_tYAYCRvSnBguFWB5Ag"
+      },
+      "publicKey": {
+        "crv": "Ed25519",
+        "x": "W1jNvzyw3edyDZLXAOSnT6LZU8CJKKWPqe9VXsa9rfU",
+        "kty": "OKP"
+      },
+      "stream": "acme",
+      "keyId": "vector-key",
+      "expected": false
+    },
+    {
+      "id": "E48",
+      "kind": "checkpoint-v2",
+      "note": "treeSize changed after signing",
+      "checkpoint": {
+        "format": "akac-audit-checkpoint/2",
+        "stream": "acme",
+        "treeSize": 9,
+        "rootHash": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+        "issuedAt": 1800000000000,
+        "keyId": "vector-key",
+        "signature": "ckaKedLWOyfe-hyNcDDPRnQsnVWqEonDfI_4KlTqwylJfAOGGqr4_4HanjG3OHlkiA7_tYAYCRvSnBguFWB5Ag"
+      },
+      "publicKey": {
+        "crv": "Ed25519",
+        "x": "W1jNvzyw3edyDZLXAOSnT6LZU8CJKKWPqe9VXsa9rfU",
+        "kty": "OKP"
+      },
+      "stream": "acme",
+      "keyId": "vector-key",
+      "expected": false
+    },
+    {
+      "id": "E49",
+      "kind": "checkpoint-v2",
+      "note": "rollback: tree size below the size already trusted",
+      "checkpoint": {
+        "format": "akac-audit-checkpoint/2",
+        "stream": "acme",
+        "treeSize": 8,
+        "rootHash": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+        "issuedAt": 1800000000000,
+        "keyId": "vector-key",
+        "signature": "ckaKedLWOyfe-hyNcDDPRnQsnVWqEonDfI_4KlTqwylJfAOGGqr4_4HanjG3OHlkiA7_tYAYCRvSnBguFWB5Ag"
+      },
+      "publicKey": {
+        "crv": "Ed25519",
+        "x": "W1jNvzyw3edyDZLXAOSnT6LZU8CJKKWPqe9VXsa9rfU",
+        "kty": "OKP"
+      },
+      "stream": "acme",
+      "keyId": "vector-key",
+      "minimumSize": 9,
+      "expected": false
+    },
+    {
+      "id": "E50",
+      "kind": "checkpoint-v2",
+      "note": "checkpoint of another stream",
+      "checkpoint": {
+        "format": "akac-audit-checkpoint/2",
+        "stream": "acme",
+        "treeSize": 8,
+        "rootHash": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+        "issuedAt": 1800000000000,
+        "keyId": "vector-key",
+        "signature": "ckaKedLWOyfe-hyNcDDPRnQsnVWqEonDfI_4KlTqwylJfAOGGqr4_4HanjG3OHlkiA7_tYAYCRvSnBguFWB5Ag"
+      },
+      "publicKey": {
+        "crv": "Ed25519",
+        "x": "W1jNvzyw3edyDZLXAOSnT6LZU8CJKKWPqe9VXsa9rfU",
+        "kty": "OKP"
+      },
+      "stream": "other",
+      "keyId": "vector-key",
+      "expected": false
+    },
+    {
+      "id": "E51",
+      "kind": "obligations",
+      "input": [
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-a"
+          ]
+        },
+        {
+          "type": "destination_restricted",
+          "value": [
+            "partner-b"
+          ]
+        }
+      ],
+      "expected": null,
+      "note": "conflicting destination restrictions with an empty intersection are unsatisfiable: UNSUPPORTED_OBLIGATION"
+    },
+    {
+      "id": "L01",
+      "kind": "decision",
+      "description": "Baseline: an artifact derived from a normal document is readable",
+      "binding": "chief",
+      "resource": "art",
+      "action": "read",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "art",
+          {
+            "id": "art",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "artifact",
+            "origin": "model",
+            "content": "Derived synthetic text.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "L02",
+      "kind": "decision",
+      "description": "A quarantined record is invisible (R-LIFE-1)",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          "lifecycle",
+          "quarantined"
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "L03",
+      "kind": "decision",
+      "description": "A quarantined ancestor denies derive on a descendant (R-LIFE-2)",
+      "binding": "chief",
+      "resource": "art",
+      "action": "derive",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "art",
+          {
+            "id": "art",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "artifact",
+            "origin": "model",
+            "content": "Derived synthetic text.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          "lifecycle",
+          "quarantined"
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "L04",
+      "kind": "decision",
+      "description": "A quarantined grandparent denies share on a grandchild (R-LIFE-2)",
+      "binding": "chief",
+      "resource": "art2",
+      "action": "share",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "art",
+          {
+            "id": "art",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "artifact",
+            "origin": "model",
+            "content": "Derived synthetic text.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "art2",
+          {
+            "id": "art2",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "artifact",
+            "origin": "model",
+            "content": "Derived synthetic text.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "art",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          "lifecycle",
+          "quarantined"
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "L05",
+      "kind": "decision",
+      "description": "An erased source denies export of a descendant (R-LIFE-10)",
+      "binding": "chief",
+      "resource": "art",
+      "action": "export",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "art",
+          {
+            "id": "art",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "artifact",
+            "origin": "model",
+            "content": "Derived synthetic text.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "handbook",
+          "lifecycle",
+          "erased"
+        ],
+        [
+          "knowledge",
+          "handbook",
+          "content",
+          ""
+        ],
+        [
+          "knowledge",
+          "handbook",
+          "active",
+          false
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "L06",
+      "kind": "decision",
+      "description": "An unknown lifecycle value fails closed (R-LIFE-1)",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          "lifecycle",
+          "archived"
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    },
+    {
+      "id": "L07",
+      "kind": "decision",
+      "description": "A passed retention deadline and a legal hold do not change access (R-LIFE-12)",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "handbook",
+          "retainUntil",
+          1
+        ],
+        [
+          "knowledge",
+          "handbook",
+          "legalHolds",
+          [
+            "matter-1"
+          ]
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "L08",
+      "kind": "decision",
+      "description": "write_memory from a quarantined memory source is denied",
+      "binding": "chief",
+      "resource": "mem",
+      "action": "write_memory",
+      "purpose": "work",
+      "clock": 1800000000000,
+      "patch": [
+        [
+          "knowledge",
+          "mem",
+          {
+            "id": "mem",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "memory",
+            "origin": "model",
+            "content": "Derived synthetic text.",
+            "classification": "public",
+            "projects": [],
+            "readerRoles": [
+              "staff"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "handbook",
+                "version": 1
+              }
+            ],
+            "active": true,
+            "lifecycle": "quarantined",
+            "quarantineReason": "memory_review"
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "KNOWLEDGE_BOUNDARY"
+      }
+    }
+  ]
+}

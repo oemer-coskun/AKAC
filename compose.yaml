@@ -106,6 +106,13 @@ services:
       AKAC_ALLOW_HASH_EMBEDDER: "true"
       AKAC_EMBEDDINGS_URL: ${AKAC_EMBEDDINGS_URL:-}
       AKAC_EMBEDDINGS_MODEL: ${AKAC_EMBEDDINGS_MODEL:-}
+      # Optional AuthZEN PDP listener for trusted enforcement points (docs/AUTHZEN.md); off unless enabled.
+      # Enable by setting AKAC_AUTHZEN_PORT=8789 and AKAC_AUTHZEN_HOST=0.0.0.0 together with a PEP credential file that is mounted in the
+      # container (distinct tokens from the agent and admin files), and publish the port on loopback below.
+      AKAC_AUTHZEN_PORT: ${AKAC_AUTHZEN_PORT:-}
+      AKAC_AUTHZEN_HOST: ${AKAC_AUTHZEN_HOST:-}
+      AKAC_AUTHZEN_CREDENTIALS_FILE: ${AKAC_AUTHZEN_CREDENTIALS_FILE:-}
+      AKAC_AUTHZEN_REASONS: ${AKAC_AUTHZEN_REASONS:-}
     secrets: [pg_app_password]
     volumes: [credentials:/app/data:ro]
     ports:

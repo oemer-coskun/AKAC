@@ -3,10 +3,14 @@ import type { Audit, State, Store, Tx } from './types.ts';
 import { emptyState, SCHEMA, upgradeState } from './types.ts';
 import { verifyAudit, verifyLegacyAudit } from './audit.ts';
 import { countSodHolders } from './policy.ts';
+import { treeFromEntries } from './evidence.ts';
+import type { NodeKey } from './merkle.ts';
 import { validId } from './validation.ts';
 
-const COLLECTIONS = ['actors', 'grants', 'knowledge', 'contexts', 'roles', 'groups', 'containers', 'constraints'] as const;
-const complete = (state: State, tenant: string): Tx => ({ state, complete: true, load: async () => {},
+const COLLECTIONS = ['actors', 'grants', 'knowledge', 'contexts', 'roles', 'groups', 'containers', 'constraints', 'destinations'] as const;
+/** A collection of a snapshot; `destinations` (0.4) is absent from 0.3 snapshots. */
+const records = (s: State, collection: typeof COLLECTIONS[number]): Record<string, { id?: unknown; tenant?: unknown }> => (s[collection] ?? {}) as Record<string, { id?: unknown; tenant?: unknown }>;
+const complete = (state: State, tenant: string): Tx => (state.destinations ??= {}, { state, complete: true, load: async () => {},
   countSodHolders: async query => countSodHolders(state, tenant, query) });
 const blank = (policyVersion: string): State => ({ ...emptyState(), policyVersion });
 const sound = (shard: State) => shard.schema === SCHEMA && verifyAudit(shard.audits);
@@ -26,7 +30,7 @@ function split(state: State): Map<string, State> {
     return s;
   };
   for (const collection of COLLECTIONS) {
-    for (const [id, record] of Object.entries(state[collection])) (of(record?.tenant)[collection] as Record<string, unknown>)[id] = record;
+    for (const [id, record] of Object.entries(records(state, collection))) ((of(record?.tenant)[collection] ??= {}) as Record<string, unknown>)[id] = record;
   }
   for (const [tenant, epoch] of Object.entries(state.epochs)) of(tenant).epochs[tenant] = epoch;
   for (const audit of state.audits) of(audit.tenant).audits.push(audit);
@@ -35,7 +39,7 @@ function split(state: State): Map<string, State> {
 /** A tenant transaction may only write its own tenant (the same rule the PostgreSQL adapter enforces at flush). */
 function confine(s: State, tenant: string): void {
   for (const collection of COLLECTIONS) {
-    for (const [id, record] of Object.entries(s[collection] as Record<string, { id?: unknown; tenant?: unknown }>)) {
+    for (const [id, record] of Object.entries(records(s, collection))) {
       if (record?.tenant !== tenant || record.id !== id) throw new Error('Cross-tenant write');
     }
   }
@@ -71,6 +75,8 @@ export class MemoryStore implements Store {
     return [...this.shards.values()].every(sound) && (!this.legacy || verifyLegacyAudit(this.legacy));
   }
   async auditLog(tenant: string, after = 0, limit = Number.MAX_SAFE_INTEGER): Promise<Audit[]> { return stream(this.shards.get(tenant), after, limit); }
+  /** Recomputed from the stream (O(n)); this store is for tests and single-process use. */
+  async auditTree(tenant: string, keys: NodeKey[]) { return treeFromEntries(this.shards.get(tenant)?.audits ?? [], keys); }
   async close() { await this.tail; }
 }
 
@@ -146,6 +152,8 @@ export class SqliteStore implements Store {
     } catch { return false; }
   }
   async auditLog(tenant: string, after = 0, limit = Number.MAX_SAFE_INTEGER): Promise<Audit[]> { this.meta(); return stream(this.shard(tenant), after, limit); }
+  /** Recomputed from the tenant row (O(n)); developer mode only. */
+  async auditTree(tenant: string, keys: NodeKey[]) { this.meta(); return treeFromEntries(this.shard(tenant)?.audits ?? [], keys); }
   async close() { await this.tail; this.db.close(); }
 }
 
@@ -156,12 +164,12 @@ export class SqliteStore implements Store {
 export async function importState(store: Store, source: State): Promise<void> {
   const state = upgradeState(structuredClone(source));
   const tenants = new Set<string>(Object.keys(state.epochs));
-  for (const collection of COLLECTIONS) for (const record of Object.values(state[collection])) tenants.add(record.tenant);
+  for (const collection of COLLECTIONS) for (const record of Object.values(records(state, collection))) tenants.add(String(record.tenant));
   for (const tenant of [...tenants].sort()) await store.transaction(tenant, async tx => {
     await tx.load({ epoch: true });
     for (const collection of COLLECTIONS) {
-      const target = tx.state[collection] as Record<string, unknown>;
-      for (const [id, record] of Object.entries(state[collection])) if (record.tenant === tenant) target[id] = structuredClone(record);
+      const target = (tx.state[collection] ??= {}) as Record<string, unknown>;
+      for (const [id, record] of Object.entries(records(state, collection))) if (record.tenant === tenant) target[id] = structuredClone(record);
     }
     if (state.epochs[tenant] !== undefined) tx.state.epochs[tenant] = state.epochs[tenant];
   });

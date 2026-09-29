@@ -174,3 +174,17 @@ test('configuration: every problem is reported up front', () => {
     assert.throws(() => loadConfig({ AKAC_CREDENTIALS_FILE: file('empty.json', []) }), /non-empty array/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('metrics: authzen and lifecycle operations are in closed label sets; unknown names fold to other', () => {
+  const m = new Metrics();
+  m.onEvent({ type: 'decision', tenant: 'acme', operation: 'authzen_evaluate', allowed: true, reason: 'AUTHORIZED' });
+  m.onEvent({ type: 'decision', tenant: 'acme', operation: 'write_memory', allowed: false, reason: 'DENIED:X' });
+  m.admin('erase', 'conflict'); m.admin('quarantine', 'ok'); m.admin('scim_get_user', 'ok'); m.admin('attacker-' + 'x'.repeat(200), 'ok'); m.admin('made_up_operation', 'ok');
+  const { samples } = parse(m.expose());
+  assert.equal(find(samples, 'akac_decisions_total', { operation: 'authzen_evaluate', allowed: 'true', reason_class: 'authorized' })[0]!.value, 1);
+  assert.equal(find(samples, 'akac_decisions_total', { operation: 'write_memory' })[0]!.value, 1);
+  assert.equal(find(samples, 'akac_lifecycle_operations_total', { operation: 'erase', result: 'conflict' })[0]!.value, 1);
+  assert.equal(find(samples, 'akac_lifecycle_operations_total').length, 2, 'only lifecycle operations reach the lifecycle counter');
+  assert.equal(find(samples, 'akac_admin_operations_total', { operation: 'other' })[0]!.value, 2);
+  assert.equal(find(samples, 'akac_admin_operations_total', { operation: 'scim_get_user' })[0]!.value, 1);
+});

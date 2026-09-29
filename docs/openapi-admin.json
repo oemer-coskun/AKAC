@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AKAC Reference Admin and SCIM API",
-    "version": "0.3.0",
-    "description": "Operator-facing API on its own listener (default port 8788). Credentials are administrator identities bound to a tenant and an admin actor; agent credentials are rejected and admin credentials are rejected on the agent listener. Authority is the admin actor's standing role (security-admin, kb-admin, auditor), enforced and audited on every call. The tenant always comes from the credential. Exactly one authentication mode is configured: opaque tokens (SHA-256 digested) or verified at+jwt with an audience distinct from the agent API. Limits are per process."
+    "version": "0.4.0",
+    "description": "Operator-facing API on its own listener (default port 8788). Credentials are administrator identities bound to a tenant and an admin actor; agent credentials are rejected and admin credentials are rejected on the agent listener. Authority is the admin actor's standing role (security-admin, kb-admin, auditor), enforced and audited on every call. The tenant always comes from the credential. Exactly one authentication mode is configured: opaque tokens (SHA-256 digested) or verified at+jwt with an audience distinct from the agent API. Limits are per process. Every failure that reached the control plane carries the audited `decisionId`. A valid W3C `traceparent` request header is recorded (its trace id only) with the audited decision."
   },
   "servers": [
     {
@@ -4114,6 +4114,2488 @@
           }
         }
       }
+    },
+    "/admin/v1/audit/checkpoint": {
+      "get": {
+        "operationId": "auditCheckpoint",
+        "summary": "Current tree head and, when a checkpoint key is configured, its format 2 signature",
+        "description": "Requires auditor. Returns the RFC 9162 tree head of the tenant audit stream (including this read's own audit entry). The checkpoint is signed by a server-held Ed25519 key (AKAC_CHECKPOINT_KEY_FILE) and attests only what this server saw; anchor checkpoints signed with an offline key (scripts/checkpoint.ts) for independent evidence. No query parameters.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "dpopAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Current tree head and, when a checkpoint key is configured, its format 2 signature",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "$ref": "#/components/schemas/TreeHead"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST",
+                  "decisionId": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/audit/proof": {
+      "get": {
+        "operationId": "auditProof",
+        "summary": "RFC 9162 inclusion proof of one audit entry",
+        "description": "Requires auditor. Proves that the entry with sequence leafIndex + 1 is in the tree of the first treeSize entries. Both parameters are required unsigned decimal integers with leafIndex < treeSize <= current stream size; anything else is 400 (audited when it reached the control plane). Verify with the checkpoint of the same treeSize.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "dpopAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "leafIndex",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 999999999999999
+            }
+          },
+          {
+            "name": "treeSize",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RFC 9162 inclusion proof of one audit entry",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "$ref": "#/components/schemas/InclusionProof"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST",
+                  "decisionId": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/audit/consistency": {
+      "get": {
+        "operationId": "auditConsistency",
+        "summary": "RFC 9162 consistency proof between two tree sizes",
+        "description": "Requires auditor. Proves that the tree of `second` entries extends the tree of `first` entries (1 <= first <= second <= current stream size). Both parameters are required unsigned decimal integers.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "dpopAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "first",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
+            }
+          },
+          {
+            "name": "second",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RFC 9162 consistency proof between two tree sizes",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "$ref": "#/components/schemas/ConsistencyProof"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST",
+                  "decisionId": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}/quarantine": {
+      "post": {
+        "operationId": "quarantine",
+        "summary": "Quarantine a record and, by traversal, its whole lineage",
+        "description": "Requires kb-admin or security-admin. The record and every record whose provenance includes it become invisible to every gate until released. Advances the tenant epoch. Idempotent; an erased record is 409. With a vector index the lineage chunks are dropped.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "$ref": "#/components/schemas/QuarantineReason"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Quarantined",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "epoch"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative change succeeded but the vector index lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record is erased",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}/release": {
+      "post": {
+        "operationId": "release",
+        "summary": "Release a quarantined record",
+        "description": "Requires security-admin (separation of duty from the kb-admin who may quarantine). Idempotent; advances the tenant epoch. With a vector index the lineage is re-indexed where eligible.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Released",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "epoch"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative change succeeded but the vector index lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record is erased",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}/descendants": {
+      "get": {
+        "operationId": "listDescendants",
+        "summary": "Blast radius of a record",
+        "description": "Requires auditor or security-admin. Metadata of every record whose provenance includes the id (transitively), sorted by id.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Descendants",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "records",
+                        "truncated"
+                      ],
+                      "properties": {
+                        "records": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/LineageRecord"
+                          }
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}/revoke-lineage": {
+      "post": {
+        "operationId": "revokeLineage",
+        "summary": "Revoke a record and deactivate its lineage",
+        "description": "Requires security-admin. Idempotent; advances the tenant epoch. Beyond 1000 records the denial stays lazy and nothing is changed.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "revoked",
+                        "epoch"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        },
+                        "revoked": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative change succeeded but the vector index lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}/reinstate": {
+      "post": {
+        "operationId": "reinstate",
+        "summary": "Reinstate a revoked record",
+        "description": "Requires security-admin. Lifts a revocation made by POST /admin/v1/revoke (knowledge) or revoke-lineage: clears revokedAt and reactivates this record only (not its lineage). Until then a new document version with active true is 409 (a kb-admin cannot undo a security revocation). Idempotent; advances the tenant epoch when it changes the record; an erased record is 409. With a vector index the record is re-indexed where eligible.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reinstated",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "epoch"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative change succeeded but the vector index lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record is erased",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}/legal-holds/{holdId}": {
+      "put": {
+        "operationId": "setLegalHold",
+        "summary": "Place a legal hold on a record",
+        "description": "Requires security-admin. A hold blocks erasure and retention of the record and of its ancestors in any lineage. Idempotent; at most 64 holds per record.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "holdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Held",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "holds"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "holds": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record is erased or has too many holds",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "liftLegalHold",
+        "summary": "Lift one legal hold",
+        "description": "Requires security-admin. Idempotent.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "holdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lifted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "holds"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "holds": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record is erased",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/knowledge/{id}/erase": {
+      "post": {
+        "operationId": "eraseKnowledge",
+        "summary": "Erase a record (GDPR Art. 17) and, by default, its lineage",
+        "description": "Requires security-admin. Tombstones the record and, with cascade (default true), every record derived from it. A legal hold on the record or any descendant is 409 with `held` and nothing is erased; without cascade a live descendant is 409. Audit entries are kept, content-free. Idempotent; advances the tenant epoch.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "cascade": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Erased",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "erased",
+                        "epoch"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        },
+                        "erased": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative change succeeded but the vector index lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A legal hold (`held`) or, without cascade, a live descendant blocks the erasure",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "CONFLICT",
+                  "held": 1,
+                  "decisionId": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/retention/apply": {
+      "post": {
+        "operationId": "applyRetention",
+        "summary": "Erase records past their retention deadline",
+        "description": "Requires security-admin. Erases, with cascade, records whose retainUntil is at or before now and that are not under legal hold, at most `limit` per call, ordered by id after `after`. Repeat with `after: next` until next is absent. Each erasure is its own audited decision.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "now": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "after": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value",
+                    "decisionId"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "required": [
+                        "erased",
+                        "held",
+                        "deferred"
+                      ],
+                      "properties": {
+                        "erased": {
+                          "type": "integer"
+                        },
+                        "held": {
+                          "type": "integer"
+                        },
+                        "deferred": {
+                          "type": "integer"
+                        },
+                        "next": {
+                          "$ref": "#/components/schemas/Id"
+                        }
+                      }
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The authoritative change succeeded but the vector index lagged; run POST /admin/v1/index/reconcile. Only when a vector index is configured.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "code",
+                    "id",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "code": {
+                      "const": "INDEX_PENDING"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "decisionId": {
+                      "$ref": "#/components/schemas/DecisionId"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, or an unknown record",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/v1/destinations/{id}": {
+      "put": {
+        "operationId": "putDestination",
+        "summary": "Create or replace a destination profile (0.4)",
+        "description": "Requires security-admin. A destination is a tenant-scoped egress target class with the highest classification it may receive and the purposes it may receive it for; recipients reference it through Actor.destination. Tenant comes from the credential; a body tenant or id, if present, must match. An update advances the tenant epoch. Only present when the control plane implements destination profiles; otherwise 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope, unknown key, tenant or id mismatch, or a value the control plane rejects",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Destination profiles are not implemented by this control plane",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT (existing record, wrong version, wrong kind) or SOD_VIOLATION (separation of duty)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the limit (256 KiB; 4 MiB for documents)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or transaction failure; nothing was changed",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getDestination",
+        "summary": "Read a destination profile (0.4)",
+        "description": "Requires security-admin or auditor (audited). Returns the tenant's profile; 404 NOT_FOUND when the id is absent in this tenant or destination profiles are not implemented.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The profile",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "value"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "value": {
+                      "$ref": "#/components/schemas/DestinationBody"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid administrator credential",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "const": "UNAUTHENTICATED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The administrator lacks the required standing role (audited)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_AUTHORIZED"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found in this tenant",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                },
+                "example": {
+                  "ok": false,
+                  "code": "NOT_FOUND"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (240 per minute per administrator, per process)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4122,6 +6604,11 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Opaque administrator token (at least 32 characters) or an at+jwt for the admin audience."
+      },
+      "dpopAuth": {
+        "type": "http",
+        "scheme": "dpop",
+        "description": "Optional sender-constrained access token (RFC 9449). Send `Authorization: DPoP <access token>` and a `DPoP` proof header (compact JWS, typ dpop+jwt, ES256, EdDSA or PS256, public jwk in the header, htm, htu without query, iat, unique jti, ath = base64url SHA-256 of the access token). The access token must carry cnf.jkt equal to the RFC 7638 thumbprint of the proof key. Enabled per listener with AKAC_DPOP or AKAC_ADMIN_DPOP (off, optional, required); when required, Bearer is refused, and a token with cnf.jkt is never accepted as Bearer. Server nonces (DPoP-Nonce) are not supported. A refusal is 401 with a WWW-Authenticate DPoP challenge (error invalid_dpop_proof or invalid_token)."
       }
     },
     "headers": {
@@ -4170,6 +6657,16 @@
             "type": "integer",
             "minimum": 1,
             "description": "SOD_VIOLATION from a role or constraint change only: how many currently valid principals the change would invalidate. Identities are never returned."
+          },
+          "decisionId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "description": "UUIDv4 of the audited control-plane decision, when the attempt reached one."
+          },
+          "held": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "CONFLICT from erase only: how many records of the lineage are under legal hold. Identities are never returned."
           }
         }
       },
@@ -4479,6 +6976,11 @@
           },
           "container": {
             "$ref": "#/components/schemas/Id"
+          },
+          "retainUntil": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Epoch milliseconds. From this time the retention job (POST /admin/v1/retention/apply) erases the record unless it is under legal hold."
           }
         }
       },
@@ -4561,59 +7063,237 @@
         }
       },
       "AuditEntry": {
-        "type": "object",
-        "required": [
-          "sequence",
-          "time",
-          "tenant",
-          "actor",
-          "operation",
-          "decision",
-          "reason",
-          "policyVersion",
-          "epoch",
-          "previous",
-          "hash"
-        ],
-        "properties": {
-          "sequence": {
-            "type": "integer",
-            "minimum": 1
+        "description": "One entry of a tenant audit stream. Format 1 (no formatVersion): hash = SHA-256 of sorted-key JSON of the other members. Format 2: hash = SHA-256 of the RFC 8785 (JCS) form of the other members. Both: previous = hash of the preceding entry of the stream (GENESIS = 64 zeros); RFC 9162 leaf = SHA-256(0x00 || JCS(entry)).",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sequence",
+              "time",
+              "tenant",
+              "actor",
+              "operation",
+              "decision",
+              "reason",
+              "policyVersion",
+              "epoch",
+              "previous",
+              "hash"
+            ],
+            "properties": {
+              "sequence": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "time": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tenant": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
+              },
+              "actor": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "operation": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "decision": {
+                "enum": [
+                  "allow",
+                  "deny"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "policyVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "epoch": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "previous": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
           },
-          "time": {
-            "type": "integer"
-          },
-          "tenant": {
-            "type": "string"
-          },
-          "actor": {
-            "type": "string"
-          },
-          "operation": {
-            "type": "string"
-          },
-          "decision": {
-            "enum": [
-              "allow",
-              "deny"
-            ]
-          },
-          "reason": {
-            "type": "string"
-          },
-          "policyVersion": {
-            "type": "string"
-          },
-          "epoch": {
-            "type": "integer"
-          },
-          "previous": {
-            "type": "string"
-          },
-          "hash": {
-            "type": "string"
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sequence",
+              "time",
+              "tenant",
+              "actor",
+              "operation",
+              "decision",
+              "reason",
+              "policyVersion",
+              "epoch",
+              "previous",
+              "hash",
+              "formatVersion",
+              "decisionId",
+              "reasonCode",
+              "policyDigest",
+              "obligations"
+            ],
+            "properties": {
+              "sequence": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "time": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tenant": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
+              },
+              "actor": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "operation": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "decision": {
+                "enum": [
+                  "allow",
+                  "deny"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "policyVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "epoch": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "previous": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "formatVersion": {
+                "const": 2
+              },
+              "decisionId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "description": "UUIDv4"
+              },
+              "reasonCode": {
+                "enum": [
+                  "AUTHORIZED",
+                  "PROTECTED_DERIVATION",
+                  "AUTHORIZED_RECIPIENT",
+                  "ATTENUATED",
+                  "IDEMPOTENT_REPLAY",
+                  "INVALID_REQUEST",
+                  "NOT_AUTHORIZED",
+                  "INVALID_CONTEXT",
+                  "IDENTITY_BOUNDARY",
+                  "INVALID_DELEGATION",
+                  "OUT_OF_SCOPE",
+                  "UNSUPPORTED_OBLIGATION",
+                  "SOD_VIOLATION",
+                  "KNOWLEDGE_BOUNDARY",
+                  "POLICY_DENIED",
+                  "POLICY_UNAVAILABLE",
+                  "STALE_CONTEXT",
+                  "STALE_SOURCE",
+                  "EXPIRED",
+                  "RECIPIENT",
+                  "CANDIDATES_UNAVAILABLE",
+                  "BUDGET_EXCEEDED",
+                  "STORE_ERROR",
+                  "NOT_ADMIN",
+                  "CONFLICT",
+                  "IDEMPOTENCY_KEY_REUSED"
+                ]
+              },
+              "policyDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "obligations": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "$ref": "#/components/schemas/Obligation"
+                }
+              },
+              "runId": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "not": {
+                  "enum": [
+                    "constructor",
+                    "prototype",
+                    "__proto__"
+                  ]
+                }
+              },
+              "traceId": {
+                "type": "string",
+                "pattern": "^(?!0{32}$)[0-9a-f]{32}$",
+                "description": "W3C Trace Context trace-id"
+              }
+            }
           }
-        }
+        ]
       },
       "ScimError": {
         "type": "object",
@@ -4892,6 +7572,407 @@
             }
           }
         }
+      },
+      "Obligation": {
+        "description": "Closed AKAC 0.4 obligation set (draft-aligned with the AuthZEN obligations working-group draft; not a conformance claim). A PEP that cannot enforce every obligation of an allow MUST treat it as a deny.",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "audit_level"
+              },
+              "value": {
+                "const": "full"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "max_context_ttl_ms"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "const": "no_persist"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "destination_restricted"
+              },
+              "value": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 64,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                  "not": {
+                    "enum": [
+                      "constructor",
+                      "prototype",
+                      "__proto__"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Checkpoint": {
+        "description": "Signed audit checkpoint. Format 2 signs the JCS form of {format, stream, treeSize, rootHash, issuedAt, keyId} with Ed25519; rootHash is the RFC 9162 root of the first treeSize entries. Format 1 (0.2-0.3) remains verifiable.",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "format",
+              "stream",
+              "sequence",
+              "hash",
+              "issuedAt",
+              "keyId",
+              "signature"
+            ],
+            "properties": {
+              "format": {
+                "const": "akac-audit-checkpoint/1"
+              },
+              "stream": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "sequence": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "issuedAt": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "keyId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "signature": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{86}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "format",
+              "stream",
+              "treeSize",
+              "rootHash",
+              "issuedAt",
+              "keyId",
+              "signature"
+            ],
+            "properties": {
+              "format": {
+                "const": "akac-audit-checkpoint/2"
+              },
+              "stream": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "treeSize": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "rootHash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "issuedAt": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "keyId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "signature": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{86}$"
+              }
+            }
+          }
+        ]
+      },
+      "InclusionProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stream",
+          "leafIndex",
+          "treeSize",
+          "leafHash",
+          "rootHash",
+          "path"
+        ],
+        "properties": {
+          "stream": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "leafIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "treeSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "leafHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "rootHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "path": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "description": "RFC 9162 §2.1.3 inclusion proof; leafIndex = sequence - 1. Verify against a trusted checkpoint."
+      },
+      "ConsistencyProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stream",
+          "first",
+          "second",
+          "firstRoot",
+          "secondRoot",
+          "path"
+        ],
+        "properties": {
+          "stream": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "first": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "second": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "firstRoot": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "secondRoot": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "path": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "description": "RFC 9162 §2.1.4 consistency proof between two sizes of one tenant stream."
+      },
+      "TreeHead": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "head"
+        ],
+        "properties": {
+          "head": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "stream",
+              "treeSize",
+              "rootHash"
+            ],
+            "properties": {
+              "stream": {
+                "type": "string"
+              },
+              "treeSize": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "rootHash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          },
+          "checkpoint": {
+            "$ref": "#/components/schemas/Checkpoint",
+            "description": "Format 2, present when the server is configured with a checkpoint key."
+          }
+        }
+      },
+      "DecisionId": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        "description": "UUIDv4 of the audited decision; the audit entry carries the same id."
+      },
+      "QuarantineReason": {
+        "enum": [
+          "suspected_poisoning",
+          "scanner",
+          "scanner_unavailable",
+          "memory_review",
+          "incident"
+        ]
+      },
+      "LineageRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "kind",
+          "classification",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "document",
+              "memory",
+              "artifact"
+            ]
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "lifecycle": {
+            "enum": [
+              "quarantined",
+              "erased"
+            ]
+          }
+        },
+        "description": "Metadata only: no content and no ACL."
+      },
+      "DestinationBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "class",
+          "maxClassification",
+          "purposes",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "class": {
+            "enum": [
+              "internal-user",
+              "internal-service",
+              "model-provider",
+              "tool",
+              "external"
+            ]
+          },
+          "maxClassification": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "purposes": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "description": "The id must not equal a destination class name."
       }
     }
   }

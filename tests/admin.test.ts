@@ -1,3 +1,4 @@
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAdminGateway } from '../reference/admin.ts';
@@ -23,7 +24,7 @@ test('admin API: each route is authorized by the matching standing role', async 
     assert.equal((await call(tokens.sec, 'PUT', '/admin/v1/constraints/dsd-x', { kind: 'dynamic', roles: ['analyst', 'project'], cardinality: 2 })).status, 200);
     assert.equal((await call(tokens.sec, 'PUT', '/admin/v1/actors/newbie/roles', { roles: ['staff', 'analyst'] })).status, 200);
     const denied = await call(tokens.kb, 'PUT', '/admin/v1/actors/newbie/roles', { roles: ['staff'] });
-    assert.equal(denied.status, 403); assert.deepEqual(await denied.json(), { ok: false, code: 'NOT_AUTHORIZED' });
+    assert.equal(denied.status, 403); assert.deepEqual(bare(await denied.json()), { ok: false, code: 'NOT_AUTHORIZED' });
     const doc = { version: 1, kind: 'document', origin: 'human', content: 'Synthetic onboarding note.', classification: 'internal', projects: [], readerRoles: ['staff'], readers: [], sources: [], active: true, container: 'kb-new' };
     assert.equal((await call(tokens.kb, 'PUT', '/admin/v1/knowledge/onboarding', doc)).status, 200);
     assert.equal((await call(tokens.kb, 'PUT', '/admin/v1/knowledge/onboarding', doc)).status, 409, 'versions are monotonic');
@@ -66,7 +67,7 @@ test('admin API: static separation of duty rejects role assignment with 409', as
   const { call, stop } = await start();
   try {
     const r = await call(tokens.sec, 'PUT', '/admin/v1/actors/intern/roles', { roles: ['requester', 'approver'] });
-    assert.equal(r.status, 409); assert.deepEqual(await r.json(), { ok: false, code: 'SOD_VIOLATION' });
+    assert.equal(r.status, 409); assert.deepEqual(bare(await r.json()), { ok: false, code: 'SOD_VIOLATION' });
     assert.equal((await call(tokens.sec, 'PUT', '/admin/v1/actors/intern/roles', { roles: ['requester'] })).status, 200);
     assert.equal((await call(tokens.sec, 'PUT', '/admin/v1/actors/intern/roles', { roles: ['requester'], extra: 1 })).status, 400);
     assert.equal((await call(tokens.sec, 'PUT', '/admin/v1/actors/ghost/roles', { roles: ['staff'] })).status, 400);
@@ -141,14 +142,14 @@ test('admin API: envelopes, limits and headers', async () => {
 test('admin API: an ingestor takes over document writes and removal', async () => {
   const calls: string[] = [];
   const ingestor = {
-    ingest: async (tenant: string, admin: string, d: Knowledge) => { calls.push(`ingest:${tenant}:${admin}:${d.id}`); return { ok: true as const, value: { id: d.id, version: d.version, chunks: 3 } }; },
-    remove: async (tenant: string, admin: string, id: string) => { calls.push(`remove:${tenant}:${admin}:${id}`); return { ok: true as const, value: null }; }
+    ingest: async (tenant: string, admin: string, d: Knowledge) => { calls.push(`ingest:${tenant}:${admin}:${d.id}`); return { ok: true as const, value: { id: d.id, version: d.version, chunks: 3 }, decisionId: 'test-decision' }; },
+    remove: async (tenant: string, admin: string, id: string) => { calls.push(`remove:${tenant}:${admin}:${id}`); return { ok: true as const, value: null, decisionId: 'test-decision' }; }
   };
   const { call, stop } = await start({ admin: { ingestor } });
   try {
     const doc = { version: 1, kind: 'document', origin: 'human', content: 'x', classification: 'public', projects: [], readerRoles: [], readers: [], sources: [], active: true };
     const r = await call(tokens.kb, 'PUT', '/admin/v1/knowledge/d1', { ...doc, tenant: 'acme' });
-    assert.deepEqual(await r.json(), { ok: true, value: { id: 'd1', version: 1, chunks: 3 } });
+    assert.deepEqual(bare(await r.json()), { ok: true, value: { id: 'd1', version: 1, chunks: 3 } });
     assert.equal((await call(tokens.kb, 'DELETE', '/admin/v1/knowledge/d1')).status, 200);
     assert.deepEqual(calls, ['ingest:acme:kbadm:d1', 'remove:acme:kbadm:d1']);
   } finally { await stop(); }

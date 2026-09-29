@@ -1,3 +1,4 @@
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
@@ -90,7 +91,7 @@ const attacks: Record<string, [Binding, string, (s: State) => void]> = {
 };
 for (const [name, [binding, resource, mutate]] of Object.entries(attacks)) test(`deny 0.3: ${name}`, async () => {
   const { engine } = setup(mutate);
-  assert.deepEqual(await engine.openContext(binding, [resource], 'work'), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await engine.openContext(binding, [resource], 'work')), { ok: false, code: 'NOT_AUTHORIZED' });
 });
 
 test('decision categories separate definite denial from unestablished authority', () => {
@@ -104,9 +105,9 @@ test('decision categories separate definite denial from unestablished authority'
 
 test('audit reasons carry the internal category; responses stay non-distinguishing', async () => {
   const { engine, store } = setup(s => { delete (s.knowledge.handbook as Partial<Knowledge>).origin; });
-  assert.deepEqual(await engine.openContext(bindings.intern, ['vault-memo'], 'work'), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await engine.openContext(bindings.intern, ['vault-memo'], 'work')), { ok: false, code: 'NOT_AUTHORIZED' });
   assert.equal(await lastReason(store), 'DENIED:KNOWLEDGE_BOUNDARY');
-  assert.deepEqual(await engine.openContext(bindings.intern, ['handbook'], 'work'), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await engine.openContext(bindings.intern, ['handbook'], 'work')), { ok: false, code: 'NOT_AUTHORIZED' });
   assert.equal(await lastReason(store), 'DEFERRED:INVALID_CONTEXT');
 });
 
@@ -171,15 +172,15 @@ test('candidate source: every candidate is re-checked; mismatches are dropped an
 test('control plane: role separation between security-admin, kb-admin and auditor', async () => {
   const { control, store } = setup(s => { s.actors['chief-agent']!.roles.push('security-admin'); });
   const role = { id: 'reviewer', tenant: 'acme', inherits: ['staff'], active: true };
-  assert.deepEqual(await control.upsertRole('acme', 'chief', role), { ok: false, code: 'NOT_AUTHORIZED' });
-  assert.deepEqual(await control.upsertRole('acme', 'kb-admin', role), { ok: false, code: 'NOT_AUTHORIZED' });
-  assert.deepEqual(await control.upsertRole('acme', 'chief-agent', role), { ok: false, code: 'NOT_AUTHORIZED' }, 'agents are never admins');
-  assert.deepEqual(await control.upsertRole('acme', 'o-admin', role), { ok: false, code: 'NOT_AUTHORIZED' }, 'cross-tenant admin');
+  assert.deepEqual(bare(await control.upsertRole('acme', 'chief', role)), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await control.upsertRole('acme', 'kb-admin', role)), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await control.upsertRole('acme', 'chief-agent', role)), { ok: false, code: 'NOT_AUTHORIZED' }, 'agents are never admins');
+  assert.deepEqual(bare(await control.upsertRole('acme', 'o-admin', role)), { ok: false, code: 'NOT_AUTHORIZED' }, 'cross-tenant admin');
   assert.ok((await control.upsertRole('acme', 'admin', role)).ok);
   const doc: Knowledge = { ...world().knowledge.handbook!, id: 'policy-doc', content: 'Synthetic policy', origin: 'human', container: 'kb-corporate' };
-  assert.deepEqual(await control.upsertKnowledge('acme', 'chief', doc), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await control.upsertKnowledge('acme', 'chief', doc)), { ok: false, code: 'NOT_AUTHORIZED' });
   assert.ok((await control.upsertKnowledge('acme', 'kb-admin', doc)).ok);
-  assert.deepEqual(await control.auditLog('acme', 'kb-admin'), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await control.auditLog('acme', 'kb-admin')), { ok: false, code: 'NOT_AUTHORIZED' });
   const log = await control.auditLog('acme', 'admin'); assert.ok(log.ok && verifyAudit(log.value));
   assert.ok(log.value.some(e => e.operation === 'upsert_role' && e.decision === 'deny' && e.reason === 'DENIED:NOT_ADMIN'));
   assert.equal((await store.auditLog('acme')).at(-1)!.operation, 'audit_read');
@@ -193,28 +194,28 @@ test('control plane: model content and malformed records never become authority'
     assert.equal((await control.upsertKnowledge('acme', 'admin', bad as Knowledge)).ok, false, JSON.stringify(bad).slice(0, 80));
   }
   assert.ok((await control.upsertKnowledge('acme', 'admin', base)).ok);
-  assert.deepEqual(await control.upsertKnowledge('acme', 'admin', base), { ok: false, code: 'CONFLICT' }, 'versions are monotonic');
+  assert.deepEqual(bare(await control.upsertKnowledge('acme', 'admin', base)), { ok: false, code: 'CONFLICT' }, 'versions are monotonic');
   assert.ok((await control.upsertKnowledge('acme', 'admin', { ...base, version: 2, classification: 'confidential' })).ok);
   const folder = { ...world().containers['f-vault']! };
-  assert.deepEqual(await control.upsertContainer('acme', 'admin', { ...folder, id: 'f-executive', parent: 'f-vault' }), { ok: false, code: 'INVALID_REQUEST' }, 'cycle');
-  assert.deepEqual(await control.upsertContainer('acme', 'admin', { ...world().containers['kb-corporate']!, id: 'kb-2', parent: 'kb-corporate' }), { ok: false, code: 'INVALID_REQUEST' });
-  assert.deepEqual(await control.upsertContainer('acme', 'admin', { ...folder, id: 'f-orphan', parent: 'missing' }), { ok: false, code: 'INVALID_REQUEST' });
-  assert.deepEqual(await control.upsertRole('acme', 'admin', { id: 'staff', tenant: 'acme', inherits: ['board'], active: true }), { ok: false, code: 'INVALID_REQUEST' }, 'hierarchy cycle');
+  assert.deepEqual(bare(await control.upsertContainer('acme', 'admin', { ...folder, id: 'f-executive', parent: 'f-vault' })), { ok: false, code: 'INVALID_REQUEST' }, 'cycle');
+  assert.deepEqual(bare(await control.upsertContainer('acme', 'admin', { ...world().containers['kb-corporate']!, id: 'kb-2', parent: 'kb-corporate' })), { ok: false, code: 'INVALID_REQUEST' });
+  assert.deepEqual(bare(await control.upsertContainer('acme', 'admin', { ...folder, id: 'f-orphan', parent: 'missing' })), { ok: false, code: 'INVALID_REQUEST' });
+  assert.deepEqual(bare(await control.upsertRole('acme', 'admin', { id: 'staff', tenant: 'acme', inherits: ['board'], active: true })), { ok: false, code: 'INVALID_REQUEST' }, 'hierarchy cycle');
 });
 
 test('control plane: SoD is enforced at assignment, group membership and grant issuance', async () => {
   const { control, engine, store } = setup();
-  assert.deepEqual(await control.assignRoles('acme', 'admin', 'chief', ['staff', 'executive', 'requester', 'approver']), { ok: false, code: 'SOD_VIOLATION' });
+  assert.deepEqual(bare(await control.assignRoles('acme', 'admin', 'chief', ['staff', 'executive', 'requester', 'approver'])), { ok: false, code: 'SOD_VIOLATION' });
   assert.deepEqual(await store.transaction('acme', async tx => tx.state.actors.chief!.roles), ['staff', 'executive']);
   assert.ok((await control.assignRoles('acme', 'admin', 'chief', ['staff', 'executive', 'requester'])).ok);
-  assert.deepEqual(await control.upsertGroup('acme', 'admin', { id: 'approvers', tenant: 'acme', members: ['chief'], roles: ['approver'], active: true }), { ok: false, code: 'SOD_VIOLATION' });
+  assert.deepEqual(bare(await control.upsertGroup('acme', 'admin', { id: 'approvers', tenant: 'acme', members: ['chief'], roles: ['approver'], active: true })), { ok: false, code: 'SOD_VIOLATION' });
   assert.ok((await control.assignRoles('acme', 'admin', 'lead', ['staff', 'project', 'auditor-role'])).ok, 'dynamic SoD allows holding both');
   const grant = { ...world().grants['lead-run']!, id: 'lead-review' };
-  assert.deepEqual(await control.issueGrant('acme', 'admin', grant), { ok: false, code: 'SOD_VIOLATION' }, 'activating both violates DSD');
-  assert.deepEqual(await control.issueGrant('acme', 'admin', { ...grant, activeRoles: ['executive'] }), { ok: false, code: 'INVALID_REQUEST' }, 'not held');
+  assert.deepEqual(bare(await control.issueGrant('acme', 'admin', grant)), { ok: false, code: 'SOD_VIOLATION' }, 'activating both violates DSD');
+  assert.deepEqual(bare(await control.issueGrant('acme', 'admin', { ...grant, activeRoles: ['executive'] })), { ok: false, code: 'INVALID_REQUEST' }, 'not held');
   assert.ok((await control.issueGrant('acme', 'admin', { ...grant, activeRoles: ['project'] })).ok);
   assert.ok(await read(engine, { ...bindings.lead, grant: 'lead-review' }, 'project-alpha'));
-  assert.deepEqual(await control.issueGrant('acme', 'admin', { ...grant, activeRoles: ['project'] }), { ok: false, code: 'CONFLICT' });
+  assert.deepEqual(bare(await control.issueGrant('acme', 'admin', { ...grant, activeRoles: ['project'] })), { ok: false, code: 'CONFLICT' });
 });
 
 test('control plane: updating security metadata advances the tenant epoch', async () => {

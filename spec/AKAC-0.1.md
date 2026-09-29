@@ -76,4 +76,4 @@ Prompt injection cannot be allowed to alter authoritative attributes. Still, an 
 - RFC 8174: https://www.rfc-editor.org/rfc/rfc8174
 - OPA architecture: https://www.openpolicyagent.org/docs
 
-Copyright and attribution: see the repository legal mapping. These sources establish prior art; AKAC does not claim their invention.
+Licensing: see the repository LICENSE. These sources establish prior art; AKAC does not claim their invention.

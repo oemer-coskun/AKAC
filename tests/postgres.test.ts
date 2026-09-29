@@ -1,7 +1,8 @@
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { cpSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
@@ -66,7 +67,8 @@ test.after(async () => {
 test('PostgreSQL: migrations are idempotent, serialized and checksum-verified', { skip }, async () => {
   const name = await schema();
   const runs = await Promise.all([1, 2, 3].map(() => migrate(url!, { schema: name })));
-  assert.deepEqual(runs.flat(), ['001_normalized_schema', '002_vector_compartments', '003_tenant_scoped_keys']);
+  // Every migration file is applied exactly once, in order, whichever run won the lock.
+  assert.deepEqual(runs.flat(), readdirSync(MIGRATIONS).filter(f => /^\d{3}_[a-z0-9_]+\.sql$/.test(f)).sort().map(f => f.slice(0, -4)));
   assert.deepEqual(await migrate(url!, { schema: name }), []);
   const dir = mkdtempSync(join(tmpdir(), 'akac-migrations-'));
   try {
@@ -269,9 +271,9 @@ test('PostgreSQL: record keys are (tenant, id) for a bypassing and an RLS-bound 
       const control = new ControlPlane(store, { clock: () => now });
       const original = (await control.readActor('acme', 'admin', id)) as { value: Actor };
       const alien: Actor = { id, tenant: 'other', kind: 'user', roles: [], projects: [], clearance: 'public', active: false };
-      assert.deepEqual(await control.upsertActor('other', 'o-admin', alien), { ok: true, value: { id } }, 'same answer as for an unused id');
-      assert.deepEqual(await control.readActor('acme', 'admin', id), { ok: true, value: original.value }, 'the owning tenant is untouched');
-      assert.deepEqual(await control.readActor('other', 'o-admin', id), { ok: true, value: alien });
+      assert.deepEqual(bare(await control.upsertActor('other', 'o-admin', alien)), { ok: true, value: { id } }, 'same answer as for an unused id');
+      assert.deepEqual(bare(await control.readActor('acme', 'admin', id)), { ok: true, value: original.value }, 'the owning tenant is untouched');
+      assert.deepEqual(bare(await control.readActor('other', 'o-admin', id)), { ok: true, value: alien });
       assert.ok((await new Engine(store, { clock: () => now }).openContext(id === 'chief' ? bindings.chief : bindings.intern, ['handbook'], 'work')).ok);
     } finally { await store.close(); }
   }
@@ -284,7 +286,9 @@ test('PostgreSQL: migration 003 upgrades a database already at 002; 001 and 002 
   const name = await schema();
   const dir = mkdtempSync(join(tmpdir(), 'akac-at-002-'));
   try {
-    cpSync(MIGRATIONS, dir, { recursive: true }); rmSync(join(dir, '003_tenant_scoped_keys.sql'));
+    cpSync(MIGRATIONS, dir, { recursive: true });
+    // The database as 0.2 left it: every migration from 003 on is withheld.
+    for (const f of readdirSync(dir)) if (f >= '003') rmSync(join(dir, f));
     assert.deepEqual(await migrate(url!, { schema: name, directory: dir }), ['001_normalized_schema', '002_vector_compartments']);
   } finally { rmSync(dir, { recursive: true }); }
   await owner(async c => {
@@ -293,7 +297,7 @@ test('PostgreSQL: migration 003 upgrades a database already at 002; 001 and 002 
       VALUES ('note', 'acme', 1, 'document', 'system', 'Synthetic note.', 'public', '{}', '{staff}', '{}', '[]', true)`);
   });
   // Applied 001/002 checksums are verified against the current files; an edit would refuse here.
-  assert.deepEqual(await migrate(url!, { schema: name }), ['003_tenant_scoped_keys']);
+  assert.deepEqual((await migrate(url!, { schema: name })).slice(0, 1), ['003_tenant_scoped_keys']);
   assert.deepEqual(await migrate(url!, { schema: name }), []);
   const store = new PostgresStore(url!, { schema: name, migrate: false });
   try {

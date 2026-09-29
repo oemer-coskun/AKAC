@@ -116,6 +116,30 @@
       "uniqueItems": true,
       "maxItems": 64,
       "description": "Session role activation: a subset of the subject's effective roles and of the parent grant's activeRoles."
+    },
+    "destinations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+        "not": {
+          "enum": [
+            "constructor",
+            "prototype",
+            "__proto__"
+          ]
+        }
+      },
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 64,
+      "description": "Destination classes or Destination ids that share/export of this run may release to (0.4, ADR-008). A child of a restricted parent must list a subset."
+    },
+    "maxResults": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64,
+      "description": "Most documents one disclosure of this run may return (0.4, ADR-008); a child may only lower it."
     }
   },
   "required": [

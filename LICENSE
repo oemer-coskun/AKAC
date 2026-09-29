@@ -1,114 +1,17 @@
-AKAC Attribution License 1.0-draft
-Release date: 2026-09-28
-SPDX-style identifier: LicenseRef-AKAC-Attribution-1.0-draft
+MIT No Attribution
 
-This custom license is an operative permission for the Covered Material supplied
-under it, although the text is a draft and has not received independent legal
-review. It is not the Apache License and no OSI approval is represented.
+Copyright 2026 Ömer Hüseyin Coşkun
+First published 2026-09-28.
 
-1. Definitions
+Permission is hereby granted, free of charge, to any person obtaining a copy of this
+software and associated documentation files (the "Software"), to deal in the Software
+without restriction, including without limitation the rights to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so.
 
-"Licensor" means a person or entity entitled to license its contribution.
-"Covered Material" means the copyrightable software, schemas, policies, tests,
-examples or other material expressly designated as subject to this license.
-"You" means the individual or legal entity exercising rights under this license.
-"Modified Material" means modifications or derivative works of Covered Material.
-"Hosted Service" means a service through which users interact with Covered
-Material or Modified Material over a network without receiving a software copy.
-"Required Attribution" means the applicable copyright and authorship notices,
-the name AKAC — Agent Knowledge Access Control, and the supplied project-origin
-notice identifying Ömer Hüseyin Coşkun as project founder, together with the
-project URL https://github.com/WestMoneyDE/AKAC and this license's identity.
-
-2. Permission
-
-Subject to these conditions, each Licensor grants You a worldwide, nonexclusive,
-no-charge, royalty-free copyright license to use, reproduce, run, modify, prepare
-derivative works, display, perform and distribute its Covered Material, including
-commercial use and operation of Hosted Services. You may combine it with other
-software, including proprietary software. No source-disclosure, advertising,
-payment, telemetry or registration obligation is imposed by this license.
-
-3. Attribution
-
-a. When distributing Covered Material or Modified Material, include a copy of
-this license and retain relevant supplied notices. Provide the Required
-Attribution in a reasonably accessible credits, legal-notices or documentation
-location. A bundled NOTICE or third-party-notices file is sufficient. Do not
-require recipients to inspect source code to find notices for a binary product.
-
-b. When operating a Hosted Service using Covered Material or Modified Material,
-make the Required Attribution reasonably accessible to that service's users in
-credits, legal notices or service documentation. An API-only service may use its
-API documentation. A home-page banner, logo or attribution on every response is
-not required. For an exclusively internal service, internal documentation or
-an internal third-party-notices inventory accessible to its administrators is
-sufficient. For solely personal local use, retaining the supplied notices is
-sufficient.
-
-c. Identify material modifications and their author in a changelog or other
-reasonable notice. Do not falsely attribute modifications to the project founder
-or suggest that a Licensor endorses You or your product. The historical project-
-origin notice may be retained without claiming that the founder authored all
-subsequent contributions.
-
-d. A notice may be adapted in formatting or translated without changing its
-substance. It may link to a maintained legal-notices page when appropriate for
-the medium. A defunct project URL may be reproduced as an historical identifier.
-
-4. Patent permission
-
-Each Licensor grants a worldwide, nonexclusive, no-charge, royalty-free patent
-license to make, use, offer for sale, sell and import Covered Material, limited
-to patent claims it can license that are necessarily infringed by its contribution
-alone or in combination with the Covered Material to which it was contributed.
-No unrelated patent claim is licensed. If You initiate patent litigation alleging
-that Covered Material infringes a patent, patent permissions granted to You under
-this section terminate as of that filing. This section creates no patent rights
-where none exist and does not represent that any patent has been applied for.
-
-5. Downstream rights and contributions
-
-Recipients receive permission under this license directly from the applicable
-Licensors. You may license your original modifications under additional terms,
-but may not remove permissions and notices applicable to existing Covered
-Material. No contributor transfers ownership merely by contributing. Intentional
-contributions accepted into this project must be offered under the applicable
-file license; the project's contribution process records that confirmation.
-Third-party components remain under their own licenses and notices.
-
-6. Names, ideas and independent implementations
-
-No trademark license is granted beyond reasonable identification of origin.
-No endorsement or certification is implied. This license does not claim ownership
-of abstract ideas, access-control models, public standards or independently
-implemented behavior. It imposes no attribution obligation on an independent
-implementation merely because it follows an unprotected idea or interface.
-The obligations attach only to exercise of rights in the Covered Material.
-
-7. Termination and cure
-
-Permission terminates for a material breach of these conditions. If You cure
-the breach within 30 days after receiving written notice identifying it, copyright
-permission is automatically reinstated, unless the same breach was previously
-notified and cured. A Licensor may expressly reinstate permission in other cases.
-Compliant recipients' rights are not terminated by another person's breach.
-Except as stated here and in the patent section, permissions are irrevocable
-for compliant use of the version received.
-
-8. Disclaimer and limitation
-
-TO THE EXTENT PERMITTED BY APPLICABLE LAW, COVERED MATERIAL IS PROVIDED "AS IS",
-WITHOUT WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
-NONINFRINGEMENT, SECURITY OR ACCURACY. TO THAT SAME EXTENT, NO LICENSOR IS LIABLE
-FOR DAMAGES ARISING FROM ITS USE OR INABILITY TO BE USED. NOTHING IN THIS LICENSE
-EXCLUDES LIABILITY OR RIGHTS THAT CANNOT LAWFULLY BE EXCLUDED, INCLUDING APPLICABLE
-MANDATORY RULES CONCERNING INTENTIONAL MISCONDUCT, GROSS NEGLIGENCE OR PERSONAL
-INJURY. NO GUARANTEE OF REGULATORY COMPLIANCE OR SECURITY CERTIFICATION IS MADE.
-
-9. Interpretation
-
-If a provision is unenforceable, the remaining provisions continue to the extent
-legally possible. This license grants only rights the applicable Licensor holds.
-Statutory exceptions and limitations are unaffected. The English text controls
-interpretation; explanatory summaries do not amend it.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

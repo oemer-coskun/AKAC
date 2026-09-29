@@ -1,42 +1,16 @@
-# Licensing and attribution map
+# Licensing
 
-| Files | License |
-|---|---|
-| `reference/`, `implementations/` code, `adapters/`, `sdk/`, `policies/`, `schemas/`, `conformance/`, `tests/`, `examples/`, `scripts/` | AKAC Attribution License 1.0-draft |
-| Docker, Compose, package metadata, CI and other executable configuration | AKAC Attribution License 1.0-draft |
-| Original prose in `spec/`, `docs/`, `governance/` and root Markdown files and implementation README files | CC BY 4.0 |
-| Code examples embedded in documentation | AKAC Attribution License 1.0-draft |
-| `docs/openapi.json` | AKAC Attribution License 1.0-draft |
-| Third-party dependencies and their notices | Their own licenses; see THIRD_PARTY_NOTICES.md |
-| Unmodified third-party license texts | Their applicable original terms |
+All material in this repository — code, schemas, policies, tests, examples,
+configuration, specification and documentation — is licensed under
+[MIT No Attribution (MIT-0)](../LICENSE), SPDX identifier `MIT-0`.
 
-CC BY 4.0 legal code: `CC-BY-4.0.txt`; authoritative source:
-https://creativecommons.org/licenses/by/4.0/legalcode.en
+MIT-0 requires no attribution: you may use, modify and redistribute AKAC, including
+in commercial and hosted products, without naming the project or its authors and
+without shipping a license notice.
 
-The custom software license is deliberately not represented as Apache-2.0 or as
-OSI-approved. It adds an attribution obligation for network-service use, which a
-standard Apache NOTICE does not universally impose. It should receive legal review
-before a production adoption program relies on its enforceability.
+Third-party dependencies keep their own licenses. Their notices are collected in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and must be preserved as those
+licenses require.
 
-## Attribution examples
-
-Software credits: "AKAC — Agent Knowledge Access Control. Founded by Ömer Hüseyin
-Coşkun. https://github.com/WestMoneyDE/AKAC. Licensed under the AKAC Attribution
-License 1.0-draft. Modified by [your organization], [date]."
-
-Specification reuse: "Adapted from AKAC 0.2 Draft Specification, Ömer Hüseyin
-Coşkun and contributors, https://github.com/WestMoneyDE/AKAC, CC BY 4.0. Changes:
-[description]." Include a link to https://creativecommons.org/licenses/by/4.0/.
-
-Origin metadata documents project history, not a patent, trademark registration,
-court determination of authorship or proof of exclusive invention. Human-authored
-and AI-assisted contributions must be described accurately. Independent
-implementations of unprotected ideas are not automatically bound by this code
-license or forced to credit the project. Contributors retain their rights.
-
-## Review questions
-
-Review hosted-service attribution, cure and termination, patent scope, license
-compatibility and mandatory local liability rules with counsel before treating
-this draft as a final enterprise licensing instrument. Do not silently replace
-license terms on previously released versions.
+The initial publication date (2026-09-28) is recorded in the license and in the
+repository history.

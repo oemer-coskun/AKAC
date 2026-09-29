@@ -53,6 +53,13 @@
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
               }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizedResult"
+                }
+              }
             }
           },
           "400": {
@@ -76,6 +83,13 @@
             "headers": {
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeniedResult"
+                }
               }
             }
           },
@@ -159,6 +173,13 @@
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
               }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizedResult"
+                }
+              }
             }
           },
           "400": {
@@ -182,6 +203,13 @@
             "headers": {
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeniedResult"
+                }
               }
             }
           },
@@ -267,6 +295,13 @@
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
               }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizedResult"
+                }
+              }
             }
           },
           "400": {
@@ -290,6 +325,13 @@
             "headers": {
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeniedResult"
+                }
               }
             }
           },
@@ -387,6 +429,13 @@
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
               }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizedResult"
+                }
+              }
             }
           },
           "400": {
@@ -410,6 +459,13 @@
             "headers": {
               "x-request-id": {
                 "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeniedResult"
+                }
               }
             }
           },
@@ -514,6 +570,11 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer"
+      },
+      "dpopAuth": {
+        "type": "http",
+        "scheme": "dpop",
+        "description": "Optional sender-constrained access token (RFC 9449). Send `Authorization: DPoP <access token>` and a `DPoP` proof header (compact JWS, typ dpop+jwt, ES256, EdDSA or PS256, public jwk in the header, htm, htu without query, iat, unique jti, ath = base64url SHA-256 of the access token). The access token must carry cnf.jkt equal to the RFC 7638 thumbprint of the proof key. Enabled per listener with AKAC_DPOP or AKAC_ADMIN_DPOP (off, optional, required); when required, Bearer is refused, and a token with cnf.jkt is never accepted as Bearer. Server nonces (DPoP-Nonce) are not supported. A refusal is 401 with a WWW-Authenticate DPoP challenge (error invalid_dpop_proof or invalid_token)."
       }
     },
     "headers": {
@@ -521,6 +582,144 @@
         "description": "Server-generated request id, also present in logs. A client-supplied value is ignored.",
         "schema": {
           "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "Obligation": {
+        "description": "Closed AKAC 0.4 obligation set (draft-aligned with the AuthZEN obligations working-group draft; not a conformance claim). A PEP that cannot enforce every obligation of an allow MUST treat it as a deny.",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "audit_level"
+              },
+              "value": {
+                "const": "full"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "max_context_ttl_ms"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "const": "no_persist"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "destination_restricted"
+              },
+              "value": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 64,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                  "not": {
+                    "enum": [
+                      "constructor",
+                      "prototype",
+                      "__proto__"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AuthorizedResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "value",
+          "decisionId",
+          "obligations"
+        ],
+        "description": "An allow (AKAC 0.4). The caller MUST enforce every obligation or treat the result as a deny. Shape draft-aligned with AuthZEN (decision plus obligations); not a conformance claim.",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "value": {
+            "type": "object",
+            "description": "Operation result (projection, derivation or release)."
+          },
+          "decisionId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "description": "UUIDv4 of the audited decision; auditors correlate it with the audit entry."
+          },
+          "obligations": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/Obligation"
+            }
+          }
+        }
+      },
+      "DeniedResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "code",
+          "decisionId"
+        ],
+        "description": "Every denial has exactly this shape: hidden and nonexistent objects, and every reason code, are indistinguishable. The reason code is recorded in audit only.",
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "code": {
+            "const": "NOT_AUTHORIZED"
+          },
+          "decisionId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "description": "UUIDv4 of the audited decision; auditors correlate it with the audit entry."
+          }
         }
       }
     }

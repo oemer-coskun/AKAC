@@ -2,37 +2,58 @@ import { appendAudit } from './audit.ts';
 import { BudgetExceeded, hydrate } from './hydrate.ts';
 import type { Seed } from './hydrate.ts';
 import { containerChain, effectiveLabel, effectiveRoles, sessionRoles, sodViolated, standingRoles, transitiveClassification, validGrantChain } from './policy.ts';
-import { ACTIONS, CORE_VERSION, LEVELS } from './types.ts';
-import type { Actor, Audit, Container, Grant, Group, Knowledge, Role, SodConstraint, State, Store, Tx } from './types.ts';
+import { ACTIONS, CORE_VERSION, DESTINATION_CLASSES, LEVELS, MAX_RESULTS, QUARANTINE_REASONS } from './types.ts';
+import type { Actor, Audit, Container, Destination, Grant, Group, Knowledge, QuarantineReason, Role, SodConstraint, State, Store, Tx } from './types.ts';
+import { held, LIFECYCLE, lineage, lineageRecord, materialize, retentionDue, tombstone } from './lifecycle.ts';
+import type { LineageRecord } from './lifecycle.ts';
 import { exactKeys, safeNumber, validId } from './validation.ts';
+import { classify, newDecisionId, policyDigest, traceOf } from './decision.ts';
+import type { Call } from './decision.ts';
+import { consistencyProof, inclusionProof, treeHead } from './evidence.ts';
+import type { ConsistencyProof, InclusionProof, TreeHead } from './evidence.ts';
+import { signTreeHead } from './checkpoint.ts';
+import type { CheckpointV2 } from './checkpoint.ts';
 
-export type ControlResult<T> = { ok: true; value: T }
+/** Every result carries the id of the audited decision (0.4). */
+export type ControlResult<T> = { ok: true; value: T; decisionId: string }
   | { ok: false; code: 'NOT_AUTHORIZED' | 'INVALID_REQUEST' | 'CONFLICT' | 'SOD_VIOLATION';
     /** SOD_VIOLATION from a role or constraint change: how many currently valid principals it would invalidate (never which). */
-    holders?: number };
+    holders?: number;
+    /** CONFLICT from erase() or upsertKnowledge(): how many records are under legal hold (never which). */
+    held?: number; decisionId: string };
 /** security-admin: identities, roles, groups, constraints, grants, revocation. kb-admin: containers, documents. auditor: audit. */
 export type AdminRole = 'security-admin' | 'kb-admin' | 'auditor';
 type Failure = Exclude<ControlResult<never>, { ok: true }>['code'];
 /** `audit` overrides the recorded decision and reason (attempts handled outside the control plane). */
-type Refusal = { ok: false; code: Failure; holders?: number };
+type Refusal = { ok: false; code: Failure; holders?: number; held?: number };
+/** One audited control-plane decision. */
+type Op = { id: string; trace?: string };
 type Checked<T> = { ok: true; value: T; audit?: { allowed: boolean; reason: string } } | Refusal;
 const refuse = (code: Failure): Refusal => ({ ok: false, code });
 const within = (small: readonly string[], large: readonly string[]) => small.every(x => large.includes(x));
 const rank = (l: string) => LEVELS.indexOf(l as never);
 /** Deactivation, or no new role, project, clearance or reactivation: can only remove authority. */
 const reducesActor = (old: Actor, next: Actor) => next.active === false
-  || ((old.active === true || next.active !== true) && within(next.roles, old.roles) && within(next.projects, old.projects) && rank(next.clearance) <= rank(old.clearance));
+  || ((old.active === true || next.active !== true) && within(next.roles, old.roles) && within(next.projects, old.projects) && rank(next.clearance) <= rank(old.clearance)
+    && next.destination === old.destination);
 
 const ids = (x: unknown, max = 256): x is string[] => Array.isArray(x) && x.length <= max && x.every(validId) && new Set(x).size === x.length;
 const level = (x: unknown) => LEVELS.includes(x as never);
 const bool = (x: unknown) => typeof x === 'boolean';
 const optional = (x: unknown, check: (y: unknown) => boolean) => x === undefined || check(x);
+const destinationId = (x: unknown) => validId(x) && !DESTINATION_CLASSES.includes(x as never);
+const sameRefs = (a: Knowledge['sources'], b: Knowledge['sources']) => a.length === b.length && a.every((r, i) => r.id === b[i]?.id && r.version === b[i]?.version);
 const refs = (x: unknown) => Array.isArray(x) && x.length <= 256 && x.every(r => exactKeys(r, ['id', 'version']) && validId(r.id) && safeNumber(r.version) && r.version >= 1);
 
 export const shapes = {
-  actor: (a: unknown): a is Actor => exactKeys(a, ['id', 'tenant', 'kind', 'roles', 'projects', 'clearance', 'active'])
+  actor: (a: unknown): a is Actor => exactKeys(a, ['id', 'tenant', 'kind', 'roles', 'projects', 'clearance', 'active'], ['destination'])
     && validId(a.id) && validId(a.tenant) && ['user', 'agent', 'service'].includes(a.kind as string)
-    && ids(a.roles, 64) && ids(a.projects) && level(a.clearance) && bool(a.active),
+    && ids(a.roles, 64) && ids(a.projects) && level(a.clearance) && bool(a.active) && optional(a.destination, destinationId),
+  /** A destination id is never a class name, so a grant entry is unambiguous (ADR-008). */
+  destination: (d: unknown): d is Destination => exactKeys(d, ['id', 'tenant', 'class', 'maxClassification', 'purposes', 'active'])
+    && destinationId(d.id) && validId(d.tenant) && DESTINATION_CLASSES.includes(d.class as never) && level(d.maxClassification)
+    && Array.isArray(d.purposes) && d.purposes.length <= 64 && d.purposes.every(p => typeof p === 'string' && p.length > 0 && p.length <= 128)
+    && new Set(d.purposes).size === d.purposes.length && bool(d.active),
   role: (r: unknown): r is Role => exactKeys(r, ['id', 'tenant', 'inherits', 'active'])
     && validId(r.id) && validId(r.tenant) && ids(r.inherits, 64) && !(r.inherits as string[]).includes(r.id) && bool(r.active),
   group: (g: unknown): g is Group => exactKeys(g, ['id', 'tenant', 'members', 'roles', 'active'])
@@ -44,18 +65,20 @@ export const shapes = {
     && validId(c.id) && validId(c.tenant) && level(c.classification) && ids(c.readerRoles) && ids(c.readers) && ids(c.projects) && bool(c.active)
     && (c.kind === 'knowledge-base' ? c.parent === undefined : c.kind === 'folder' && validId(c.parent) && c.parent !== c.id),
   /** Administrative ingestion accepts human or system documents only; model output enters via derive(). */
-  document: (k: unknown): k is Knowledge => exactKeys(k, ['id', 'tenant', 'version', 'kind', 'origin', 'content', 'classification', 'projects', 'readerRoles', 'readers', 'sources', 'active'], ['accessExpiresAt', 'container'])
+  document: (k: unknown): k is Knowledge => exactKeys(k, ['id', 'tenant', 'version', 'kind', 'origin', 'content', 'classification', 'projects', 'readerRoles', 'readers', 'sources', 'active'], ['accessExpiresAt', 'container', 'retainUntil'])
     && validId(k.id) && validId(k.tenant) && safeNumber(k.version) && (k.version as number) >= 1 && k.kind === 'document'
     && ['human', 'system'].includes(k.origin as string) && typeof k.content === 'string' && k.content.length > 0 && k.content.length <= 1_000_000
     && level(k.classification) && ids(k.projects) && ids(k.readerRoles) && ids(k.readers) && refs(k.sources) && bool(k.active)
-    && optional(k.accessExpiresAt, safeNumber) && optional(k.container, validId),
-  grant: (g: unknown): g is Grant => exactKeys(g, ['id', 'tenant', 'subject', 'agent', 'actions', 'resources', 'purposes', 'notBefore', 'expiresAt', 'active'], ['parent', 'activeRoles'])
+    && optional(k.accessExpiresAt, safeNumber) && optional(k.container, validId) && optional(k.retainUntil, safeNumber),
+  grant: (g: unknown): g is Grant => exactKeys(g, ['id', 'tenant', 'subject', 'agent', 'actions', 'resources', 'purposes', 'notBefore', 'expiresAt', 'active'], ['parent', 'activeRoles', 'destinations', 'maxResults'])
     && [g.id, g.tenant, g.subject, g.agent].every(validId) && Array.isArray(g.actions) && g.actions.length > 0
     && g.actions.every(a => ACTIONS.includes(a)) && new Set(g.actions).size === g.actions.length
     && Array.isArray(g.resources) && g.resources.length <= 256 && g.resources.every(r => r === '*' || validId(r))
     && Array.isArray(g.purposes) && g.purposes.length <= 64 && g.purposes.every(p => typeof p === 'string' && p.length > 0 && p.length <= 128)
     && safeNumber(g.notBefore) && safeNumber(g.expiresAt) && (g.notBefore as number) < (g.expiresAt as number)
     && bool(g.active) && optional(g.parent, validId) && optional(g.activeRoles, x => ids(x, 64))
+    && optional(g.destinations, x => ids(x, 64) && (x as string[]).length > 0)
+    && optional(g.maxResults, x => Number.isSafeInteger(x) && (x as number) >= 1 && (x as number) <= MAX_RESULTS)
 };
 
 /**
@@ -65,14 +88,36 @@ export const shapes = {
  * credentials or model output. Updating an existing security-relevant record
  * advances the tenant epoch, so running contexts must re-establish authority.
  */
+export type ControlOptions = {
+  clock?: () => number;
+  /**
+   * Optional Ed25519 key with which latestCheckpoint() signs format 2 checkpoints.
+   * A server-held key attests only what this server saw; anchor checkpoints signed
+   * with an offline key (scripts/checkpoint.ts) for independent evidence.
+   */
+  checkpoint?: { privatePem: string; keyId: string };
+};
 export class ControlPlane {
   private store: Store;
   private clock: () => number;
-  constructor(store: Store, options: { clock?: () => number } = {}) { this.store = store; this.clock = options.clock ?? Date.now; }
-
-  private record(s: State, tenant: string, adminId: string, operation: string, allowed: boolean, reason: string) {
+  private signer?: { privatePem: string; keyId: string };
+  private trace?: string;
+  constructor(store: Store, options: ControlOptions = {}) {
+    this.store = store; this.clock = options.clock ?? Date.now; this.signer = options.checkpoint;
+  }
+  /** The same control plane, recording this W3C trace id (when valid) with every decision. */
+  traced(trace?: Call['trace']): ControlPlane {
+    const next = new ControlPlane(this.store, { clock: this.clock, ...(this.signer ? { checkpoint: this.signer } : {}) });
+    next.trace = traceOf(trace ? { trace } : {}) ?? this.trace;
+    return next;
+  }
+  private record(s: State, tenant: string, adminId: string, o: Op, operation: string, allowed: boolean, reason: string) {
+    const code = classify(reason);
+    if (!code || !code.category !== allowed) throw new Error('Unclassified decision reason');
     appendAudit(s, { time: this.clock(), tenant, actor: validId(adminId) ? adminId : 'invalid', operation,
-      decision: allowed ? 'allow' : 'deny', reason, policyVersion: `${CORE_VERSION}|${s.policyVersion}|control-plane`, epoch: s.epochs[tenant] ?? 0 });
+      decision: allowed ? 'allow' : 'deny', reason, policyVersion: `${CORE_VERSION}|${s.policyVersion}|control-plane`, epoch: s.epochs[tenant] ?? 0,
+      decisionId: o.id, reasonCode: code.code, policyDigest: policyDigest([CORE_VERSION, s.policyVersion, 'control-plane']), obligations: [],
+      ...(o.trace ? { traceId: o.trace } : {}) });
   }
   /**
    * Authorizes, runs and audits one operation in one tenant transaction. If the
@@ -80,33 +125,34 @@ export class ControlPlane {
    * audited best effort as DEFERRED:STORE_ERROR / DEFERRED:BUDGET_EXCEEDED in a
    * separate transaction and the original error is rethrown (never masked).
    */
-  private async run<T>(tenant: string, adminId: string, role: AdminRole, operation: string, seed: Seed,
+  private async run<T>(tenant: string, adminId: string, role: AdminRole | readonly AdminRole[], operation: string, seed: Seed,
     body: (s: State, tx: Tx) => Checked<T> | Promise<Checked<T>>): Promise<ControlResult<T>> {
-    if (!validId(tenant)) return { ok: false, code: 'NOT_AUTHORIZED' };
+    const o: Op = { id: newDecisionId(), ...(this.trace ? { trace: this.trace } : {}) };
+    if (!validId(tenant)) return { ok: false, code: 'NOT_AUTHORIZED', decisionId: o.id };
     try {
       return await this.store.transaction(tenant, async tx => {
         await hydrate(tx, { ...seed, actors: [...(seed.actors ?? []), ...(validId(adminId) ? [adminId] : [])] });
         const s = tx.state;
         const admin = validId(adminId) && Object.hasOwn(s.actors, adminId) ? s.actors[adminId] : undefined;
         const roles = admin?.kind === 'user' && admin.active && admin.tenant === tenant ? standingRoles(s, admin) : null;
-        if (!roles?.has(role)) { this.record(s, tenant, adminId, operation, false, 'DENIED:NOT_ADMIN'); return { ok: false, code: 'NOT_AUTHORIZED' }; }
+        if (!(typeof role === 'string' ? [role] : role).some(r => roles?.has(r))) { this.record(s, tenant, adminId, o, operation, false, 'DENIED:NOT_ADMIN'); return { ok: false, code: 'NOT_AUTHORIZED', decisionId: o.id }; }
         const result = await body(s, tx);
         if (result.ok) {
-          this.record(s, tenant, adminId, operation, result.audit?.allowed ?? true, result.audit?.reason ?? 'AUTHORIZED');
-          return { ok: true, value: result.value };
+          this.record(s, tenant, adminId, o, operation, result.audit?.allowed ?? true, result.audit?.reason ?? 'AUTHORIZED');
+          return { ok: true, value: result.value, decisionId: o.id };
         }
-        this.record(s, tenant, adminId, operation, false, `DENIED:${result.code}`);
-        return result;
+        this.record(s, tenant, adminId, o, operation, false, `DENIED:${result.code}`);
+        return { ...result, decisionId: o.id };
       });
     } catch (error) {
-      await this.failed(tenant, adminId, operation, error);
+      await this.failed(tenant, adminId, o, operation, error);
       throw error;
     }
   }
-  private async failed(tenant: string, adminId: string, operation: string, error: unknown) {
+  private async failed(tenant: string, adminId: string, o: Op, operation: string, error: unknown) {
     const reason = error instanceof BudgetExceeded ? 'DEFERRED:BUDGET_EXCEEDED' : 'DEFERRED:STORE_ERROR';
     try {
-      await this.store.transaction(tenant, async tx => { await tx.load({ epoch: true, audit: true }); this.record(tx.state, tenant, adminId, operation, false, reason); });
+      await this.store.transaction(tenant, async tx => { await tx.load({ epoch: true, audit: true }); this.record(tx.state, tenant, adminId, o, operation, false, reason); });
     } catch { /* best effort: the caller still receives the original failure */ }
   }
   private bump(s: State, tenant: string) { s.epochs[tenant] = (s.epochs[tenant] ?? 0) + 1; }
@@ -262,23 +308,61 @@ export class ControlPlane {
    * Versions are monotonic: an update must carry exactly the next version. A
    * document with sources must resolve them (same tenant, referenced version) and
    * its effective classification must be at least the transitive effective
-   * classification of every source (R25); otherwise INVALID_REQUEST.
+   * classification of every source (R25); otherwise INVALID_REQUEST. A record
+   * under legal hold keeps its content and sources: a new version that changes
+   * either is a CONFLICT carrying `held` (R55). A record revoked by a
+   * security-admin (`revokedAt`) cannot be reactivated here: a new version with
+   * `active: true` is a CONFLICT until reinstate() (R49).
    */
-  upsertKnowledge(tenant: string, adminId: string, document: Knowledge) {
+  upsertKnowledge(tenant: string, adminId: string, document: Knowledge, options: {
+    /** Store the document quarantined (ingestion scanner); it is then invisible and unindexed until release(). */
+    quarantine?: QuarantineReason;
+  } = {}) {
     const sources = shapes.document(document) ? document.sources.map(r => r.id) : [];
     return this.run(tenant, adminId, 'kb-admin', 'upsert_knowledge', { knowledge: validId(document?.id) ? [document.id, ...sources] : [],
       containers: validId(document?.container) ? [document.container] : [] }, s => {
-      if (!shapes.document(document) || document.tenant !== tenant) return refuse('INVALID_REQUEST');
+      if (!shapes.document(document) || document.tenant !== tenant
+        || (options.quarantine !== undefined && !QUARANTINE_REASONS.includes(options.quarantine))) return refuse('INVALID_REQUEST');
       const existing = Object.hasOwn(s.knowledge, document.id) ? s.knowledge[document.id] : undefined;
       if (existing ? existing.tenant !== tenant || existing.kind !== 'document' || document.version !== existing.version + 1 : document.version !== 1) return refuse('CONFLICT');
+      // An erased id is burned (R-LIFE-9). A new version never lifts a quarantine or a legal hold.
+      if (existing?.lifecycle !== undefined && existing.lifecycle !== 'quarantined') return refuse('CONFLICT');
+      // A legal hold preserves the held content: only metadata (labels, readers, activity, retention) may change.
+      if (existing && held(existing) && (document.content !== existing.content || !sameRefs(document.sources, existing.sources))) return { ok: false, code: 'CONFLICT', held: 1 };
+      // A security-admin revocation survives new versions; only reinstate() lifts it.
+      if (existing?.revokedAt !== undefined && document.active !== false) return refuse('CONFLICT');
+      const next: Knowledge = structuredClone(document);
+      if (existing?.revokedAt !== undefined) next.revokedAt = existing.revokedAt;
+      if (existing?.lifecycle === 'quarantined') {
+        next.lifecycle = 'quarantined';
+        if (existing.lifecycleAt !== undefined) next.lifecycleAt = existing.lifecycleAt;
+        if (existing.quarantineReason !== undefined) next.quarantineReason = existing.quarantineReason;
+      } else if (options.quarantine) Object.assign(next, { lifecycle: 'quarantined', lifecycleAt: this.clock(), quarantineReason: options.quarantine });
+      if (existing && held(existing)) next.legalHolds = structuredClone(existing.legalHolds);
       if (document.container !== undefined && !containerChain(s, document)) return refuse('INVALID_REQUEST');
       if (document.sources.length) {
         const own = effectiveLabel(s, document)?.classification, top = transitiveClassification(s, document);
         if (!own || !top || rank(top) > rank(own)) return refuse('INVALID_REQUEST');
       }
-      s.knowledge[document.id] = structuredClone(document);
+      s.knowledge[document.id] = next;
       if (existing) this.bump(s, tenant);
-      return { ok: true, value: { id: document.id, version: document.version } };
+      return { ok: true, value: { id: document.id, version: document.version, ...(next.lifecycle ? { quarantined: true as const } : {}) } };
+    });
+  }
+  /**
+   * Destination profile (security-admin, ADR-008). Principals reference it through
+   * `Actor.destination`. Updating an existing profile advances the tenant epoch, so
+   * open contexts re-establish authority under the new profile.
+   */
+  upsertDestination(tenant: string, adminId: string, destination: Destination) {
+    return this.run(tenant, adminId, 'security-admin', 'upsert_destination', { destinations: validId(destination?.id) ? [destination.id] : [] }, s => {
+      if (!shapes.destination(destination) || destination.tenant !== tenant) return refuse('INVALID_REQUEST');
+      const records = s.destinations ??= {};
+      const existing = Object.hasOwn(records, destination.id) ? records[destination.id] : undefined;
+      if (existing && existing.tenant !== tenant) return refuse('CONFLICT');
+      records[destination.id] = structuredClone(destination);
+      if (existing) this.bump(s, tenant);
+      return { ok: true, value: { id: destination.id } };
     });
   }
   /** Issues a root or attenuated grant. Session activation must be held by the subject and satisfy dynamic SoD. */
@@ -306,6 +390,8 @@ export class ControlPlane {
       const target = validId(id) && Object.hasOwn(collection, id) ? collection[id] : undefined;
       if (!target || target.tenant !== tenant) return refuse('INVALID_REQUEST');
       target.active = false; this.bump(s, tenant);
+      // Durable marker: a later document version cannot reactivate the record (only reinstate()).
+      if (type === 'knowledge') { const k = target as Knowledge; k.revokedAt ??= this.clock(); }
       return { ok: true, value: { epoch: s.epochs[tenant]! } };
     });
   }
@@ -322,13 +408,180 @@ export class ControlPlane {
       return { ok: true, value: { id, epoch: s.epochs[tenant]! } };
     });
   }
+  /** The target of a lifecycle operation: an existing record of this tenant (another tenant's id reads as absent). */
+  private target(s: State, tenant: string, id: string): Knowledge | undefined {
+    const k = validId(id) && Object.hasOwn(s.knowledge, id) ? s.knowledge[id] : undefined;
+    return k && k.tenant === tenant ? k : undefined;
+  }
+  /** Target plus its complete lineage (bounded); a lineage beyond LIFECYCLE.cascade is a deferred denial that changes nothing. */
+  private async cascade(s: State, tx: Tx, tenant: string, root: Knowledge): Promise<Knowledge[]> {
+    const found = await lineage(tx, tenant, [root.id], LIFECYCLE.cascade - 1);
+    if (found.truncated) throw new BudgetExceeded('lineage');
+    await materialize(tx, found.records.map(k => k.id));
+    const out = [root];
+    for (const meta of found.records) {
+      const k = this.target(s, tenant, meta.id);
+      if (!k) throw new BudgetExceeded('lineage load');
+      out.push(k);
+    }
+    return out;
+  }
+  /**
+   * Quarantine (kb-admin or security-admin): the record and every record whose
+   * provenance includes it become invisible to every gate (read, derive,
+   * write_memory, share, export, retrieval) until release(). Lazy and unbounded:
+   * descendants are denied by traversal, none is rewritten. Advances the tenant
+   * epoch, so open contexts end. Idempotent; an erased record is a CONFLICT.
+   */
+  quarantine(tenant: string, adminId: string, id: string, reason: QuarantineReason) {
+    return this.run(tenant, adminId, ['kb-admin', 'security-admin'], 'quarantine', { knowledge: validId(id) ? [id] : [] }, s => {
+      const k = this.target(s, tenant, id);
+      if (!k || !QUARANTINE_REASONS.includes(reason)) return refuse('INVALID_REQUEST');
+      if (k.lifecycle === 'erased') return refuse('CONFLICT');
+      if (k.lifecycle !== 'quarantined') { Object.assign(k, { lifecycle: 'quarantined', lifecycleAt: this.clock(), quarantineReason: reason }); this.bump(s, tenant); }
+      return { ok: true, value: { id, epoch: s.epochs[tenant] ?? 0 } };
+    });
+  }
+  /**
+   * Release (security-admin only: separation of duty from the kb-admin who may
+   * quarantine). Restores visibility; descendants become visible again unless
+   * something else denies them. Advances the tenant epoch. Idempotent.
+   */
+  release(tenant: string, adminId: string, id: string) {
+    return this.run(tenant, adminId, 'security-admin', 'release', { knowledge: validId(id) ? [id] : [] }, s => {
+      const k = this.target(s, tenant, id);
+      if (!k) return refuse('INVALID_REQUEST');
+      if (k.lifecycle === 'erased') return refuse('CONFLICT');
+      if (k.lifecycle === 'quarantined') {
+        delete k.lifecycle; delete k.quarantineReason; k.lifecycleAt = this.clock(); this.bump(s, tenant);
+      }
+      return { ok: true, value: { id, epoch: s.epochs[tenant] ?? 0 } };
+    });
+  }
+  /**
+   * Blast radius (auditor or security-admin): metadata of every record whose
+   * provenance includes `id` (any version, transitively), at most `limit`
+   * (1..1000, default 100), sorted by id, with `truncated` when more exist.
+   */
+  descendants(tenant: string, adminId: string, id: string, options: { limit?: number } = {}): Promise<ControlResult<{ records: LineageRecord[]; truncated: boolean }>> {
+    const limit = options.limit ?? 100;
+    return this.run(tenant, adminId, ['auditor', 'security-admin'], 'lineage_read', { knowledge: validId(id) ? [id] : [] }, async (s, tx) => {
+      if (!this.target(s, tenant, id) || !Number.isSafeInteger(limit) || limit < 1 || limit > LIFECYCLE.list) return refuse('INVALID_REQUEST');
+      const found = await lineage(tx, tenant, [id], limit);
+      return { ok: true, value: { records: found.records.map(lineageRecord), truncated: found.truncated } };
+    });
+  }
+  /**
+   * Revokes a record and explicitly deactivates its whole lineage (security-admin),
+   * in addition to the lazy transitive denial. Bounded by LIFECYCLE.cascade
+   * (beyond it: deferred denial, nothing changed). Idempotent; returns how many
+   * records it deactivated now.
+   */
+  revokeLineage(tenant: string, adminId: string, id: string) {
+    return this.run(tenant, adminId, 'security-admin', 'revoke_lineage', { knowledge: validId(id) ? [id] : [] }, async (s, tx) => {
+      const k = this.target(s, tenant, id);
+      if (!k) return refuse('INVALID_REQUEST');
+      let revoked = 0;
+      const at = this.clock();
+      for (const r of await this.cascade(s, tx, tenant, k)) {
+        if (r.active !== false) { r.active = false; revoked++; }
+        r.revokedAt ??= at;
+      }
+      this.bump(s, tenant);
+      return { ok: true, value: { id, revoked, epoch: s.epochs[tenant]! } };
+    });
+  }
+  /**
+   * Reinstates a record revoked by revoke() or revokeLineage() (security-admin
+   * only: a kb-admin cannot undo a security revocation). Clears `revokedAt` and
+   * reactivates this record only, not its lineage. Advances the tenant epoch.
+   * Idempotent; a record without the marker is unchanged; an erased one is a CONFLICT.
+   */
+  reinstate(tenant: string, adminId: string, id: string) {
+    return this.run(tenant, adminId, 'security-admin', 'reinstate', { knowledge: validId(id) ? [id] : [] }, s => {
+      const k = this.target(s, tenant, id);
+      if (!k) return refuse('INVALID_REQUEST');
+      if (k.lifecycle === 'erased') return refuse('CONFLICT');
+      if (k.revokedAt !== undefined) { delete k.revokedAt; k.active = true; this.bump(s, tenant); }
+      return { ok: true, value: { id, epoch: s.epochs[tenant] ?? 0 } };
+    });
+  }
+  /** Places (hold) or lifts (!hold) one legal hold on a record (security-admin). Holds block erasure and retention. Idempotent. */
+  setLegalHold(tenant: string, adminId: string, id: string, hold: boolean, holdId: string) {
+    return this.run(tenant, adminId, 'security-admin', hold === true ? 'legal_hold_set' : 'legal_hold_lift', { knowledge: validId(id) ? [id] : [] }, s => {
+      const k = this.target(s, tenant, id);
+      if (!k || typeof hold !== 'boolean' || !validId(holdId) || (k.legalHolds !== undefined && !ids(k.legalHolds, 64))) return refuse('INVALID_REQUEST');
+      if (k.lifecycle === 'erased') return refuse('CONFLICT');
+      const holds = new Set(k.legalHolds ?? []);
+      if (hold) { if (!holds.has(holdId) && holds.size >= 64) return refuse('CONFLICT'); holds.add(holdId); } else holds.delete(holdId);
+      if (holds.size) k.legalHolds = [...holds].sort(); else delete k.legalHolds;
+      return { ok: true, value: { id, holds: holds.size } };
+    });
+  }
+  /**
+   * Erasure (security-admin; supports GDPR Art. 17). Tombstones the record and,
+   * with `cascade` (default), every record whose provenance includes it, since
+   * derived content may contain the erased data. Without `cascade`, a live
+   * descendant is a CONFLICT. A legal hold on the record or any descendant is a
+   * CONFLICT carrying only the number of held records; nothing is erased. Audit
+   * entries are kept (content-free). Advances the tenant epoch. Idempotent.
+   */
+  erase(tenant: string, adminId: string, id: string, options: { cascade?: boolean } = {}) {
+    return this.eraseAs(tenant, adminId, id, options.cascade ?? true, 'erase');
+  }
+  private eraseAs(tenant: string, adminId: string, id: string, cascade: boolean, operation: 'erase' | 'retention_erase', due?: number) {
+    return this.run(tenant, adminId, 'security-admin', operation, { knowledge: validId(id) ? [id] : [] }, async (s, tx) => {
+      const k = this.target(s, tenant, id);
+      if (!k || typeof cascade !== 'boolean') return refuse('INVALID_REQUEST');
+      // A retention run re-checks the deadline inside the transaction (it may have changed since listing).
+      if (due !== undefined && !(k.lifecycle !== 'erased' && safeNumber(k.retainUntil) && k.retainUntil <= due)) return { ok: true, value: { id, erased: 0, epoch: s.epochs[tenant] ?? 0 } };
+      const records = await this.cascade(s, tx, tenant, k);
+      const live = records.filter(r => r.lifecycle !== 'erased');
+      const holds = live.filter(held).length;
+      if (holds) return { ok: false, code: 'CONFLICT', held: holds };
+      if (!cascade && live.some(r => r !== k)) return refuse('CONFLICT');
+      const now = this.clock();
+      let erased = 0;
+      for (const r of records) if (tombstone(r, now)) erased++;
+      if (erased) this.bump(s, tenant);
+      return { ok: true, value: { id, erased, epoch: s.epochs[tenant] ?? 0 } };
+    });
+  }
+  /**
+   * Retention job (security-admin): erases, with cascade, records whose
+   * `retainUntil` is at or before `now` and that are not under legal hold, at most
+   * `limit` (1..100) per call, ordered by id after `after`. Resumable: call again
+   * with `after: next` until `next` is absent. Each erasure is its own audited
+   * decision (retention_erase); a record whose lineage is held is skipped (`held`).
+   */
+  async applyRetention(tenant: string, adminId: string, now = this.clock(), options: { after?: string; limit?: number } = {}):
+    Promise<ControlResult<{ erased: number; held: number; deferred: number; next?: string }>> {
+    const after = options.after ?? '', limit = options.limit ?? LIFECYCLE.retentionBatch;
+    const listed = await this.run(tenant, adminId, 'security-admin', 'apply_retention', {}, async (_s, tx) => {
+      if (!safeNumber(now) || (after !== '' && !validId(after)) || !Number.isSafeInteger(limit) || limit < 1 || limit > LIFECYCLE.retentionBatch) return refuse('INVALID_REQUEST');
+      return { ok: true, value: await retentionDue(tx, tenant, now, after, limit + 1) };
+    });
+    if (!listed.ok) return listed;
+    const due = listed.value.slice(0, limit);
+    let erased = 0, holds = 0, deferred = 0;
+    for (const id of due) {
+      try {
+        const r = await this.eraseAs(tenant, adminId, id, true, 'retention_erase', now);
+        if (r.ok) erased += r.value.erased; else if (r.code === 'CONFLICT') holds++; else deferred++;
+      } catch { deferred++; }
+    }
+    return { ok: true, value: { erased, held: holds, deferred, ...(listed.value.length > limit ? { next: due.at(-1)! } : {}) }, decisionId: listed.decisionId };
+  }
   /**
    * Audits an administrative attempt that was answered outside the control plane
    * (for example an idempotent replay) after the same standing-role check. `ok`
    * means the caller holds the role now; the outcome is recorded as given.
    */
   attempt(tenant: string, adminId: string, role: AdminRole, operation: string, outcome: { allowed: boolean; reason: string }): Promise<ControlResult<true>> {
-    return this.run(tenant, adminId, role, operation, {}, () => ({ ok: true, value: true, audit: outcome }));
+    // The recorded reason must be a closed code (reference/decision.ts) consistent with the outcome.
+    const code = typeof outcome?.reason === 'string' ? classify(outcome.reason) : null;
+    const valid = !!code && typeof outcome.allowed === 'boolean' && !code.category === outcome.allowed;
+    return this.run(tenant, adminId, role, operation, {}, () => valid ? { ok: true, value: true, audit: outcome } : refuse('INVALID_REQUEST'));
   }
   /** Administrative reads (SCIM, tooling). Audited; a record of another tenant reads as absent. */
   readActor(tenant: string, adminId: string, id: string): Promise<ControlResult<Actor | null>> {
@@ -343,15 +596,56 @@ export class ControlPlane {
       return { ok: true, value: g && g.tenant === tenant ? structuredClone(g) : null };
     });
   }
+  readDestination(tenant: string, adminId: string, id: string): Promise<ControlResult<Destination | null>> {
+    return this.run(tenant, adminId, ['security-admin', 'auditor'], 'read_destination', { destinations: validId(id) ? [id] : [] }, s => {
+      const d = validId(id) && s.destinations && Object.hasOwn(s.destinations, id) ? s.destinations[id] : undefined;
+      return { ok: true, value: d && d.tenant === tenant ? structuredClone(d) : null };
+    });
+  }
   /** Audited role check for operations executed outside the control plane (for example index maintenance). */
   authorize(tenant: string, adminId: string, role: AdminRole, operation: string): Promise<ControlResult<true>> {
     return this.run(tenant, adminId, role, operation, {}, () => ({ ok: true, value: true }));
   }
   /** Audit read access is itself audited. */
   async auditLog(tenant: string, adminId: string, after = 0, limit = 1000): Promise<ControlResult<Audit[]>> {
-    if (!safeNumber(after) || !Number.isSafeInteger(limit) || limit < 1 || limit > 10_000) return { ok: false, code: 'INVALID_REQUEST' };
+    if (!safeNumber(after) || !Number.isSafeInteger(limit) || limit < 1 || limit > 10_000) return { ok: false, code: 'INVALID_REQUEST', decisionId: newDecisionId() };
     const allowed = await this.run(tenant, adminId, 'auditor', 'audit_read', {}, () => ({ ok: true, value: true }));
     if (!allowed.ok) return allowed;
-    return { ok: true, value: await this.store.auditLog(tenant, after, limit) };
+    return { ok: true, value: await this.store.auditLog(tenant, after, limit), decisionId: allowed.decisionId };
+  }
+  /** Stream size before this operation's own entry: the audit head of the snapshot (every store loads it). */
+  private size(s: State, tenant: string): number {
+    let size = 0;
+    for (const a of s.audits) if (a.tenant === tenant && a.sequence > size) size = a.sequence;
+    return size;
+  }
+  /**
+   * auditor: RFC 9162 inclusion proof of the entry at 0-based `leafIndex` (sequence
+   * leafIndex + 1) in the tree of the first `treeSize` entries. Audited as
+   * audit_proof; a range outside the stream is refused (INVALID_REQUEST, audited).
+   */
+  async auditProof(tenant: string, adminId: string, leafIndex: number, treeSize: number): Promise<ControlResult<InclusionProof>> {
+    const allowed = await this.run(tenant, adminId, 'auditor', 'audit_proof', {}, s =>
+      safeNumber(leafIndex) && safeNumber(treeSize) && leafIndex < treeSize && treeSize <= this.size(s, tenant) ? { ok: true, value: true } : refuse('INVALID_REQUEST'));
+    if (!allowed.ok) return allowed;
+    return { ok: true, value: await inclusionProof(this.store, tenant, leafIndex, treeSize), decisionId: allowed.decisionId };
+  }
+  /** auditor: RFC 9162 consistency proof that the tree of `second` entries extends the tree of `first` (1 <= first <= second). */
+  async auditConsistency(tenant: string, adminId: string, first: number, second: number): Promise<ControlResult<ConsistencyProof>> {
+    const allowed = await this.run(tenant, adminId, 'auditor', 'audit_consistency', {}, s =>
+      safeNumber(first) && safeNumber(second) && first >= 1 && first <= second && second <= this.size(s, tenant) ? { ok: true, value: true } : refuse('INVALID_REQUEST'));
+    if (!allowed.ok) return allowed;
+    return { ok: true, value: await consistencyProof(this.store, tenant, first, second), decisionId: allowed.decisionId };
+  }
+  /**
+   * auditor: the current tree head of the tenant stream (including this read's own
+   * audit entry) and, when a checkpoint key is configured, its format 2 signature.
+   */
+  async latestCheckpoint(tenant: string, adminId: string): Promise<ControlResult<{ head: TreeHead; checkpoint?: CheckpointV2 }>> {
+    const allowed = await this.run(tenant, adminId, 'auditor', 'audit_checkpoint', {}, () => ({ ok: true, value: true }));
+    if (!allowed.ok) return allowed;
+    const head = await treeHead(this.store, tenant);
+    const checkpoint = this.signer ? signTreeHead(head, this.signer.privatePem, this.signer.keyId, this.clock()) : undefined;
+    return { ok: true, value: { head, ...(checkpoint ? { checkpoint } : {}) }, decisionId: allowed.decisionId };
   }
 }

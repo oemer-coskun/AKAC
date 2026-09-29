@@ -1,0 +1,1999 @@
+{
+  "description": "AKAC 0.4 destination profile vectors (ADR-008, spec/drafts/0.4-destinations.md). Synthetic data. kind 'decision': decide() over kbFixture(clock) with patches, expected {effect, code}. kind 'destination': the pure destination gate (reference/policy.ts destinationGate) for the binding's grant, the recipient's target (targetOf(actor), or {kind:'unspecified'} when recipient is null), the highest transitive effective classification of `sources`, and `purpose`; expected {ok, restrict?}. Patches as in vectors.json; fields destination, destinations and maxResults are optional fields.",
+  "profile": "AKAC-Destinations/0.4-draft",
+  "fixture": "kbFixture",
+  "clock": 1800000000000,
+  "cases": [
+    {
+      "id": "DST-D01",
+      "kind": "decision",
+      "description": "A root grant restricted to internal-user still reads (destinations restrict share/export only)",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "internal-user"
+          ]
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "DST-D02",
+      "kind": "decision",
+      "description": "A child adding a destination class to a restricted parent is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "destinations": [
+              "internal-user",
+              "model-provider"
+            ],
+            "maxResults": 10
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "destinations": [
+              "internal-user",
+              "tool"
+            ],
+            "maxResults": 10
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "DST-D03",
+      "kind": "decision",
+      "description": "A child dropping the destination restriction of its parent is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "destinations": [
+              "internal-user",
+              "model-provider"
+            ],
+            "maxResults": 10
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "maxResults": 10
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "DST-D04",
+      "kind": "decision",
+      "description": "A child narrowing destinations and keeping the limit is valid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "destinations": [
+              "internal-user",
+              "model-provider"
+            ],
+            "maxResults": 10
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "destinations": [
+              "internal-user"
+            ],
+            "maxResults": 10
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "DST-D05",
+      "kind": "decision",
+      "description": "A child raising the result limit is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "destinations": [
+              "internal-user",
+              "model-provider"
+            ],
+            "maxResults": 10
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "destinations": [
+              "internal-user"
+            ],
+            "maxResults": 20
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "DST-D06",
+      "kind": "decision",
+      "description": "A child dropping the result limit is invalid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "destinations": [
+              "internal-user",
+              "model-provider"
+            ],
+            "maxResults": 10
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "destinations": [
+              "internal-user"
+            ]
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "DST-D07",
+      "kind": "decision",
+      "description": "A child lowering the result limit is valid",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          {
+            "id": "chief-run",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "destinations": [
+              "internal-user",
+              "model-provider"
+            ],
+            "maxResults": 10
+          }
+        ],
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "destinations": [
+              "model-provider"
+            ],
+            "maxResults": 5
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "DST-D08",
+      "kind": "decision",
+      "description": "A result limit of 0 is malformed",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "maxResults",
+          0
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      }
+    },
+    {
+      "id": "DST-D09",
+      "kind": "decision",
+      "description": "A result limit above the core cap (64) is malformed",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "maxResults",
+          65
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      }
+    },
+    {
+      "id": "DST-D10",
+      "kind": "decision",
+      "description": "An empty destination list is malformed",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          []
+        ]
+      ],
+      "expected": {
+        "effect": "deny",
+        "code": "INVALID_DELEGATION"
+      }
+    },
+    {
+      "id": "DST-D11",
+      "kind": "decision",
+      "description": "An unrestricted parent admits a restricted child",
+      "binding": "chief",
+      "resource": "handbook",
+      "action": "read",
+      "purpose": "work",
+      "patch": [
+        [
+          "grants",
+          "c1",
+          {
+            "id": "c1",
+            "tenant": "acme",
+            "subject": "chief",
+            "agent": "chief-agent",
+            "actions": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "resources": [
+              "*"
+            ],
+            "purposes": [
+              "work"
+            ],
+            "notBefore": 1799999999000,
+            "expiresAt": 1800003600000,
+            "active": true,
+            "parent": "chief-run",
+            "destinations": [
+              "tool"
+            ],
+            "maxResults": 1
+          }
+        ]
+      ],
+      "expected": {
+        "effect": "allow",
+        "code": "AUTHORIZED"
+      },
+      "grant": "c1"
+    },
+    {
+      "id": "DST-G01",
+      "kind": "destination",
+      "description": "Confidential content to a model-provider profile up to confidential",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "project-alpha"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "ok": true,
+        "restrict": [
+          "model-provider",
+          "eu-llm"
+        ]
+      }
+    },
+    {
+      "id": "DST-G02",
+      "kind": "destination",
+      "description": "Restricted content above the profile's maxClassification denies",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "strategy"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G03",
+      "kind": "destination",
+      "description": "The highest classification of all released sources counts",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook",
+        "strategy"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G04",
+      "kind": "destination",
+      "description": "An inactive profile denies",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "eu-llm",
+          "active",
+          false
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G05",
+      "kind": "destination",
+      "description": "A purpose outside the profile denies",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "eu-llm",
+          "purposes",
+          [
+            "support"
+          ]
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G06",
+      "kind": "destination",
+      "description": "An unknown profile denies",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          "destination",
+          "no-such-profile"
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G07",
+      "kind": "destination",
+      "description": "A profile of another tenant denies",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "foreign",
+          {
+            "id": "foreign",
+            "tenant": "other",
+            "class": "internal-service",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          "destination",
+          "foreign"
+        ]
+      ],
+      "expected": {
+        "ok": false
+      },
+      "tags": [
+        "cross-tenant"
+      ]
+    },
+    {
+      "id": "DST-G08",
+      "kind": "destination",
+      "description": "A profile id equal to a class name denies",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "tool",
+          {
+            "id": "tool",
+            "tenant": "acme",
+            "class": "tool",
+            "maxClassification": "restricted",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          "destination",
+          "tool"
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G09",
+      "kind": "destination",
+      "description": "A run restricted to internal-user denies a model provider",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "internal-user"
+          ]
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G10",
+      "kind": "destination",
+      "description": "A run restricted to internal-user admits a user without a profile, with the obligation",
+      "binding": "chief",
+      "recipient": "lead",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "internal-user"
+          ]
+        ]
+      ],
+      "expected": {
+        "ok": true,
+        "restrict": [
+          "internal-user"
+        ]
+      }
+    },
+    {
+      "id": "DST-G11",
+      "kind": "destination",
+      "description": "An unrestricted run and a user without a profile: 0.3 behaviour, no obligation",
+      "binding": "chief",
+      "recipient": "lead",
+      "sources": [
+        "strategy"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "ok": true
+      }
+    },
+    {
+      "id": "DST-G12",
+      "kind": "destination",
+      "description": "An unrestricted run and a service without a profile: 0.3 behaviour",
+      "binding": "chief",
+      "recipient": "legacy-svc",
+      "sources": [
+        "strategy"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "ok": true
+      }
+    },
+    {
+      "id": "DST-G13",
+      "kind": "destination",
+      "description": "A restricted run denies a service without a profile",
+      "binding": "chief",
+      "recipient": "legacy-svc",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "model-provider"
+          ]
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G14",
+      "kind": "destination",
+      "description": "A run restricted by profile id admits that profile",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "eu-llm"
+          ]
+        ]
+      ],
+      "expected": {
+        "ok": true,
+        "restrict": [
+          "model-provider",
+          "eu-llm"
+        ]
+      }
+    },
+    {
+      "id": "DST-G15",
+      "kind": "destination",
+      "description": "No named recipient under a restricted run: allowed only with the run's destinations as obligation",
+      "binding": "chief",
+      "recipient": null,
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "grants",
+          "chief-run",
+          "destinations",
+          [
+            "internal-user",
+            "tool"
+          ]
+        ]
+      ],
+      "expected": {
+        "ok": true,
+        "restrict": [
+          "internal-user",
+          "tool"
+        ]
+      }
+    },
+    {
+      "id": "DST-G16",
+      "kind": "destination",
+      "description": "No named recipient under an unrestricted run: no obligation",
+      "binding": "chief",
+      "recipient": null,
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "ok": true
+      }
+    },
+    {
+      "id": "DST-G17",
+      "kind": "destination",
+      "description": "A derived artifact labelled internal whose source is restricted is restricted for the gate",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "digest"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "knowledge",
+          "digest",
+          {
+            "id": "digest",
+            "tenant": "acme",
+            "version": 1,
+            "kind": "artifact",
+            "origin": "model",
+            "content": "Synthetic digest.",
+            "classification": "internal",
+            "projects": [],
+            "readerRoles": [
+              "executive"
+            ],
+            "readers": [],
+            "sources": [
+              {
+                "id": "strategy",
+                "version": 1
+              }
+            ],
+            "active": true
+          }
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "DST-G18",
+      "kind": "destination",
+      "description": "A malformed profile class denies",
+      "binding": "chief",
+      "recipient": "llm",
+      "sources": [
+        "handbook"
+      ],
+      "purpose": "work",
+      "patch": [
+        [
+          "destinations",
+          "eu-llm",
+          {
+            "id": "eu-llm",
+            "tenant": "acme",
+            "class": "model-provider",
+            "maxClassification": "confidential",
+            "purposes": [
+              "work"
+            ],
+            "active": true
+          }
+        ],
+        [
+          "actors",
+          "llm",
+          {
+            "id": "llm",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true,
+            "destination": "eu-llm"
+          }
+        ],
+        [
+          "actors",
+          "legacy-svc",
+          {
+            "id": "legacy-svc",
+            "tenant": "acme",
+            "kind": "service",
+            "roles": [
+              "staff",
+              "executive",
+              "project"
+            ],
+            "projects": [
+              "alpha"
+            ],
+            "clearance": "restricted",
+            "active": true
+          }
+        ],
+        [
+          "destinations",
+          "eu-llm",
+          "class",
+          "partner"
+        ]
+      ],
+      "expected": {
+        "ok": false
+      }
+    }
+  ]
+}

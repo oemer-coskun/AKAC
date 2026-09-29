@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/audit-proof.json",
+  "description": "RFC 9162 audit proofs of one tenant stream. Leaf index = sequence - 1. Verify against a trusted checkpoint, never against the rootHash returned with the proof alone.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stream",
+        "leafIndex",
+        "treeSize",
+        "leafHash",
+        "rootHash",
+        "path"
+      ],
+      "properties": {
+        "stream": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "leafIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "treeSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "leafHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "rootHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "path": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stream",
+        "first",
+        "second",
+        "firstRoot",
+        "secondRoot",
+        "path"
+      ],
+      "properties": {
+        "stream": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "first": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "second": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "firstRoot": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "secondRoot": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "path": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    }
+  ]
+}

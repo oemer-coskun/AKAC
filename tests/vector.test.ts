@@ -1,3 +1,4 @@
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -156,8 +157,8 @@ test('empty results do not distinguish no match from no authority', async () => 
   const noAuthority = await engine.retrieve(bindings.intern, STRATEGY, 'work');
   const noAuthorityReason = await last();
   const noMatch = await engine.retrieve(bindings.intern, 'zyzzyva qwertz plugh', 'work');
-  assert.deepEqual(noAuthority, { ok: false, code: 'NOT_AUTHORIZED' });
-  assert.deepEqual(noMatch, noAuthority);
+  assert.deepEqual(bare(noAuthority), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(noMatch), bare(noAuthority), 'only the random decision id differs');
   assert.equal(await last(), noAuthorityReason);
 });
 
@@ -167,7 +168,7 @@ test('index metadata is a hint: a chunk with wrong tokens is dropped by decide()
   await index.upsert([{ tenant: 'acme', docId: 'strategy', docVersion: 1, chunkId: 'strategy#1#0', ordinal: 0, compartment: 'public', readTokens: ['role:staff'],
     requiredProjects: [], containerTokens: [], model: hash.model, vector: (await hash.embed([STRATEGY]))[0]! }]);
   const result = await engine.retrieve(bindings.intern, STRATEGY, 'work');
-  assert.deepEqual(result, { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(result), { ok: false, code: 'NOT_AUTHORIZED' });
   assert.equal(engineEvents.filter(e => e.type === 'filter_mismatch').length, 1);
   assert.ok(engine.stats().filterMismatches >= 1);
   // A mixed result returns only what decide() allows.
@@ -180,14 +181,14 @@ test('unavailable embedder or index denies and is reported', async () => {
   const { engine, engineEvents } = await rig({ embedder: hash });
   const down = new Engine(new MemoryStore(world()), { clock: () => now, onEvent: e => engineEvents.push(e),
     candidates: new VectorCandidateSource({ index: new MemoryVectorIndex(), embedder: broken }) });
-  assert.deepEqual(await down.retrieve(bindings.chief, 'anything', 'work'), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await down.retrieve(bindings.chief, 'anything', 'work')), { ok: false, code: 'NOT_AUTHORIZED' });
   assert.ok(engineEvents.some(e => e.type === 'candidates_unavailable'));
   assert.ok((await engine.retrieve(bindings.chief, STRATEGY, 'work')).ok);
 });
 
 test('ingestion: new version replaces old chunks; container floor sets the compartment; unauthorized admins are refused', async () => {
   const { engine, ingestor, index, ingestEvents } = await rig(); const spy = index as SpyIndex;
-  assert.deepEqual(await ingestor.ingest('acme', 'admin', doc('memo', 'alpha bravo charlie.')), { ok: true, value: { id: 'memo', version: 1, chunks: 1 } });
+  assert.deepEqual(bare(await ingestor.ingest('acme', 'admin', doc('memo', 'alpha bravo charlie.'))), { ok: true, value: { id: 'memo', version: 1, chunks: 1 } });
   assert.deepEqual(await ids(engine, bindings.intern, 'alpha bravo charlie'), ['memo']);
   assert.ok((await ingestor.ingest('acme', 'admin', doc('memo', 'delta echo foxtrot.', { version: 2 }))).ok);
   assert.equal(await ids(engine, bindings.intern, 'alpha bravo charlie'), null);
@@ -204,9 +205,9 @@ test('ingestion: new version replaces old chunks; container floor sets the compa
   assert.deepEqual(await ids(engine, bindings.chief, 'kilo lima mike'), ['folder-doc']);
   assert.ok(spy.queries.at(-2)!.compartments.every(c => c !== 'restricted'));
   // Authorization and validation happen in the control plane; nothing is indexed on refusal.
-  assert.deepEqual(await ingestor.ingest('acme', 'intern', doc('evil', 'oscar papa.')), { ok: false, code: 'NOT_AUTHORIZED' });
-  assert.deepEqual(await ingestor.ingest('acme', 'admin', doc('memo', 'stale.', { version: 9 })), { ok: false, code: 'CONFLICT' });
-  assert.deepEqual(await ingestor.ingest('acme', 'admin', { ...doc('model-made', 'x.'), origin: 'model' }), { ok: false, code: 'INVALID_REQUEST' });
+  assert.deepEqual(bare(await ingestor.ingest('acme', 'intern', doc('evil', 'oscar papa.'))), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await ingestor.ingest('acme', 'admin', doc('memo', 'stale.', { version: 9 }))), { ok: false, code: 'CONFLICT' });
+  assert.deepEqual(bare(await ingestor.ingest('acme', 'admin', { ...doc('model-made', 'x.'), origin: 'model' })), { ok: false, code: 'INVALID_REQUEST' });
   assert.ok(![...(await index.state('acme')).keys()].includes('evil'));
   assert.ok(ingestEvents.some(e => e.type === 'indexed'));
 });
@@ -216,7 +217,7 @@ test('embedder failure leaves the document authoritative but unindexed; reconcil
   const flaky: Embedder = { model: hash.model, dimensions: 4096, embed: (t, s) => { if (failing) throw new Error('embedding service down'); return hash.embed(t, s); } };
   const { engine, ingestor, store, index, ingestEvents } = await rig({ embedder: hash });
   const bad = new Ingestor({ control: new ControlPlane(store, { clock: () => now }), store, index, embedder: flaky, clock: () => now, onEvent: e => ingestEvents.push(e) });
-  assert.deepEqual(await bad.ingest('acme', 'admin', doc('late', 'quebec romeo sierra.')), { ok: false, code: 'INDEX_PENDING', id: 'late', version: 1 });
+  assert.deepEqual(bare(await bad.ingest('acme', 'admin', doc('late', 'quebec romeo sierra.'))), { ok: false, code: 'INDEX_PENDING', id: 'late', version: 1 });
   assert.ok(ingestEvents.some(e => e.type === 'index_pending' && e.reason === 'embed'));
   assert.equal((await store.transaction('acme', async tx => tx.state.knowledge.late?.version)), 1, 'authoritative write stayed');
   assert.equal(await ids(engine, bindings.intern, 'quebec romeo sierra'), null);
@@ -233,13 +234,13 @@ test('removal, revocation and relabeling keep the index consistent', async () =>
   // An index outage during removal leaves INDEX_PENDING; reconcile removes chunks of inactive documents.
   const real = index.removeDocument.bind(index); let down = true;
   index.removeDocument = async (t, d) => { if (down) throw new Error('index offline'); return real(t, d); };
-  assert.deepEqual(await ingestor.remove('acme', 'admin', 'staff-faq'), { ok: false, code: 'INDEX_PENDING', id: 'staff-faq', version: 0 });
+  assert.deepEqual(bare(await ingestor.remove('acme', 'admin', 'staff-faq')), { ok: false, code: 'INDEX_PENDING', id: 'staff-faq', version: 0 });
   assert.equal(await ids(engine, bindings.intern, 'Staff FAQ office hours'), null, 'the engine denies a revoked document even while chunks remain');
   assert.ok((await index.state('acme')).has('staff-faq'));
   down = false;
   assert.equal((await ingestor.reconcile('acme')).removed, 1);
   assert.ok(!(await index.state('acme')).has('staff-faq'));
-  assert.deepEqual(await ingestor.remove('acme', 'intern', 'handbook'), { ok: false, code: 'NOT_AUTHORIZED' });
+  assert.deepEqual(bare(await ingestor.remove('acme', 'intern', 'handbook')), { ok: false, code: 'NOT_AUTHORIZED' });
   // Raising a container floor moves its documents to a higher compartment on reconcile.
   const before = (await index.state('acme')).get('board-notes')!.digest;
   const folder = await store.transaction('acme', async tx => structuredClone(tx.state.containers['f-executive']!));
@@ -250,9 +251,9 @@ test('removal, revocation and relabeling keep the index consistent', async () =>
   const probe = (compartments: VectorQuery['compartments']) => index.query({ tenant: 'acme', compartments, tokens: ['role:staff', 'role:executive'], projects: [], vector: v, k: 20 }).then(h => h.some(x => x.docId === 'board-notes'));
   assert.equal(await probe(['public', 'internal', 'confidential']), false);
   assert.equal(await probe([...LEVELS]), true);
-  assert.deepEqual(await ingestor.relabel('acme', 'board-notes'), { ok: true, value: { id: 'board-notes', version: 1, chunks: 1 } });
-  assert.deepEqual(await ingestor.relabel('acme', 'nonexistent'), { ok: true, value: { id: 'nonexistent', version: 0, chunks: 0 } });
-  assert.deepEqual(await ingestor.relabel('acme', '../x'), { ok: false, code: 'INVALID_REQUEST' });
+  assert.deepEqual(bare(await ingestor.relabel('acme', 'board-notes')), { ok: true, value: { id: 'board-notes', version: 1, chunks: 1 } });
+  assert.deepEqual(bare(await ingestor.relabel('acme', 'nonexistent')), { ok: true, value: { id: 'nonexistent', version: 0, chunks: 0 } });
+  assert.deepEqual(bare(await ingestor.relabel('acme', '../x')), { ok: false, code: 'INVALID_REQUEST' });
 });
 
 test('a model change re-embeds on reconcile', async () => {

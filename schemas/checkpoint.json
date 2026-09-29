@@ -1,47 +1,99 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "format": {
-      "const": "akac-audit-checkpoint/1"
+  "$id": "https://github.com/WestMoneyDE/AKAC/schemas/checkpoint.json",
+  "description": "Signed audit checkpoint. Format 2 signs the JCS form of {format, stream, treeSize, rootHash, issuedAt, keyId} with Ed25519; rootHash is the RFC 9162 root of the first treeSize entries. Format 1 (0.2-0.3) remains verifiable.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "stream",
+        "sequence",
+        "hash",
+        "issuedAt",
+        "keyId",
+        "signature"
+      ],
+      "properties": {
+        "format": {
+          "const": "akac-audit-checkpoint/1"
+        },
+        "stream": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "issuedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "keyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
     },
-    "stream": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 128
-    },
-    "sequence": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
-    },
-    "hash": {
-      "type": "string",
-      "pattern": "^[a-f0-9]{64}$"
-    },
-    "issuedAt": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
-    },
-    "keyId": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 128
-    },
-    "signature": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9_-]{86}$"
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "stream",
+        "treeSize",
+        "rootHash",
+        "issuedAt",
+        "keyId",
+        "signature"
+      ],
+      "properties": {
+        "format": {
+          "const": "akac-audit-checkpoint/2"
+        },
+        "stream": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "treeSize": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rootHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "issuedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "keyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
     }
-  },
-  "required": [
-    "format",
-    "stream",
-    "sequence",
-    "hash",
-    "issuedAt",
-    "keyId",
-    "signature"
   ]
 }

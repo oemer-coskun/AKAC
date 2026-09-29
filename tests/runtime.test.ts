@@ -1,3 +1,4 @@
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Engine } from '../reference/engine.ts';
@@ -17,7 +18,7 @@ test('authorized provider receives exact captured sources and output passes reci
   const runtime = new ProtectedRuntime(new Engine(new MemoryStore(state)), { principal: 'provider', generate: async request => {
     assert.deepEqual(request.documents.map(r => r.id), ['strategy']); return 'Synthetic answer';
   } });
-  assert.deepEqual(await runtime.answer(bindings.chief, ['strategy'], 'work', 'Summarize'), { ok: true, value: { content: 'Synthetic answer' } });
+  assert.deepEqual(bare(await runtime.answer(bindings.chief, ['strategy'], 'work', 'Summarize')), { ok: true, value: { content: 'Synthetic answer' } });
 });
 test('revocation while provider works blocks the final answer', async () => {
   const state = fixture(); state.actors.provider = { ...state.actors.chief!, id: 'provider', kind: 'service' };

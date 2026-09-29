@@ -70,7 +70,11 @@ export class Registry {
 }
 
 const REASONS = ['AUTHORIZED', 'DENIED', 'DEFERRED'] as const;
-const DECISION_OPERATIONS = ['read', 'retrieve', 'derive', 'share', 'export', 'delegate'];
+const DECISION_OPERATIONS = ['read', 'retrieve', 'derive', 'share', 'export', 'delegate', 'write_memory', 'authzen_evaluate'];
+/** Lifecycle administration (0.4); the admin operation label is a closed set as well. */
+const LIFECYCLE_OPERATIONS = ['quarantine', 'release', 'lineage_read', 'revoke_lineage', 'legal_hold_set', 'legal_hold_lift', 'erase', 'retention_apply'];
+const ADMIN_OPERATIONS = ['put_actor', 'assign_roles', 'put_role', 'put_group', 'put_constraint', 'put_container', 'put_knowledge', 'delete_knowledge', 'put_destination',
+  'index_reconcile', 'issue_grant', 'revoke', 'audit_read', 'audit_export', 'audit_checkpoint', 'audit_proof', 'audit_consistency', 'unknown', ...LIFECYCLE_OPERATIONS];
 /** AKAC metrics. Labels are closed sets: no tenant, subject, resource, query or content values. */
 export class Metrics {
   readonly registry = new Registry();
@@ -81,6 +85,7 @@ export class Metrics {
   readonly filterMismatch = this.registry.counter('akac_filter_mismatch_total', 'Retrieval candidates rejected by the authoritative policy check. Any value above 0 needs investigation.');
   readonly candidatesUnavailable = this.registry.counter('akac_candidates_unavailable_total', 'Retrieval candidate source failures (requests fail closed).');
   readonly adminOps = this.registry.counter('akac_admin_operations_total', 'Administrative operations by name and result.', ['operation', 'result']);
+  readonly lifecycle = this.registry.counter('akac_lifecycle_operations_total', 'Knowledge lifecycle administration (quarantine, release, erasure, legal hold, retention) by operation and result.', ['operation', 'result']);
   readonly indexChunks = this.registry.counter('akac_index_chunks_written_total', 'Chunks written to the vector index.');
   readonly indexRemoved = this.registry.counter('akac_index_documents_removed_total', 'Documents removed from the vector index.');
   readonly indexPending = this.registry.counter('akac_index_pending_total', 'Documents left unindexed after an authoritative write; reconcile repairs them.', ['reason']);
@@ -111,7 +116,11 @@ export class Metrics {
   request(listener: string, route: string, status: number, seconds: number) {
     this.http.inc([listener, route, String(status)]); this.duration.observe([listener, route], seconds);
   }
-  admin(operation: string, result: string) { this.adminOps.inc([operation, result]); }
+  admin(operation: string, result: string) {
+    const known = ADMIN_OPERATIONS.includes(operation) || operation.startsWith('scim_') ? operation : 'other';
+    this.adminOps.inc([known, result]);
+    if (LIFECYCLE_OPERATIONS.includes(operation)) this.lifecycle.inc([operation, result]);
+  }
   expose(): string {
     const mem = process.memoryUsage();
     this.uptime.set([], (Date.now() - this.started) / 1000); this.heap.set([], mem.heapUsed); this.rss.set([], mem.rss);

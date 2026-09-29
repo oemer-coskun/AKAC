@@ -4,13 +4,17 @@ import { createHash } from 'node:crypto';
 import type { ControlPlane, ControlResult } from './control.ts';
 import type { Knowledge } from './types.ts';
 import type { AdminAuthenticator, AdminIdentity } from '../adapters/jwt.ts';
-import { exactKeys, validId } from './validation.ts';
+import { DpopGuard } from '../adapters/dpop.ts';
+import type { DpopOptions } from '../adapters/dpop.ts';
+import { exactKeys, safeNumber, validId } from './validation.ts';
+import { QUARANTINE_REASONS } from './types.ts';
+import type { QuarantineReason } from './types.ts';
 import { observe } from './observe.ts';
 import type { Observability } from './observe.ts';
 import { createScim, scimError } from './scim.ts';
 
 /** The authoritative write succeeded but the index lagged: 202, and reconcile repairs it. */
-type Pending = { ok: false; code: 'INDEX_PENDING'; id: string; version: number };
+type Pending = { ok: false; code: 'INDEX_PENDING'; id: string; version: number; decisionId?: string };
 export type AdminCredential = { token: string; binding: AdminIdentity };
 /** Structural seam for a document indexer (chunking and embedding). Without one, documents go straight to the control plane. */
 export type DocumentIngestor = {
@@ -18,9 +22,17 @@ export type DocumentIngestor = {
   remove(tenant: string, adminId: string, id: string): Promise<ControlResult<unknown> | Pending>;
   /** Repairs index drift for one tenant. The gateway authorizes and audits (kb-admin) before calling. */
   reconcile?(tenant: string): Promise<{ indexed: number; removed: number; failed: number; truncated: boolean }>;
+  /** Lifecycle wrappers (0.4): the control-plane operation, then the index follows. Without them the gateway calls the control plane directly. */
+  quarantine?(tenant: string, adminId: string, id: string, reason: QuarantineReason): Promise<ControlResult<unknown> | Pending>;
+  release?(tenant: string, adminId: string, id: string): Promise<ControlResult<unknown> | Pending>;
+  erase?(tenant: string, adminId: string, id: string, options?: { cascade?: boolean }): Promise<ControlResult<unknown> | Pending>;
+  revokeLineage?(tenant: string, adminId: string, id: string): Promise<ControlResult<unknown> | Pending>;
+  reinstate?(tenant: string, adminId: string, id: string): Promise<ControlResult<unknown> | Pending>;
 };
 export type AdminOptions = Observability & {
   credentials?: AdminCredential[]; authenticator?: AdminAuthenticator; ingestor?: DocumentIngestor;
+  /** Optional DPoP (RFC 9449) sender constraint for signed-token authentication; independent of the agent listener. */
+  dpop?: DpopOptions;
   /** Mount the SCIM 2.0 subset on this listener (default true). */
   scim?: boolean;
 };
@@ -40,11 +52,11 @@ const plain = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 
 const outcome = (status: number) => status < 300 ? 'ok' : status === 400 ? 'invalid' : status === 403 ? 'denied' : status === 404 ? 'not_found' : status === 409 ? 'conflict' : 'error';
 
 type Out = { status: number; body?: unknown; extra?: Record<string, string> } | 'streamed';
-type Ctx = { tenant: string; admin: string; params: string[]; body: unknown; query: URLSearchParams; req: IncomingMessage; res: ServerResponse };
+type Ctx = { control: ControlPlane; tenant: string; admin: string; params: string[]; body: unknown; query: URLSearchParams; req: IncomingMessage; res: ServerResponse };
 type Route = { method: string; pattern: RegExp; label: string; operation: string; body: 'none' | 'json' | 'document'; run(ctx: Ctx): Promise<Out> };
 
-const result = (r: ControlResult<unknown> | Pending, ok = 200): Out => ({ status: statusOf(r, ok), body: r.ok ? r : r.code === 'INDEX_PENDING' ? { ok: false, code: r.code, id: r.id, version: r.version }
-  : { ok: false, code: r.code, ...(r.holders !== undefined ? { holders: r.holders } : {}) } });
+const result = (r: ControlResult<unknown> | Pending, ok = 200): Out => ({ status: statusOf(r, ok), body: r.ok ? r : r.code === 'INDEX_PENDING' ? { ok: false, code: r.code, id: r.id, version: r.version, ...(r.decisionId ? { decisionId: r.decisionId } : {}) }
+  : { ok: false, code: r.code, ...(r.holders !== undefined ? { holders: r.holders } : {}), ...(r.held !== undefined ? { held: r.held } : {}), decisionId: r.decisionId } });
 const invalid: Out = { status: 400, body: { ok: false, code: 'INVALID_REQUEST' } };
 /**
  * Tenant and id come from the credential and the path. A body may repeat them, but a
@@ -70,6 +82,8 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
   const credentials = options.credentials ?? [];
   if (!credentials.length && !options.authenticator) throw new Error('Authentication is required');
   if (credentials.length && options.authenticator) throw new Error('Authentication modes cannot be mixed');
+  if (options.dpop && !options.authenticator) throw new Error('DPoP requires signed-token authentication');
+  const dpop = options.dpop ? new DpopGuard(options.dpop) : undefined;
   const auth = new Map<string, AdminIdentity>();
   for (const c of credentials) {
     if (typeof c?.token !== 'string' || c.token.length < 32 || c.token.length > 512 || !exactKeys(c.binding, ['tenant', 'admin'])
@@ -77,22 +91,75 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
     auth.set(digest(c.token), { tenant: c.binding.tenant, admin: c.binding.admin });
   }
   const ingestor = options.ingestor;
-  const scim = options.scim === false ? undefined : createScim(control);
+  const scimEnabled = options.scim !== false;
   const routes: Route[] = [
-    put('actors', 'put_actor', (x, a) => control.upsertActor(x.tenant, x.admin, a)),
+    put('actors', 'put_actor', (x, a) => x.control.upsertActor(x.tenant, x.admin, a)),
     { method: 'PUT', pattern: /^\/admin\/v1\/actors\/([^/]+)\/roles$/, label: '/admin/v1/actors/{id}/roles', operation: 'assign_roles', body: 'json',
-      run: async ctx => ctx.params[0] && exactKeys(ctx.body, ['roles']) ? result(await control.assignRoles(ctx.tenant, ctx.admin, ctx.params[0], ctx.body.roles as string[])) : invalid },
-    put('roles', 'put_role', (x, r) => control.upsertRole(x.tenant, x.admin, r)),
-    put('groups', 'put_group', (x, g) => control.upsertGroup(x.tenant, x.admin, g)),
-    put('constraints', 'put_constraint', (x, k) => control.upsertConstraint(x.tenant, x.admin, k)),
-    put('containers', 'put_container', (x, k) => control.upsertContainer(x.tenant, x.admin, k)),
-    put('knowledge', 'put_knowledge', (x, d: Knowledge) => ingestor ? ingestor.ingest(x.tenant, x.admin, d) : control.upsertKnowledge(x.tenant, x.admin, d), 'document'),
+      run: async ctx => ctx.params[0] && exactKeys(ctx.body, ['roles']) ? result(await ctx.control.assignRoles(ctx.tenant, ctx.admin, ctx.params[0], ctx.body.roles as string[])) : invalid },
+    put('roles', 'put_role', (x, r) => x.control.upsertRole(x.tenant, x.admin, r)),
+    put('groups', 'put_group', (x, g) => x.control.upsertGroup(x.tenant, x.admin, g)),
+    put('constraints', 'put_constraint', (x, k) => x.control.upsertConstraint(x.tenant, x.admin, k)),
+    put('containers', 'put_container', (x, k) => x.control.upsertContainer(x.tenant, x.admin, k)),
+    put('knowledge', 'put_knowledge', (x, d: Knowledge) => ingestor ? ingestor.ingest(x.tenant, x.admin, d) : x.control.upsertKnowledge(x.tenant, x.admin, d), 'document'),
     { method: 'DELETE', pattern: /^\/admin\/v1\/knowledge\/([^/]+)$/, label: '/admin/v1/knowledge/{id}', operation: 'delete_knowledge', body: 'none',
-      run: async ctx => result(ingestor ? await ingestor.remove(ctx.tenant, ctx.admin, ctx.params[0]!) : await control.removeKnowledge(ctx.tenant, ctx.admin, ctx.params[0]!)) },
+      run: async ctx => result(ingestor ? await ingestor.remove(ctx.tenant, ctx.admin, ctx.params[0]!) : await ctx.control.removeKnowledge(ctx.tenant, ctx.admin, ctx.params[0]!)) },
+    { method: 'POST', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/quarantine$/, label: '/admin/v1/knowledge/{id}/quarantine', operation: 'quarantine', body: 'json',
+      run: async ctx => exactKeys(ctx.body, ['reason']) && QUARANTINE_REASONS.includes(ctx.body.reason as QuarantineReason)
+        ? result(ingestor?.quarantine ? await ingestor.quarantine(ctx.tenant, ctx.admin, ctx.params[0]!, ctx.body.reason as QuarantineReason) : await ctx.control.quarantine(ctx.tenant, ctx.admin, ctx.params[0]!, ctx.body.reason as QuarantineReason)) : invalid },
+    { method: 'POST', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/release$/, label: '/admin/v1/knowledge/{id}/release', operation: 'release', body: 'none',
+      run: async ctx => result(ingestor?.release ? await ingestor.release(ctx.tenant, ctx.admin, ctx.params[0]!) : await ctx.control.release(ctx.tenant, ctx.admin, ctx.params[0]!)) },
+    { method: 'GET', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/descendants$/, label: '/admin/v1/knowledge/{id}/descendants', operation: 'lineage_read', body: 'none',
+      run: async ctx => {
+        const keys = [...ctx.query.keys()], raw = ctx.query.get('limit');
+        if (keys.some(k => k !== 'limit') || keys.length > 1 || (raw !== null && !/^\d{1,4}$/.test(raw))) return invalid;
+        return result(await ctx.control.descendants(ctx.tenant, ctx.admin, ctx.params[0]!, raw === null ? {} : { limit: Number(raw) }));
+      } },
+    { method: 'POST', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/revoke-lineage$/, label: '/admin/v1/knowledge/{id}/revoke-lineage', operation: 'revoke_lineage', body: 'none',
+      run: async ctx => result(ingestor?.revokeLineage ? await ingestor.revokeLineage(ctx.tenant, ctx.admin, ctx.params[0]!) : await ctx.control.revokeLineage(ctx.tenant, ctx.admin, ctx.params[0]!)) },
+    { method: 'POST', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/reinstate$/, label: '/admin/v1/knowledge/{id}/reinstate', operation: 'reinstate', body: 'none',
+      run: async ctx => result(ingestor?.reinstate ? await ingestor.reinstate(ctx.tenant, ctx.admin, ctx.params[0]!) : await ctx.control.reinstate(ctx.tenant, ctx.admin, ctx.params[0]!)) },
+    { method: 'PUT', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/legal-holds\/([^/]+)$/, label: '/admin/v1/knowledge/{id}/legal-holds/{holdId}', operation: 'legal_hold_set', body: 'none',
+      run: async ctx => result(await ctx.control.setLegalHold(ctx.tenant, ctx.admin, ctx.params[0]!, true, ctx.params[1]!)) },
+    { method: 'DELETE', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/legal-holds\/([^/]+)$/, label: '/admin/v1/knowledge/{id}/legal-holds/{holdId}', operation: 'legal_hold_lift', body: 'none',
+      run: async ctx => result(await ctx.control.setLegalHold(ctx.tenant, ctx.admin, ctx.params[0]!, false, ctx.params[1]!)) },
+    { method: 'POST', pattern: /^\/admin\/v1\/knowledge\/([^/]+)\/erase$/, label: '/admin/v1/knowledge/{id}/erase', operation: 'erase', body: 'json',
+      run: async ctx => {
+        if (!exactKeys(ctx.body, [], ['cascade']) || (Object.hasOwn(ctx.body, 'cascade') && typeof ctx.body.cascade !== 'boolean')) return invalid;
+        const options = Object.hasOwn(ctx.body, 'cascade') ? { cascade: ctx.body.cascade as boolean } : {};
+        return result(ingestor?.erase ? await ingestor.erase(ctx.tenant, ctx.admin, ctx.params[0]!, options) : await ctx.control.erase(ctx.tenant, ctx.admin, ctx.params[0]!, options));
+      } },
+    { method: 'POST', pattern: /^\/admin\/v1\/retention\/apply$/, label: '/admin/v1/retention/apply', operation: 'retention_apply', body: 'json',
+      run: async ctx => {
+        const b = ctx.body;
+        if (!exactKeys(b, [], ['now', 'after', 'limit']) || (Object.hasOwn(b, 'now') && !safeNumber(b.now)) || (Object.hasOwn(b, 'after') && !validId(b.after))
+          || (Object.hasOwn(b, 'limit') && !(Number.isSafeInteger(b.limit) && (b.limit as number) >= 1 && (b.limit as number) <= 100))) return invalid;
+        const options: { after?: string; limit?: number } = {};
+        if (Object.hasOwn(b, 'after')) options.after = b.after as string;
+        if (Object.hasOwn(b, 'limit')) options.limit = b.limit as number;
+        const r = await ctx.control.applyRetention(ctx.tenant, ctx.admin, Object.hasOwn(b, 'now') ? b.now as number : undefined, options);
+        // Retention erases through the control plane: reconcile drops the chunks of what it erased.
+        if (r.ok && r.value.erased > 0 && ingestor?.reconcile) {
+          try { await ingestor.reconcile(ctx.tenant); } catch { return result({ ok: false, code: 'INDEX_PENDING', id: 'retention', version: 0, decisionId: r.decisionId }); }
+        }
+        return result(r);
+      } },
+    { method: 'PUT', pattern: /^\/admin\/v1\/destinations\/([^/]+)$/, label: '/admin/v1/destinations/{id}', operation: 'put_destination', body: 'json',
+      run: async ctx => {
+        // Present once the control plane implements destination profiles; absent, the route does not exist.
+        const upsert = (ctx.control as unknown as { upsertDestination?: (tenant: string, adminId: string, destination: unknown) => Promise<ControlResult<unknown>> }).upsertDestination;
+        if (typeof upsert !== 'function') return { status: 404, body: { ok: false, code: 'NOT_FOUND' } };
+        const d = pin(ctx, ctx.params[0]!);
+        return d ? result(await upsert.call(ctx.control, ctx.tenant, ctx.admin, d)) : invalid;
+      } },
+    { method: 'GET', pattern: /^\/admin\/v1\/destinations\/([^/]+)$/, label: '/admin/v1/destinations/{id}', operation: 'read_destination', body: 'none',
+      run: async ctx => {
+        const r = await ctx.control.readDestination(ctx.tenant, ctx.admin, ctx.params[0]!);
+        return r.ok && r.value === null ? { status: 404, body: { ok: false, code: 'NOT_FOUND', decisionId: r.decisionId } } : result(r);
+      } },
     { method: 'POST', pattern: /^\/admin\/v1\/index\/reconcile$/, label: '/admin/v1/index/reconcile', operation: 'index_reconcile', body: 'none',
       run: async ctx => {
         if (!ingestor?.reconcile) return { status: 404, body: { ok: false, code: 'NOT_FOUND' } };
-        const allowed = await control.authorize(ctx.tenant, ctx.admin, 'kb-admin', 'index_reconcile');
+        const allowed = await ctx.control.authorize(ctx.tenant, ctx.admin, 'kb-admin', 'index_reconcile');
         if (!allowed.ok) return result(allowed);
         return { status: 200, body: { ok: true, value: await ingestor.reconcile(ctx.tenant) } };
       } },
@@ -100,15 +167,15 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
       run: async ctx => {
         const id = plain(ctx.body) && validId(ctx.body.id) ? ctx.body.id : undefined;
         const grant = id ? pin(ctx, id) : null;
-        return grant ? result(await control.issueGrant(ctx.tenant, ctx.admin, grant as never), 201) : invalid;
+        return grant ? result(await ctx.control.issueGrant(ctx.tenant, ctx.admin, grant as never), 201) : invalid;
       } },
     { method: 'POST', pattern: /^\/admin\/v1\/revocations$/, label: '/admin/v1/revocations', operation: 'revoke', body: 'json',
       run: async ctx => exactKeys(ctx.body, ['type', 'id']) && ['grant', 'knowledge', 'actor'].includes(ctx.body.type as string) && validId(ctx.body.id)
-        ? result(await control.revoke(ctx.tenant, ctx.admin, ctx.body.type as 'grant', ctx.body.id)) : invalid },
+        ? result(await ctx.control.revoke(ctx.tenant, ctx.admin, ctx.body.type as 'grant', ctx.body.id)) : invalid },
     { method: 'GET', pattern: /^\/admin\/v1\/audit$/, label: '/admin/v1/audit', operation: 'audit_read', body: 'none',
       run: async ctx => {
         const q = paging(ctx.query, ['after', 'limit']); if (!q) return invalid;
-        const r = await control.auditLog(ctx.tenant, ctx.admin, q.after, q.limit ?? 1000);
+        const r = await ctx.control.auditLog(ctx.tenant, ctx.admin, q.after, q.limit ?? 1000);
         return r.ok ? { status: 200, body: { ok: true, value: { entries: r.value, next: r.value.length ? r.value.at(-1)!.sequence : null } } } : result(r);
       } },
     { method: 'GET', pattern: /^\/admin\/v1\/audit\/export$/, label: '/admin/v1/audit/export', operation: 'audit_export', body: 'none',
@@ -117,7 +184,7 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
         // Pages are authorized and audited one by one; an export therefore leaves audit_read entries.
         let after = q.after, first = true;
         for (;;) {
-          const r = await control.auditLog(ctx.tenant, ctx.admin, after, ADMIN_LIMITS.exportPage);
+          const r = await ctx.control.auditLog(ctx.tenant, ctx.admin, after, ADMIN_LIMITS.exportPage);
           if (!r.ok) return result(r);
           if (first) { ctx.res.writeHead(200, { ...HEADERS, 'content-type': 'application/x-ndjson' }); first = false; }
           for (const entry of r.value) {
@@ -128,8 +195,24 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
           after = r.value.at(-1)!.sequence;
         }
       } }
+    ,
+    { method: 'GET', pattern: /^\/admin\/v1\/audit\/checkpoint$/, label: '/admin/v1/audit/checkpoint', operation: 'audit_checkpoint', body: 'none',
+      run: async ctx => {
+        if ([...ctx.query.keys()].length) return invalid;
+        const r = await ctx.control.latestCheckpoint(ctx.tenant, ctx.admin);
+        return result(r);
+      } },
+    { method: 'GET', pattern: /^\/admin\/v1\/audit\/proof$/, label: '/admin/v1/audit/proof', operation: 'audit_proof', body: 'none',
+      run: async ctx => {
+        const q = numbers(ctx.query, ['leafIndex', 'treeSize']); if (!q) return invalid;
+        return result(await ctx.control.auditProof(ctx.tenant, ctx.admin, q.leafIndex!, q.treeSize!));
+      } },
+    { method: 'GET', pattern: /^\/admin\/v1\/audit\/consistency$/, label: '/admin/v1/audit/consistency', operation: 'audit_consistency', body: 'none',
+      run: async ctx => {
+        const q = numbers(ctx.query, ['first', 'second']); if (!q) return invalid;
+        return result(await ctx.control.auditConsistency(ctx.tenant, ctx.admin, q.first!, q.second!));
+      } }
   ];
-
   // In-memory and per instance: a retry that reaches another replica is not deduplicated.
   const idem = new Map<string, Map<string, { fingerprint: string; out?: Out }>>();
   const buckets = new Map<string, { minute: number; count: number }>();
@@ -147,10 +230,16 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
       let url: URL;
       try { url = new URL(req.url ?? '', 'http://admin.invalid'); } catch { refuse(400, 'INVALID_REQUEST'); return; }
       if (url.pathname === '/health' && req.method === 'GET') { obs.setRoute('/health'); send(res, 200, { status: 'ok', listener: 'admin' }); return; }
-      const header = req.headers.authorization;
-      const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
-      const who = options.authenticator ? await options.authenticator.authenticate(token) : auth.get(token.length <= 512 ? digest(token) : '');
-      if (!who) { res.setHeader('www-authenticate', 'Bearer'); refuse(401, 'UNAUTHENTICATED', 'Authentication required'); return; }
+      let who: AdminIdentity | null | undefined, challenge: string[] = ['Bearer'];
+      if (dpop) {
+        const outcome = await dpop.authorize(req, (t, proof) => options.authenticator!.authenticate(t, proof));
+        if (outcome.ok) who = outcome.value; else challenge = outcome.challenge;
+      } else {
+        const header = req.headers.authorization;
+        const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
+        who = options.authenticator ? await options.authenticator.authenticate(token) : auth.get(token.length <= 512 ? digest(token) : '');
+      }
+      if (!who) { res.setHeader('www-authenticate', challenge); refuse(401, 'UNAUTHENTICATED', 'Authentication required'); return; }
       const minute = Math.floor(Date.now() / 60000), bucketKey = digest(`${who.tenant}\u0000${who.admin}`);
       for (const [key, value] of buckets) if (value.minute !== minute) buckets.delete(key);
       if (!buckets.has(bucketKey) && buckets.size >= 10000) { refuse(503, 'BUSY'); return; }
@@ -158,11 +247,13 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
       buckets.set(bucketKey, bucket);
       if (++bucket.count > ADMIN_LIMITS.perMinute) { refuse(429, 'RATE_LIMITED'); return; }
 
+      // The W3C trace id of the request (a valid traceparent, else a fresh one) is recorded with every audited decision.
+      const traced = control.traced({ traceId: obs.traceId });
       let label = 'unmatched', operation = 'unknown', bodyKind: Route['body'] = 'none', params: string[] = [];
       let run: ((ctx: Ctx) => Promise<Out>) | undefined;
       let type = 'application/json';
-      if (scim && url.pathname.startsWith('/scim/v2/')) {
-        const m = scim.match(req.method ?? '', url.pathname, url.searchParams);
+      if (scimEnabled && url.pathname.startsWith('/scim/v2/')) {
+        const m = createScim(traced).match(req.method ?? '', url.pathname, url.searchParams);
         type = 'application/scim+json';
         if (m) { label = m.label; operation = m.operation; bodyKind = m.body ? 'json' : 'none'; run = ctx => m.run(ctx); }
       } else {
@@ -196,7 +287,7 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
         try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { refuse(400, 'INVALID_JSON', 'Invalid JSON'); return; }
       } else req.resume();
 
-      const ctx: Ctx = { tenant: who.tenant, admin: who.admin, params, body, query: url.searchParams, req, res };
+      const ctx: Ctx = { control: traced, tenant: who.tenant, admin: who.admin, params, body, query: url.searchParams, req, res };
       const key = req.headers['idempotency-key'];
       if (key !== undefined && operation === 'issue_grant') {
         if (typeof key !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(key)) { refuse(400, 'INVALID_REQUEST'); return; }
@@ -213,7 +304,7 @@ export function createAdminGateway(control: ControlPlane, options: AdminOptions 
           // standing role now and audit the outcome (R31).
           const outcome = seen.fingerprint !== fingerprint ? { allowed: false, reason: 'DENIED:IDEMPOTENCY_KEY_REUSED' }
             : !seen.out ? { allowed: false, reason: 'DENIED:CONFLICT' } : { allowed: true, reason: 'IDEMPOTENT_REPLAY' };
-          const allowed = await control.attempt(who.tenant, who.admin, 'security-admin', operation, outcome);
+          const allowed = await traced.attempt(who.tenant, who.admin, 'security-admin', operation, outcome);
           if (!allowed.ok) { finish(result(allowed)); return; }
           if (seen.fingerprint !== fingerprint) { finish({ status: 422, body: { ok: false, code: 'IDEMPOTENCY_KEY_REUSED' } }); return; }
           if (!seen.out) { finish({ status: 409, body: { ok: false, code: 'CONFLICT' } }); return; }
@@ -243,4 +334,12 @@ function paging(query: URLSearchParams, allowed: string[]): { after: number; lim
   const after = number('after') ?? 0, limit = number('limit');
   if (Number.isNaN(after) || (limit !== undefined && (Number.isNaN(limit) || limit < 1 || limit > 10000))) return null;
   return limit === undefined ? { after } : { after, limit };
+}
+/** Strict query parsing for proof routes: exactly the named parameters, once each, unsigned decimal integers. */
+function numbers(query: URLSearchParams, names: string[]): Record<string, number> | null {
+  const keys = [...query.keys()];
+  if (keys.length !== names.length || new Set(keys).size !== keys.length || !names.every(n => query.has(n))) return null;
+  const out: Record<string, number> = {};
+  for (const n of names) { const v = query.get(n)!; if (!/^\d{1,15}$/.test(v)) return null; out[n] = Number(v); }
+  return out;
 }

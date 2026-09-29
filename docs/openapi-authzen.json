@@ -1,0 +1,779 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AKAC AuthZEN PDP facade",
+    "version": "0.4.0-draft",
+    "description": "Optional listener (AKAC_AUTHZEN_PORT, default off, loopback) implementing the OpenID AuthZEN Authorization API 1.0 (Final, 11 January 2026) Access Evaluation and Access Evaluations endpoints for trusted policy enforcement points. It is a read-only, audited policy decision point: it never discloses content. The tenant comes from the PEP credential only. Unknown request members are ignored (AuthZEN 1.0 section 10.1.1). This is an implementation profile, not a claim of AuthZEN interoperability certification. Mapping: docs/AUTHZEN.md."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8789"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "dpopAuth": []
+    }
+  ],
+  "paths": {
+    "/access/v1/evaluation": {
+      "post": {
+        "operationId": "accessEvaluation",
+        "summary": "Access Evaluation",
+        "description": "One decision. decision:false is also returned for well-formed requests that the AKAC profile does not support (unknown action, resource type or subject type, identifiers outside the identifier syntax). context.id is the audited AKAC decision id.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Evaluation"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XRequestIdIn"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decision",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required member is missing or mistyped, invalid JSON, wrong content type, invalid X-Request-ID, or an invalid batch envelope",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid PEP credential (agent and admin credentials are refused). WWW-Authenticate carries the challenge.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              },
+              "www-authenticate": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "UNAUTHENTICATED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body above 262144 bytes",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "REQUEST_TOO_LARGE"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-PEP rate limit (1200 evaluations per minute); each batch item counts",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "RATE_LIMITED"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error: the PEP MUST treat it as a deny",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "UNAVAILABLE"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Busy: the PEP MUST treat it as a deny",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "BUSY"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/access/v1/evaluations": {
+      "post": {
+        "operationId": "accessEvaluations",
+        "summary": "Access Evaluations (batch)",
+        "description": "Up to 64 evaluations. Top-level subject, action, resource and context are defaults that members of an evaluation override (section 7.1.1). options.evaluations_semantic: execute_all (default), deny_on_first_deny, permit_on_first_permit; the remaining evaluations of a short-circuited request are omitted. An unknown semantic is refused with 400. A malformed evaluation yields decision:false with context.error {status:400} for that evaluation. Every evaluation is audited.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XRequestIdIn"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decisions in request order (top-level decision omitted)",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required member is missing or mistyped, invalid JSON, wrong content type, invalid X-Request-ID, or an invalid batch envelope",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "INVALID_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid PEP credential (agent and admin credentials are refused). WWW-Authenticate carries the challenge.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              },
+              "www-authenticate": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "UNAUTHENTICATED"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body above 262144 bytes",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "REQUEST_TOO_LARGE"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-PEP rate limit (1200 evaluations per minute); each batch item counts",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "RATE_LIMITED"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error: the PEP MUST treat it as a deny",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "UNAVAILABLE"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Busy: the PEP MUST treat it as a deny",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "BUSY"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/authzen-configuration": {
+      "get": {
+        "operationId": "pdpMetadata",
+        "summary": "PDP metadata (AuthZEN 1.0 section 9)",
+        "description": "Served without authentication, only when AKAC_AUTHZEN_PUBLIC_URL is configured (404 otherwise). The PDP identifier is the public origin.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metadata"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No public URL configured",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/XRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "NOT_FOUND"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "const": "ok"
+                    },
+                    "listener": {
+                      "const": "authzen"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Opaque PEP token (at least 32 characters, distinct from every agent and admin token) or an at+jwt for the AuthZEN audience, which must differ from the agent and admin audiences."
+      },
+      "dpopAuth": {
+        "type": "http",
+        "scheme": "dpop",
+        "description": "Optional sender-constrained access token (RFC 9449), enabled with AKAC_AUTHZEN_DPOP (off, optional, required) for signed tokens; same rules as the other listeners."
+      }
+    },
+    "headers": {
+      "XRequestId": {
+        "description": "AuthZEN 1.0 section 10.1.3: the X-Request-ID sent by the PEP is echoed; otherwise a server-generated id.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "parameters": {
+      "XRequestIdIn": {
+        "name": "X-Request-ID",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+        }
+      }
+    },
+    "schemas": {
+      "Id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$"
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "enum": [
+              "INVALID_REQUEST",
+              "INVALID_JSON",
+              "UNAUTHENTICATED",
+              "REQUEST_TOO_LARGE",
+              "RATE_LIMITED",
+              "UNAVAILABLE",
+              "BUSY",
+              "NOT_FOUND",
+              "METHOD_NOT_ALLOWED"
+            ]
+          }
+        }
+      },
+      "Subject": {
+        "description": "AKAC profile: type user (id is the user, properties.agent required) or agent (id is the agent, properties.subject is the user). properties.grant is required. Other members are ignored.",
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "properties"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object",
+            "required": [
+              "grant"
+            ],
+            "properties": {
+              "grant": {
+                "type": "string"
+              },
+              "agent": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Resource": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "type": {
+            "const": "knowledge",
+            "description": "Any other type is decision:false."
+          },
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "Action": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "read",
+              "derive",
+              "write_memory",
+              "share",
+              "export"
+            ],
+            "description": "Any other name (including declassify) is decision:false."
+          }
+        }
+      },
+      "Context": {
+        "type": "object",
+        "required": [
+          "purpose"
+        ],
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "destination": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+            "description": "Optional Destination profile id the enforcement point will send to (share/export). Present but invalid: decision:false."
+          }
+        }
+      },
+      "Evaluation": {
+        "type": "object",
+        "required": [
+          "subject",
+          "resource",
+          "action",
+          "context"
+        ],
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/Subject"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/Resource"
+          },
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          }
+        },
+        "example": {
+          "subject": {
+            "type": "user",
+            "id": "chief",
+            "properties": {
+              "agent": "chief-agent",
+              "grant": "chief-run"
+            }
+          },
+          "resource": {
+            "type": "knowledge",
+            "id": "strategy"
+          },
+          "action": {
+            "name": "read"
+          },
+          "context": {
+            "purpose": "work"
+          }
+        }
+      },
+      "BatchRequest": {
+        "type": "object",
+        "required": [
+          "evaluations"
+        ],
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/Subject"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/Resource"
+          },
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          },
+          "evaluations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "object"
+            }
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "evaluations_semantic": {
+                "enum": [
+                  "execute_all",
+                  "deny_on_first_deny",
+                  "permit_on_first_permit"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "Obligation": {
+        "description": "AKAC profile extension: obligations of an allow. A PEP that cannot enforce every one MUST treat the decision as a deny. Not defined by AuthZEN 1.0.",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "audit_level"
+              },
+              "value": {
+                "const": "full"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "max_context_ttl_ms"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "const": "no_persist"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "const": "destination_restricted"
+              },
+              "value": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/components/schemas/Id"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Decision": {
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "type": "boolean"
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "description": "The audited AKAC decision id."
+              },
+              "obligations": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "$ref": "#/components/schemas/Obligation"
+                },
+                "description": "Only on an allow with obligations."
+              },
+              "reason_admin": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "description": "Only with AKAC_AUTHZEN_REASONS=admin: the closed AKAC reason code."
+              },
+              "error": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "message"
+                ],
+                "properties": {
+                  "status": {
+                    "const": 400
+                  },
+                  "message": {
+                    "const": "Bad Request"
+                  }
+                },
+                "description": "Batch only: a malformed evaluation."
+              }
+            }
+          }
+        }
+      },
+      "BatchResponse": {
+        "type": "object",
+        "required": [
+          "evaluations"
+        ],
+        "properties": {
+          "evaluations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Decision"
+            }
+          }
+        }
+      },
+      "Metadata": {
+        "type": "object",
+        "required": [
+          "policy_decision_point",
+          "access_evaluation_endpoint"
+        ],
+        "properties": {
+          "policy_decision_point": {
+            "type": "string",
+            "format": "uri"
+          },
+          "access_evaluation_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "access_evaluations_endpoint": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    }
+  }
+}

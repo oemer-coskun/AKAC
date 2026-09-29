@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Ajv2020 } from 'ajv/dist/2020.js';
-import { runVectors, vectorCases } from '../conformance/run.ts';
+import { generateKeyPairSync } from 'node:crypto';
+import { runEvidenceVectors, runVectors, vectorCases } from '../conformance/run.ts';
+import { Engine } from '../reference/engine.ts';
+import { ControlPlane } from '../reference/control.ts';
+import { MemoryStore } from '../reference/store.ts';
 import { kbFixture, bindings } from '../examples/fixture.ts';
 import { decide } from '../reference/policy.ts';
 const schema = (name: string) => JSON.parse(readFileSync(new URL(`../schemas/${name}.json`, import.meta.url), 'utf8'));
@@ -29,7 +33,35 @@ test('reference records validate against closed JSON schemas', () => {
   assert.equal(container(orphan), false, 'a folder has a parent');
 });
 test('every vector decision matches the decision schema', () => {
-  const validate = new Ajv2020().compile(schema('decision'));
+  const validate = new Ajv2020().addSchema(schema('obligation')).compile(schema('decision'));
   for (const c of vectorCases()) { const d = decide(c.state, c.request); assert.ok(validate(d), `${c.id}: ${JSON.stringify(validate.errors)}`); }
   assert.equal(validate({ effect: 'deny', code: 'X' }), false, 'deny requires a category');
+});
+test('0.4 evidence vectors pass: RFC 9162 trees, RFC 8785 canonical form, audit formats, obligations, reason codes', () => {
+  const results = runEvidenceVectors();
+  assert.ok(results.length >= 30);
+  for (const result of results) assert.equal(result.pass, true, result.id);
+});
+test('0.4 evidence records validate against closed JSON schemas', async () => {
+  const ajv = new Ajv2020().addSchema(schema('obligation'));
+  const [audit, checkpoint, proof, decision] = [ajv.compile(schema('audit')), ajv.compile(schema('checkpoint')), ajv.compile(schema('audit-proof')), ajv.compile(schema('decision'))];
+  const now = 1800000000000;
+  const state = kbFixture(now); state.actors.aud = { id: 'aud', tenant: 'acme', kind: 'user', roles: ['auditor'], projects: [], clearance: 'public', active: true };
+  const store = new MemoryStore(state), engine = new Engine(store, { clock: () => now });
+  const allowed = await engine.openContext(bindings.chief, ['strategy'], 'work', { trace: { traceId: '4bf92f3577b34da6a3ce929d0e0e4736' } });
+  await engine.openContext(bindings.intern, ['strategy'], 'work');
+  assert.ok(allowed.ok);
+  const pair = generateKeyPairSync('ed25519');
+  const control = new ControlPlane(store, { clock: () => now, checkpoint: { privatePem: pair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(), keyId: 'k' } });
+  const head = await control.latestCheckpoint('acme', 'aud'); assert.ok(head.ok && head.value.checkpoint);
+  assert.ok(checkpoint(head.value.checkpoint), JSON.stringify(checkpoint.errors));
+  for (const entry of await store.auditLog('acme')) assert.ok(audit(entry), JSON.stringify(audit.errors));
+  const inclusion = await control.auditProof('acme', 'aud', 0, 2), consistency = await control.auditConsistency('acme', 'aud', 1, 2);
+  assert.ok(inclusion.ok && consistency.ok);
+  for (const p of [inclusion.value, consistency.value]) assert.ok(proof(p), JSON.stringify(proof.errors));
+  const entry = (await store.auditLog('acme'))[0]!;
+  assert.ok(decision({ decisionId: allowed.decisionId, effect: 'allow', code: entry.reasonCode, policyRevision: entry.policyVersion, policyDigest: entry.policyDigest, obligations: allowed.obligations }), JSON.stringify(decision.errors));
+  assert.equal(decision({ effect: 'deny', code: 'KNOWLEDGE_BOUNDARY', category: 'deny', obligations: [{ type: 'no_persist' }] }), false, 'a deny carries no obligations');
+  assert.equal(decision({ effect: 'allow', code: 'KNOWLEDGE_BOUNDARY' }), false);
+  assert.equal(audit({ ...entry, reasonCode: 'MADE_UP' }), false);
 });

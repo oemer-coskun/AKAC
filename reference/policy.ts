@@ -1,5 +1,5 @@
-import { ACTIONS, LEVELS, ORIGINS } from './types.ts';
-import type { Actor, Container, Context, Decision, Grant, HolderQuery, Knowledge, KnowledgeMeta, Level, PolicyInput, SodConstraint, State } from './types.ts';
+import { ACTIONS, DESTINATION_CLASSES, LEVELS, MAX_RESULTS, ORIGINS } from './types.ts';
+import type { Actor, Container, Context, Decision, Destination, DestinationClass, Grant, HolderQuery, Knowledge, KnowledgeMeta, Level, PolicyInput, SodConstraint, State } from './types.ts';
 import { exactKeys, validId, safeNumber } from './validation.ts';
 
 const deny = (code: string): Decision => ({ effect: 'deny', code, category: 'deny' });
@@ -165,6 +165,9 @@ export function contextFresh(state: State, c: Context, now: number, revision: st
   return c.active === true && c.epoch === (state.epochs[c.tenant] ?? 0) && c.policyVersion === revision && safeNumber(now) && now < c.expiresAt;
 }
 
+/** A well-formed grant destination list: 1..64 distinct ids (destination classes are ids too). */
+const destinationList = (x: unknown): x is string[] => Array.isArray(x) && x.length >= 1 && x.length <= 64 && x.every(validId) && new Set(x).size === x.length;
+
 function grantValid(state: State, grant: Grant, now: number, seen = new Set<string>()): boolean {
   const subject = get(state.actors, grant.subject), agent = get(state.actors, grant.agent);
   if (!subject?.active || !agent?.active || subject.kind !== 'user' || agent.kind !== 'agent'
@@ -174,7 +177,9 @@ function grantValid(state: State, grant: Grant, now: number, seen = new Set<stri
     || now < grant.notBefore || now >= grant.expiresAt || !grant.actions.length
     || grant.actions.some(a => !ACTIONS.includes(a))
     || (grant.activeRoles !== undefined && (!Array.isArray(grant.activeRoles) || grant.activeRoles.length > LIMITS.roles
-      || grant.activeRoles.some(r => typeof r !== 'string' || !r)))) return false;
+      || grant.activeRoles.some(r => typeof r !== 'string' || !r)))
+    || (grant.destinations !== undefined && !destinationList(grant.destinations))
+    || (grant.maxResults !== undefined && !(Number.isSafeInteger(grant.maxResults) && grant.maxResults >= 1 && grant.maxResults <= MAX_RESULTS))) return false;
   seen.add(grant.id);
   if (!grant.parent) return true;
   const parent = get(state.grants, grant.parent);
@@ -183,6 +188,9 @@ function grantValid(state: State, grant: Grant, now: number, seen = new Set<stri
     && subset(grant.purposes, parent.purposes) && grant.notBefore >= parent.notBefore
     && grant.expiresAt <= parent.expiresAt
     && (parent.activeRoles === undefined || (grant.activeRoles !== undefined && grant.activeRoles.every(r => parent.activeRoles!.includes(r))))
+    // Destinations and result limits only narrow (ADR-008): a restricted parent needs a restricted child.
+    && (parent.destinations === undefined || (grant.destinations !== undefined && grant.destinations.every(d => parent.destinations!.includes(d))))
+    && (parent.maxResults === undefined || (grant.maxResults !== undefined && grant.maxResults <= parent.maxResults))
     && grantValid(state, parent, now, seen);
 }
 
@@ -205,7 +213,9 @@ export function visible(state: State, actor: Actor, r: Knowledge, now: number, r
   const visit = (resource: Knowledge, depth: number): boolean => {
     if (depth >= LIMITS.path || visiting.has(resource.id)) return false;
     if (completed.has(resource.id)) return depth + completed.get(resource.id)! <= LIMITS.path;
-    if (++nodes > LIMITS.nodes || !resource.active || !safeNumber(resource.version) || resource.version < 1
+    // Any lifecycle value (quarantined, erased, or unknown) hides the node and, through
+    // this traversal, every record derived from it (R-LIFE-1).
+    if (++nodes > LIMITS.nodes || !resource.active || resource.lifecycle !== undefined || !safeNumber(resource.version) || resource.version < 1
       || !ORIGINS.includes(resource.origin)
       || (resource.accessExpiresAt !== undefined && (!safeNumber(resource.accessExpiresAt) || now >= resource.accessExpiresAt))
       || !audience(actor, held, resource) || !contained(resource)) return false;
@@ -220,6 +230,31 @@ export function visible(state: State, actor: Actor, r: Knowledge, now: number, r
     visiting.delete(resource.id); completed.set(resource.id, height); return depth + height <= LIMITS.path;
   };
   try { return safeNumber(now) && visit(r, 0); } catch { return false; }
+}
+
+/**
+ * True when a record and every transitive source are active, not in a lifecycle
+ * state, not access-expired and resolvable (same bounds as visible(), no audience
+ * check). Index maintenance uses it so a record derived from quarantined, erased
+ * or revoked knowledge is not (re)indexed.
+ */
+export function lineageLive(state: State, root: KnowledgeMeta, now: number): boolean {
+  const done = new Set<string>(), visiting = new Set<string>();
+  let nodes = 0, edges = 0;
+  const visit = (k: KnowledgeMeta, depth: number): boolean => {
+    if (depth >= LIMITS.path || visiting.has(k.id) || ++nodes > LIMITS.nodes) return false;
+    if (done.has(k.id)) return true;
+    if (k.active !== true || k.lifecycle !== undefined || !Array.isArray(k.sources)
+      || (k.accessExpiresAt !== undefined && (!safeNumber(k.accessExpiresAt) || now >= k.accessExpiresAt))) return false;
+    visiting.add(k.id);
+    for (const ref of k.sources) {
+      if (++edges > LIMITS.edges || !validId(ref?.id)) return false;
+      const source = get(state.knowledge, ref.id);
+      if (!source || source.tenant !== k.tenant || source.version !== ref.version || !visit(source, depth + 1)) return false;
+    }
+    visiting.delete(k.id); done.add(k.id); return true;
+  };
+  try { return safeNumber(now) && visit(root, 0); } catch { return false; }
 }
 
 /** No I/O and no model output: identical authoritative snapshots give identical decisions. */
@@ -264,3 +299,51 @@ export function canDelegate(state: State, parent: Grant, child: Grant, now: numb
 }
 /** Delegation-chain validity (liveness, time, attenuation, session-role narrowing) for control-plane issuance. */
 export const validGrantChain = (state: State, grant: Grant, now: number): boolean => { try { return grantValid(state, grant, now); } catch { return false; } };
+
+/**
+ * The destination a release goes to (ADR-008). `profile`: the recipient's
+ * Destination record id. `implicit-user`: a user without a profile (class
+ * internal-user). `none`: a non-user principal without a profile. `unspecified`:
+ * the enforcement point did not name a recipient (AuthZEN without a destination).
+ */
+export type DestinationTarget = { kind: 'profile'; id: string } | { kind: 'implicit-user' } | { kind: 'none' } | { kind: 'unspecified' };
+export const targetOf = (actor: Actor): DestinationTarget =>
+  actor.destination !== undefined ? { kind: 'profile', id: actor.destination } : actor.kind === 'user' ? { kind: 'implicit-user' } : { kind: 'none' };
+export type DestinationVerdict = { ok: false } | { ok: true;
+  /**
+   * The destination_restricted value the enforcement point must honour: the class
+   * and id of a governing profile, `internal-user` for a user under a restricted
+   * run, the run's list when no recipient was named; absent for unrestricted legacy releases.
+   */
+  restrict?: string[];
+  /** The resolved profile (class, and id when a record governs the release). */
+  destination?: { id?: string; class: DestinationClass } };
+/**
+ * Destination gate of share/export (R-DEST-3..7). Pure. `top` is the highest
+ * transitive effective classification of everything released (null: unknown, deny).
+ * It only adds conditions: every path that allows here was already allowed by
+ * decide() and the recipient checks, so a restriction never turns a deny into an allow.
+ */
+export function destinationGate(state: State, grant: Grant, target: DestinationTarget, tenant: string, top: Level | null, purpose: string): DestinationVerdict {
+  try {
+    const restrict = grant.destinations;
+    if (restrict !== undefined && !destinationList(restrict)) return { ok: false };
+    if (!top || !LEVELS.includes(top)) return { ok: false };
+    switch (target.kind) {
+      case 'profile': {
+        const d: Destination | undefined = get(state.destinations ?? {}, target.id);
+        if (!d || !validId(target.id) || (DESTINATION_CLASSES as readonly string[]).includes(target.id) || d.id !== target.id || d.tenant !== tenant || d.active !== true || !DESTINATION_CLASSES.includes(d.class)
+          || !LEVELS.includes(d.maxClassification) || !Array.isArray(d.purposes)) return { ok: false };
+        if (restrict && !restrict.includes(d.class) && !restrict.includes(d.id)) return { ok: false };
+        if (LEVELS.indexOf(top) > LEVELS.indexOf(d.maxClassification) || !d.purposes.includes(purpose)) return { ok: false };
+        return { ok: true, restrict: [d.class, d.id], destination: { id: d.id, class: d.class } };
+      }
+      case 'implicit-user':
+        if (restrict && !restrict.includes('internal-user')) return { ok: false };
+        return restrict ? { ok: true, restrict: ['internal-user'], destination: { class: 'internal-user' } } : { ok: true };
+      case 'none': return restrict ? { ok: false } : { ok: true };
+      case 'unspecified': return restrict ? { ok: true, restrict: [...restrict] } : { ok: true };
+      default: return { ok: false };
+    }
+  } catch { return { ok: false }; }
+}

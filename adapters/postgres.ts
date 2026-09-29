@@ -5,18 +5,24 @@ import { join } from 'node:path';
 import pg from 'pg';
 import type { Audit, HolderQuery, KnowledgeMeta, Need, State, Store, Tx } from '../reference/types.ts';
 import { emptyState, upgradeState } from '../reference/types.ts';
-import { verifyAudit } from '../reference/audit.ts';
+import { auditLeaf, verifyAudit } from '../reference/audit.ts';
+import { Frontier, keyOf, rootKeys } from '../reference/merkle.ts';
+import type { NodeKey } from '../reference/merkle.ts';
 import { validId } from '../reference/validation.ts';
 import { BudgetExceeded } from '../reference/hydrate.ts';
+import { LIFECYCLE } from '../reference/lifecycle.ts';
+import { LIMITS } from '../reference/policy.ts';
 
 type Kind = 'text' | 'int' | 'bool' | 'list' | 'json';
 type Column = [column: string, field: string, kind: Kind, optional?: true];
-type Collection = 'actors' | 'roles' | 'groups' | 'constraints' | 'containers' | 'knowledge' | 'grants' | 'contexts';
+type Collection = 'actors' | 'roles' | 'groups' | 'constraints' | 'containers' | 'knowledge' | 'grants' | 'contexts' | 'destinations';
 const common: Column[] = [['id', 'id', 'text'], ['tenant', 'tenant', 'text']];
 /** Real columns for identifiers, tenant, lifecycle, versions, parents, labels and expiry. JSONB only for source references. */
 const TABLES: Record<Collection, { table: string; columns: Column[] }> = {
   actors: { table: 'akac_actors', columns: [...common, ['kind', 'kind', 'text'], ['roles', 'roles', 'list'], ['projects', 'projects', 'list'],
-    ['clearance', 'clearance', 'text'], ['active', 'active', 'bool']] },
+    ['clearance', 'clearance', 'text'], ['active', 'active', 'bool'],
+    // Destination profile reference (migration 006, ADR-008).
+    ['destination', 'destination', 'text', true]] },
   roles: { table: 'akac_roles', columns: [...common, ['inherits', 'inherits', 'list'], ['active', 'active', 'bool']] },
   groups: { table: 'akac_groups', columns: [...common, ['members', 'members', 'list'], ['roles', 'roles', 'list'], ['active', 'active', 'bool']] },
   constraints: { table: 'akac_constraints', columns: [...common, ['kind', 'kind', 'text'], ['roles', 'roles', 'list'], ['cardinality', 'cardinality', 'int']] },
@@ -26,16 +32,27 @@ const TABLES: Record<Collection, { table: string; columns: Column[] }> = {
   knowledge: { table: 'akac_knowledge', columns: [...common, ['version', 'version', 'int'], ['kind', 'kind', 'text'], ['origin', 'origin', 'text'],
     ['content', 'content', 'text'], ['classification', 'classification', 'text'], ['projects', 'projects', 'list'],
     ['reader_roles', 'readerRoles', 'list'], ['readers', 'readers', 'list'], ['sources', 'sources', 'json'], ['active', 'active', 'bool'],
-    ['access_expires_at', 'accessExpiresAt', 'int', true], ['container', 'container', 'text', true]] },
+    ['access_expires_at', 'accessExpiresAt', 'int', true], ['container', 'container', 'text', true],
+    // Lifecycle (migration 005, ADR-007).
+    ['lifecycle', 'lifecycle', 'text', true], ['lifecycle_at', 'lifecycleAt', 'int', true], ['quarantine_reason', 'quarantineReason', 'text', true],
+    ['retain_until', 'retainUntil', 'int', true], ['legal_holds', 'legalHolds', 'list', true], ['revoked_at', 'revokedAt', 'int', true]] },
   grants: { table: 'akac_grants', columns: [...common, ['subject', 'subject', 'text'], ['agent', 'agent', 'text'], ['actions', 'actions', 'list'],
     ['resources', 'resources', 'list'], ['purposes', 'purposes', 'list'], ['not_before', 'notBefore', 'int'], ['expires_at', 'expiresAt', 'int'],
-    ['active', 'active', 'bool'], ['parent', 'parent', 'text', true], ['active_roles', 'activeRoles', 'list', true]] },
+    ['active', 'active', 'bool'], ['parent', 'parent', 'text', true], ['active_roles', 'activeRoles', 'list', true],
+    // Run destinations and result limit (migration 006, ADR-008).
+    ['destinations', 'destinations', 'list', true], ['max_results', 'maxResults', 'int', true]] },
   contexts: { table: 'akac_contexts', columns: [...common, ['subject', 'subject', 'text'], ['agent', 'agent', 'text'], ['grant_id', 'grant', 'text'],
     ['purpose', 'purpose', 'text'], ['sources', 'sources', 'json'], ['expires_at', 'expiresAt', 'int'], ['policy_version', 'policyVersion', 'text'],
-    ['epoch', 'epoch', 'int'], ['active', 'active', 'bool']] }
+    ['epoch', 'epoch', 'int'], ['active', 'active', 'bool']] },
+  // Destination profiles (migration 006, ADR-008).
+  destinations: { table: 'akac_destinations', columns: [...common, ['class', 'class', 'text'], ['max_classification', 'maxClassification', 'text'],
+    ['purposes', 'purposes', 'list'], ['active', 'active', 'bool']] }
 };
-const AUDIT: (keyof Audit)[] = ['tenant', 'sequence', 'time', 'actor', 'operation', 'decision', 'reason', 'policyVersion', 'epoch', 'previous', 'hash'];
-const AUDIT_COLUMNS = AUDIT.map(f => f === 'policyVersion' ? 'policy_version' : f);
+const AUDIT: (keyof Audit)[] = ['tenant', 'sequence', 'time', 'actor', 'operation', 'decision', 'reason', 'policyVersion', 'epoch', 'previous', 'hash',
+  'formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId'];
+const AUDIT_COLUMNS = AUDIT.map(f => f.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`));
+/** Format 2 evidence columns (migration 004); NULL for format 1 entries, which then omit the field. */
+const OPTIONAL_AUDIT = new Set<keyof Audit>(['formatVersion', 'decisionId', 'reasonCode', 'policyDigest', 'obligations', 'runId', 'traceId']);
 /**
  * Per-load bounds. A load never truncates: when a request or its closure exceeds
  * the bound, the load throws BudgetExceeded and the caller denies (deferred).
@@ -69,24 +86,43 @@ function upsertSql(table: string, columns: Column[]): string {
   return `INSERT INTO ${table} (${names.join(',')}) VALUES (${names.map((_, i) => `$${i + 1}`).join(',')}) ON CONFLICT (tenant, id) DO UPDATE SET `
     + names.filter(n => n !== 'id' && n !== 'tenant').map(n => `${n}=EXCLUDED.${n}`).join(',');
 }
-const fromAudit = (row: Record<string, unknown>): Audit => Object.fromEntries(AUDIT.map((f, i) => {
+const fromAudit = (row: Record<string, unknown>): Audit => Object.fromEntries(AUDIT.flatMap((f, i) => {
   const value = row[AUDIT_COLUMNS[i]!];
-  return [f, ['sequence', 'time', 'epoch'].includes(f) ? Number(value) : value];
+  if (OPTIONAL_AUDIT.has(f) && (value === null || value === undefined)) return [];
+  return [[f, ['sequence', 'time', 'epoch', 'formatVersion'].includes(f) ? Number(value) : value]];
 })) as Audit;
 
 async function upsert(client: pg.PoolClient | pg.Client, collection: Collection, record: Record<string, unknown>) {
   const { table, columns } = TABLES[collection];
   await client.query(upsertSql(table, columns), toParams(columns, record));
 }
-async function appendAudits(client: pg.PoolClient | pg.Client, tenant: string, entries: Audit[]) {
+/**
+ * Appends entries and the Merkle nodes they complete (leaf plus O(log n) parents
+ * each, from the loaded frontier). Entries must continue the tree without gaps.
+ */
+async function appendAudits(client: pg.PoolClient | pg.Client, tenant: string, entries: Audit[], frontier: Frontier) {
   if (!entries.length) return;
+  const nodes: (NodeKey & { hash: string })[] = [];
   for (const entry of entries) {
     if (entry.tenant !== tenant) throw new Error('Cross-tenant audit write');
-    await client.query(`INSERT INTO akac_audit (${AUDIT_COLUMNS.join(',')}) VALUES (${AUDIT.map((_, i) => `$${i + 1}`).join(',')})`, AUDIT.map(f => entry[f]));
+    if (entry.sequence !== frontier.size + 1) throw new Error('Audit tree out of step with the stream');
+    await client.query(`INSERT INTO akac_audit (${AUDIT_COLUMNS.join(',')}) VALUES (${AUDIT.map((_, i) => `$${i + 1}`).join(',')})`,
+      AUDIT.map(f => f === 'obligations' ? (entry.obligations === undefined ? null : JSON.stringify(entry.obligations)) : entry[f] ?? null));
+    nodes.push(...frontier.append(auditLeaf(entry)));
   }
+  await client.query('INSERT INTO akac_audit_node (tenant, level, idx, hash) SELECT $1, * FROM unnest($2::smallint[], $3::bigint[], $4::text[])',
+    [tenant, nodes.map(n => n.level), nodes.map(n => n.index), nodes.map(n => n.hash)]);
   const last = entries.at(-1)!;
   await client.query('INSERT INTO akac_audit_head (tenant, sequence, hash) VALUES ($1,$2,$3) ON CONFLICT (tenant) DO UPDATE SET sequence=EXCLUDED.sequence, hash=EXCLUDED.hash',
     [tenant, last.sequence, last.hash]);
+}
+/** Perfect-subtree hashes by key, in one query; throws when any is missing. */
+async function readNodes(client: pg.PoolClient | pg.Client, tenant: string, keys: NodeKey[]): Promise<string[]> {
+  if (!keys.length) return [];
+  const rows = (await client.query('SELECT level, idx, hash FROM akac_audit_node WHERE tenant=$1 AND (level, idx) IN (SELECT * FROM unnest($2::smallint[], $3::bigint[]))',
+    [tenant, keys.map(k => k.level), keys.map(k => k.index)])).rows;
+  const found = new Map(rows.map(r => [`${r.level}:${r.idx}`, r.hash as string]));
+  return keys.map(k => { const h = found.get(keyOf(k)); if (!h) throw new Error('Audit tree node missing'); return h; });
 }
 
 /**
@@ -102,6 +138,7 @@ class PgTx implements Tx {
   private flags = new Set<string>();
   private epoch?: number;
   private head = 0;
+  private frontier?: Frontier;
   /** Every group of the tenant is loaded (principals); membership queries are then redundant. */
   private allGroups = false;
   constructor(client: pg.PoolClient, tenant: string, policyVersion: string) {
@@ -113,7 +150,7 @@ class PgTx implements Tx {
   private async rows(collection: Collection, sql: string, params: unknown[], bound?: number) {
     const result = await this.client.query(sql, [this.tenant, ...params]);
     if (bound !== undefined && result.rows.length > bound) throw new BudgetExceeded(`${collection} load`);
-    const target = this.state[collection] as Record<string, unknown>, seen = this.loaded.get(collection)!;
+    const target = (this.state[collection] ??= {}) as Record<string, unknown>, seen = this.loaded.get(collection)!;
     for (const row of result.rows) {
       if (row.id === null || row.id === undefined) continue;
       const record = fromRow(TABLES[collection].columns, row);
@@ -137,6 +174,9 @@ class PgTx implements Tx {
     if (need.audit && this.once('audit')) {
       const row = (await this.client.query('SELECT a.* FROM akac_audit_head h JOIN akac_audit a ON a.tenant=h.tenant AND a.sequence=h.sequence WHERE h.tenant=$1', [this.tenant])).rows[0];
       if (row) { const head = fromAudit(row); this.head = head.sequence; this.state.audits.push(head); }
+      // The Merkle frontier of the stream (at most one node per level) continues the tree at commit.
+      const keys = rootKeys(this.head), hashes = await readNodes(this.client, this.tenant, keys);
+      this.frontier = new Frontier(this.head, new Map(keys.map((k, i) => [k.level, hashes[i]!])));
     }
     if (need.constraints && this.once('constraints')) {
       await this.rows('constraints', 'SELECT * FROM akac_constraints WHERE tenant=$1 ORDER BY id LIMIT $2', [BOUNDS.constraints + 1], BOUNDS.constraints);
@@ -176,6 +216,7 @@ class PgTx implements Tx {
         n AS (SELECT DISTINCT id FROM c LIMIT $3)
         SELECT n.id AS akac_name, x.* FROM n LEFT JOIN akac_containers x ON x.tenant=$1 AND x.id=n.id`, [bounded(need.containers, BOUNDS.containers, 'containers'), BOUNDS.containers + 1], BOUNDS.containers);
     }
+    if (need.destinations?.length) await this.rows('destinations', 'SELECT * FROM akac_destinations WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.destinations)]);
     if (need.contexts?.length) await this.rows('contexts', 'SELECT * FROM akac_contexts WHERE tenant=$1 AND id = ANY($2::text[])', [ids(need.contexts)]);
     const bindings = (need.bindings ?? []).filter(b => b.tenant === this.tenant);
     if (bindings.length) {
@@ -193,6 +234,33 @@ class PgTx implements Tx {
       }
       await this.rows('knowledge', 'SELECT * FROM akac_knowledge WHERE tenant=$1 ORDER BY id LIMIT $2', [need.corpus]);
     }
+  }
+  /**
+   * Reverse provenance traversal in SQL: a recursive CTE over `sources @> [{"id": x}]`
+   * (GIN jsonb_path_ops index, migration 005), depth-bounded by LIMITS.path and
+   * row-bounded by LIFECYCLE.rows. No content is read.
+   */
+  async descendants(roots: string[], limit: number): Promise<{ records: KnowledgeMeta[]; truncated: boolean }> {
+    const columns = TABLES.knowledge.columns.filter(c => c[0] !== 'content');
+    const rows = (await this.client.query(`WITH RECURSIVE d(id, depth) AS (
+        SELECT unnest($2::text[]), 0
+        UNION
+        SELECT x.id, d.depth + 1 FROM d JOIN akac_knowledge x ON x.tenant=$1 AND x.sources @> jsonb_build_array(jsonb_build_object('id', d.id))
+        WHERE d.depth < $3
+      ),
+      v AS (SELECT id, depth FROM d LIMIT $4),
+      n AS (SELECT DISTINCT id FROM v WHERE NOT (id = ANY($2::text[])))
+      SELECT (SELECT count(*) FROM v)::int AS visited, (SELECT max(depth) FROM v)::int AS deepest, ${columns.map(c => `x.${c[0]}`).join(',')}
+      FROM n JOIN akac_knowledge x ON x.tenant=$1 AND x.id=n.id ORDER BY x.id LIMIT $5`,
+      [this.tenant, roots, LIMITS.path, LIFECYCLE.rows + 1, limit + 1])).rows;
+    const visited = rows.length ? Number(rows[0].visited) : 0, deepest = rows.length ? Number(rows[0].deepest) : 0;
+    return { records: rows.slice(0, limit).map(row => fromRow(columns, row) as KnowledgeMeta),
+      truncated: rows.length > limit || visited > LIFECYCLE.rows || deepest >= LIMITS.path };
+  }
+  async retentionDue(now: number, after: string, limit: number): Promise<string[]> {
+    return (await this.client.query(`SELECT id FROM akac_knowledge WHERE tenant=$1 AND retain_until IS NOT NULL AND retain_until <= $2
+      AND lifecycle IS DISTINCT FROM 'erased' AND COALESCE(cardinality(legal_holds), 0) = 0 AND id > $3 ORDER BY id LIMIT $4`,
+      [this.tenant, now, after, limit])).rows.map(r => r.id as string);
   }
   async catalog(limit: number): Promise<KnowledgeMeta[]> {
     const columns = TABLES.knowledge.columns.filter(c => c[0] !== 'content');
@@ -241,7 +309,7 @@ class PgTx implements Tx {
     if (this.state.schema !== 'akac-state/0.3') throw new Error('Unsupported state schema');
     for (const collection of Object.keys(TABLES) as Collection[]) {
       const seen = this.loaded.get(collection)!;
-      for (const [id, record] of Object.entries(this.state[collection] as Record<string, Record<string, unknown>>)) {
+      for (const [id, record] of Object.entries((this.state[collection] ?? {}) as Record<string, Record<string, unknown>>)) {
         if (seen.get(id) === JSON.stringify(record)) continue;
         if (record.tenant !== this.tenant || record.id !== id) throw new Error('Cross-tenant write');
         await upsert(this.client, collection, record);
@@ -254,7 +322,9 @@ class PgTx implements Tx {
       }
     }
     if (this.state.audits.some(a => a.tenant !== this.tenant)) throw new Error('Cross-tenant audit write');
-    await appendAudits(this.client, this.tenant, this.state.audits.filter(a => a.sequence > this.head));
+    const appended = this.state.audits.filter(a => a.sequence > this.head);
+    if (appended.length && !this.frontier) throw new Error('Audit head not loaded');
+    if (appended.length) await appendAudits(this.client, this.tenant, appended, this.frontier!);
   }
 }
 
@@ -324,12 +394,12 @@ async function importLegacy(client: pg.Client) {
     const state = upgradeState(row.body);
     await client.query("UPDATE akac_settings SET value=$1 WHERE key='policyVersion'", [state.policyVersion]);
     const tenants = new Set(Object.keys(state.epochs));
-    for (const collection of Object.keys(TABLES) as Collection[]) for (const r of Object.values(state[collection])) tenants.add(r.tenant);
+    for (const collection of Object.keys(TABLES) as Collection[]) for (const r of Object.values(state[collection] ?? {})) tenants.add(r.tenant);
     for (const tenant of [...tenants].sort()) {
       if (!validId(tenant)) throw new Error('Invalid legacy tenant');
       await client.query("SELECT set_config('akac.tenant', $1, true)", [tenant]);
       for (const collection of Object.keys(TABLES) as Collection[]) {
-        for (const record of Object.values(state[collection] as Record<string, Record<string, unknown>>)) if (record.tenant === tenant) await upsert(client, collection, record);
+        for (const record of Object.values((state[collection] ?? {}) as Record<string, Record<string, unknown>>)) if (record.tenant === tenant) await upsert(client, collection, record);
       }
       await client.query('INSERT INTO akac_epochs (tenant, epoch) VALUES ($1,$2) ON CONFLICT (tenant) DO UPDATE SET epoch=EXCLUDED.epoch', [tenant, state.epochs[tenant] ?? 0]);
     }
@@ -402,8 +472,12 @@ export class PostgresStore implements Store {
         const head = (await client.query('SELECT sequence, hash FROM akac_audit_head WHERE tenant=$1', [tenant])).rows[0];
         const tail = (await client.query('SELECT * FROM akac_audit WHERE tenant=$1 ORDER BY sequence DESC LIMIT 256', [tenant])).rows.map(fromAudit).reverse();
         if (!head) return tail.length === 0;
-        return tail.length > 0 && verifyAudit(tail, { window: true }) && tail.at(-1)!.sequence === Number(head.sequence)
-          && tail.at(-1)!.hash === head.hash && (tail[0]!.sequence > 1 || tail[0]!.previous === '0'.repeat(64));
+        if (!(tail.length > 0 && verifyAudit(tail, { window: true }) && tail.at(-1)!.sequence === Number(head.sequence)
+          && tail.at(-1)!.hash === head.hash && (tail[0]!.sequence > 1 || tail[0]!.previous === '0'.repeat(64)))) return false;
+        // The Merkle leaves of the verified tail must match the stored nodes, and the frontier must be complete.
+        const leaves = await readNodes(client, tenant, tail.map(e => ({ level: 0, index: e.sequence - 1 })));
+        await readNodes(client, tenant, rootKeys(Number(head.sequence)));
+        return tail.every((e, i) => auditLeaf(e) === leaves[i]);
       } finally { await client.query('ROLLBACK').catch(() => {}); client.release(); }
     } catch { return false; }
   }
@@ -415,6 +489,25 @@ export class PostgresStore implements Store {
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
       await client.query("SELECT set_config('akac.tenant', $1, true)", [tenant]);
       return (await client.query('SELECT * FROM akac_audit WHERE tenant=$1 AND sequence > $2 ORDER BY sequence LIMIT $3', [tenant, after, limit])).rows.map(fromAudit);
+    } finally { await client.query('ROLLBACK').catch(() => {}); client.release(); }
+  }
+  /**
+   * Tree size (audit head) and stored perfect-subtree hashes in one read-only
+   * snapshot. A key outside the tree or a missing node throws. Cost: one indexed
+   * query for any number of keys (a proof needs O(log^2 n)).
+   */
+  async auditTree(tenant: string, keys: NodeKey[]): Promise<{ size: number; hashes: string[] }> {
+    if (!validId(tenant)) throw new Error('Invalid tenant');
+    await this.guard;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await client.query("SELECT set_config('akac.tenant', $1, true)", [tenant]);
+      const head = (await client.query('SELECT sequence FROM akac_audit_head WHERE tenant=$1', [tenant])).rows[0];
+      const size = head ? Number(head.sequence) : 0;
+      if (keys.some(k => !Number.isSafeInteger(k.level) || k.level < 0 || k.level > 62 || !Number.isSafeInteger(k.index) || k.index < 0
+        || (k.index + 1) * 2 ** k.level > size)) throw new RangeError('Audit tree node outside the stream');
+      return { size, hashes: await readNodes(client, tenant, keys) };
     } finally { await client.query('ROLLBACK').catch(() => {}); client.release(); }
   }
   async close() { try { await this.init; } finally { await this.pool.end(); } }

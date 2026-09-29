@@ -136,6 +136,57 @@
         ]
       },
       "description": "Nearest knowledge base or folder; every ancestor's label also applies."
+    },
+    "lifecycle": {
+      "enum": [
+        "quarantined",
+        "erased"
+      ],
+      "description": "0.4 lifecycle state; absent is normal. Any value hides the record and every record derived from it. 'erased' is a terminal tombstone with empty content."
+    },
+    "lifecycleAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Unix ms of the last lifecycle transition (for 'erased': the erasure time)."
+    },
+    "quarantineReason": {
+      "enum": [
+        "suspected_poisoning",
+        "scanner",
+        "scanner_unavailable",
+        "memory_review",
+        "incident"
+      ]
+    },
+    "retainUntil": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Retention deadline in Unix ms: due for erasure by the retention job. Unlike accessExpiresAt it does not end access."
+    },
+    "legalHolds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+        "not": {
+          "enum": [
+            "constructor",
+            "prototype",
+            "__proto__"
+          ]
+        }
+      },
+      "uniqueItems": true,
+      "maxItems": 64,
+      "description": "Legal hold ids. A non-empty list blocks erasure and retention of this record and of every ancestor."
+    },
+    "revokedAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Unix ms of a security-admin revocation (revoke, revoke-lineage). While present the record stays inactive across new versions; only reinstate clears it."
     }
   },
   "required": [

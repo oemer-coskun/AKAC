@@ -1,5 +1,6 @@
 // Regression tests for defects found in the 0.3 adversarial review (see CHANGELOG).
 // Each test failed before its fix. PostgreSQL-specific cases live in postgres.test.ts.
+import { bare } from './bare.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -37,12 +38,12 @@ for (const kind of ['memory', 'sqlite'] as const) {
       const alien: Actor = { id: 'intern', tenant: 'other', kind: 'user', roles: [], projects: [], clearance: 'public', active: false };
       const fresh = await control.upsertActor('other', 'other-sec', { ...alien, id: 'nobody' });
       const taken = await control.upsertActor('other', 'other-sec', alien);
-      assert.deepEqual(taken, { ok: true, value: { id: 'intern' } }, 'same response as for an unused id');
+      assert.deepEqual(bare(taken), { ok: true, value: { id: 'intern' } }, 'same response as for an unused id');
       assert.equal(fresh.ok, true);
       if (kind === 'sqlite') { await store.close(); store = open(); }
       const reread = new ControlPlane(store, { clock: () => now });
-      assert.deepEqual(await reread.readActor('acme', 'sec', 'intern'), { ok: true, value: world().actors.intern }, 'the original tenant is untouched');
-      assert.deepEqual(await reread.readActor('other', 'other-sec', 'intern'), { ok: true, value: alien });
+      assert.deepEqual(bare(await reread.readActor('acme', 'sec', 'intern')), { ok: true, value: world().actors.intern }, 'the original tenant is untouched');
+      assert.deepEqual(bare(await reread.readActor('other', 'other-sec', 'intern')), { ok: true, value: alien });
       assert.ok((await new Engine(store).openContext(bindings.intern, ['handbook'], 'work')).ok);
     } finally { await store.close(); rmSync(dir, { recursive: true }); }
   });
@@ -91,7 +92,7 @@ test('store errors inside control-plane and engine transactions are audited as D
   await assert.rejects(control.upsertActor('acme', 'sec', user('newbie', [])), /synthetic store failure/);
   let entry = last(await audits(store));
   assert.deepEqual([entry.operation, entry.actor, entry.decision, entry.reason], ['upsert_actor', 'sec', 'deny', 'DEFERRED:STORE_ERROR']);
-  assert.deepEqual(await control.readActor('acme', 'sec', 'newbie'), { ok: true, value: null }, 'the failed write was rolled back');
+  assert.deepEqual(bare(await control.readActor('acme', 'sec', 'newbie')), { ok: true, value: null }, 'the failed write was rolled back');
   store.failures = 1;
   await assert.rejects(engine.openContext(bindings.intern, ['handbook'], 'work'), /synthetic store failure/);
   entry = last(await audits(store));
@@ -150,11 +151,11 @@ test('constraint and role changes that would invalidate current holders are refu
     const response = await call(tokens.sec, 'PUT', '/admin/v1/constraints/ssd-lead', { kind: 'static', roles: ['staff', 'project'], cardinality: 2 });
     assert.equal(response.status, 409);
     const body = await response.json() as Record<string, unknown>;
-    assert.deepEqual(body, { ok: false, code: 'SOD_VIOLATION', holders: 2 }, 'lead and lead-agent, by count only');
+    assert.deepEqual(bare(body), { ok: false, code: 'SOD_VIOLATION', holders: 2 }, 'lead and lead-agent, by count only');
     assert.ok((await control.upsertConstraint('acme', 'sec', { id: 'dsd-lead', tenant: 'acme', kind: 'dynamic', roles: ['staff', 'project'], cardinality: 2 })).ok, 'dynamic constraints do not affect standing');
     // Giving `approver` the junior `requester` would put `payer` into ssd-payments.
     const role = await control.upsertRole('acme', 'sec', { id: 'approver', tenant: 'acme', inherits: ['requester'], active: true });
-    assert.deepEqual(role, { ok: false, code: 'SOD_VIOLATION', holders: 1 });
+    assert.deepEqual(bare(role), { ok: false, code: 'SOD_VIOLATION', holders: 1 });
     assert.ok((await control.upsertRole('acme', 'sec', { id: 'approver', tenant: 'acme', inherits: [], active: false })).ok, 'deactivation always succeeds');
     const log = (await control.auditLog('acme', 'aud')) as { value: Audit[] };
     assert.ok(!JSON.stringify(log.value).includes('payer'), 'holders are never named');
@@ -175,9 +176,9 @@ test('supplemental policy sees the highest classification over the source graph,
   const control = new ControlPlane(new MemoryStore(world()), { clock: () => now });
   const doc = (id: string, classification: Knowledge['classification'], sources: Knowledge['sources']): Knowledge => ({ id, tenant: 'acme', version: 1, kind: 'document', origin: 'human',
     content: 'Synthetic digest.', classification, projects: [], readerRoles: ['executive'], readers: [], sources, active: true });
-  assert.deepEqual(await control.upsertKnowledge('acme', 'kbadm', doc('d1', 'public', [{ id: 'project-alpha', version: 1 }])), { ok: false, code: 'INVALID_REQUEST' });
-  assert.deepEqual(await control.upsertKnowledge('acme', 'kbadm', doc('d2', 'internal', [{ id: 'vault-memo', version: 1 }])), { ok: false, code: 'INVALID_REQUEST' }, 'container floor of a source counts');
-  assert.deepEqual(await control.upsertKnowledge('acme', 'kbadm', doc('d3', 'confidential', [{ id: 'project-alpha', version: 2 }])), { ok: false, code: 'INVALID_REQUEST' }, 'sources must resolve');
+  assert.deepEqual(bare(await control.upsertKnowledge('acme', 'kbadm', doc('d1', 'public', [{ id: 'project-alpha', version: 1 }]))), { ok: false, code: 'INVALID_REQUEST' });
+  assert.deepEqual(bare(await control.upsertKnowledge('acme', 'kbadm', doc('d2', 'internal', [{ id: 'vault-memo', version: 1 }]))), { ok: false, code: 'INVALID_REQUEST' }, 'container floor of a source counts');
+  assert.deepEqual(bare(await control.upsertKnowledge('acme', 'kbadm', doc('d3', 'confidential', [{ id: 'project-alpha', version: 2 }]))), { ok: false, code: 'INVALID_REQUEST' }, 'sources must resolve');
   assert.ok((await control.upsertKnowledge('acme', 'kbadm', doc('d4', 'confidential', [{ id: 'project-alpha', version: 1 }]))).ok);
   assert.ok((await control.upsertKnowledge('acme', 'kbadm', { ...doc('d5', 'internal', [{ id: 'vault-memo', version: 1 }]), container: 'f-vault' })).ok, 'an equal container floor suffices');
 });
@@ -218,7 +219,7 @@ test('admin API with the real Ingestor: a kb-admin removes a document; chunks go
     assert.equal((await call(tokens.sec, 'DELETE', '/admin/v1/knowledge/retention')).status, 403, 'security-admin alone does not manage documents');
     const removed = await call(tokens.kb, 'DELETE', '/admin/v1/knowledge/retention');
     assert.equal(removed.status, 200);
-    assert.deepEqual(await removed.json(), { ok: true, value: { id: 'retention', epoch: epoch + 1 } });
+    assert.deepEqual(bare(await removed.json()), { ok: true, value: { id: 'retention', epoch: epoch + 1 } });
     assert.equal((await index.state('acme')).has('retention'), false);
     assert.equal(await store.transaction('acme', async tx => tx.state.knowledge.retention!.active), false);
     const entry = (await store.auditLog('acme')).filter(e => e.operation === 'remove_knowledge').map(e => `${e.actor}:${e.decision}:${e.reason}`);
