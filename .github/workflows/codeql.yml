@@ -29,6 +29,20 @@ jobs:
           languages: javascript-typescript
           build-mode: none
 
-      - uses: github/codeql-action/analyze@1190a975f95ce23525efb6a3fc21ea29567c1b52
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@1190a975f95ce23525efb6a3fc21ea29567c1b52
         with:
           category: /language:javascript-typescript
+          output: codeql-results
+          # Private repos without GitHub Code Security cannot upload SARIF to Code Scanning.
+          # Analysis still runs and is retained as an artifact.
+          upload: ${{ github.event.repository.private && 'never' || 'always' }}
+
+      - name: Preserve CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: codeql-sarif
+          path: codeql-results
+          if-no-files-found: warn
+          retention-days: 14
