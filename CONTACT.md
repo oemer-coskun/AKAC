@@ -5,7 +5,7 @@ I design and build production-oriented enterprise AI platforms, from requirement
 | | |
 |---|---|
 | Email | [mail@oemer-coskun.de](mailto:mail@oemer-coskun.de) |
-| Website | [oemer-coskun.de](https://oemer-coskun.de) |
+| Website | [oemer-coskun.de](https://oemer-coskun.de) — launch of the homepage and the partner referral programme: 11/2026 |
 | LinkedIn | [linkedin.com/in/oemer-coskun53](https://www.linkedin.com/in/oemer-coskun53) |
 | GitHub | [github.com/oemer-coskun](https://github.com/oemer-coskun) |
 
