@@ -2,9 +2,9 @@
   <img src="docs/assets/akac-hero.png" alt="Knowledge sources from public to restricted flow through the AKAC policy fabric to an AI agent; every derived output inherits the highest classification of the sources it was built from." width="100%">
 </p>
 
-# AKAC
+# AKAC - Agent Knowledge Access Control
 
-**Agent Knowledge Access Control: a specification and reference implementation for controlling what AI agents may read, derive, remember and disclose.**
+**A specification and reference implementation for controlling what AI agents may read, derive, remember and disclose.**
 
 [![Verification](https://github.com/oemer-coskun/AKAC/actions/workflows/ci.yml/badge.svg)](https://github.com/oemer-coskun/AKAC/actions/workflows/ci.yml)
 [![Formal model](https://github.com/oemer-coskun/AKAC/actions/workflows/formal.yml/badge.svg)](https://github.com/oemer-coskun/AKAC/actions/workflows/formal.yml)
