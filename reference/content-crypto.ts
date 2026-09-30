@@ -18,8 +18,7 @@ import { validId } from './validation.ts';
  * Scope: record content only. Labels, ACLs, provenance and audit metadata stay in the
  * clear (every gate needs them). Chunk text is never stored (the vector index holds
  * embeddings and label metadata only), but embeddings of restricted content are protected
- * data too: encrypt the database volume and its backups (operator obligation, see
- * docs/KEY-CUSTODY.md). The community edition ships only a local development provider;
+ * data too: encrypt the database volume and its backups (operator obligation). The community edition ships only a local development provider;
  * KMS and HSM providers implement the same interface and are not part of this repository.
  */
 export interface KeyProvider {

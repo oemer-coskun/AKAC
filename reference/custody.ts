@@ -168,7 +168,7 @@ export async function signCheckpointWith(head: TreeHead, signer: CheckpointSigne
  * stays listed: `active` keys sign now; a `retired` key verifies only checkpoints
  * issued inside its [notBefore, notAfter] window; a `revoked` key (suspected
  * compromise) verifies nothing, so its checkpoints must be re-established from
- * anchored copies and consistency proofs (docs/KEY-CUSTODY.md).
+ * anchored copies and consistency proofs.
  */
 export type KeyringEntry = { keyId: string; publicPem: string; status: 'active' | 'retired' | 'revoked'; notBefore?: number; notAfter?: number };
 export type Keyring = { keys: KeyringEntry[] };
@@ -211,8 +211,7 @@ export function verifyWithKeyring(record: AuditCheckpoint, keyring: Keyring, exp
  * more anchors that store it outside the reach of the gateway host (WORM bucket,
  * a separate account, a transparency service). A compromised host can then not
  * rewrite history unseen: a later stream must extend every anchored checkpoint
- * (consistency proof). AKAC ships no network anchor; see docs/KEY-CUSTODY.md for
- * publishing through the optional transparency export (bonus/transparency-export).
+ * (consistency proof). AKAC ships no network anchor.
  */
 export type AnchorReceipt = { anchor: string; stream: string; treeSize: number; rootHash: string; reference: string };
 export interface CheckpointAnchor {

@@ -164,7 +164,7 @@ reversible, or `erased`, a terminal tombstone), `retainUntil` and `legalHolds`,
 all orthogonal to `active`. The *lineage* of a record is every record whose `sources`
 include it, transitively and at any referenced version. Decision:
 [ADR-007](../governance/ADR-007-knowledge-lifecycle.md); operator guide:
-[RETENTION.md](../docs/RETENTION.md). Migration `005_knowledge_lifecycle.sql`.
+the retention and erasure guide. Migration `005_knowledge_lifecycle.sql`.
 
 **R45 — Lifecycle denies.** decide() MUST deny any action on a record whose
 `lifecycle` is present, whatever its value (an unknown value denies). The denial
@@ -255,7 +255,7 @@ any size.
 
 **R59 — Audit is content-free and retained.** Erasure MUST NOT delete or
 rewrite audit entries. Audit entries carry pseudonymous identifiers and closed
-codes, never content; their retention is governed separately (docs/RETENTION.md).
+codes, never content; their retention is governed separately (the retention and erasure guide).
 
 Not covered: erasure from backups, replica WAL history and storage-level remnants
 (for example PostgreSQL dead tuples before VACUUM); crypto-shredding is not
@@ -273,7 +273,7 @@ reading a document does not authorize sending it anywhere (0.1 R10). The AuthZEN
 facade accepts the optional `context.destination` member (a Destination id) for
 `share` and `export`, with the semantics of R67. Decision:
 [ADR-008](../governance/ADR-008-destinations.md); integration contract:
-[INTEGRATIONS.md](../docs/INTEGRATIONS.md). Migration `006_destinations.sql`.
+the integration guide. Migration `006_destinations.sql`.
 
 **R60 — Tenant scope.** Destinations MUST be keyed by (tenant, id); a
 record of another tenant MUST be indistinguishable from an absent one. A

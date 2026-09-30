@@ -2,7 +2,7 @@
 
 Status: proposed for reference 0.4.0; internal review only, external security
 review outstanding. Requirements: [0.4 destinations draft](../spec/drafts/0.4-destinations.md).
-Integration contract: [INTEGRATIONS.md](../docs/INTEGRATIONS.md).
+Integration contract: the integration guide.
 
 ## Context
 

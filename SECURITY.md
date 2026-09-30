@@ -21,10 +21,10 @@ report.
 
 In scope: the specification text under `spec/` (a requirement that permits an authorization
 bypass, an information leak or an unsafe default), the reference implementation under
-`reference/`, `adapters/`, `sdk/`, `migrations/` and `policies/`, the conformance vectors, the container image and the
-Helm chart under `deploy/`, and the release integrity chain (signatures, provenance, SBOM).
+`reference/`, `adapters/`, `migrations/` and `policies/`, the conformance vectors, the container image and the
+Compose files under `deploy/`, and the release integrity chain (signatures, provenance, SBOM).
 
-Out of scope: `bonus/` and `implementations/` code is best effort and reported the same way
+Out of scope: `implementations/` code is best effort and reported the same way
 but is not a supported deployment; model-session isolation, egress enforcement, sandboxing and
 unlearning are operator or runtime responsibilities (see [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md));
 findings that need a compromised administrative credential or a host you already control;
@@ -37,7 +37,7 @@ of maintainers; reports against deployments you do not own.
    <https://github.com/oemer-coskun/AKAC/security/advisories/new>
 2. Alternative contact: [OWNER TO SET SECURITY CONTACT]
 3. Machine-readable contact data: [.well-known/security.txt](.well-known/security.txt)
-   (RFC 9116). See [docs/process/SECURITY-TXT.md](docs/process/SECURITY-TXT.md) for how it is served.
+   (RFC 9116).
 
 Do not open a public issue or pull request for a suspected vulnerability. Include the affected
 version or commit, the deployment profile and trust assumptions, a minimal synthetic
@@ -76,7 +76,7 @@ be considered after an external review has taken place.
 ## Verifying what you run
 
 Releases carry a cosign signature, SLSA provenance and a CycloneDX SBOM:
-[docs/process/VERIFY-RELEASE.md](docs/process/VERIFY-RELEASE.md). Deployment hardening is in
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); incident handling for a running deployment
-(revocation, key compromise, audit anchoring, tenant offboarding) is in
-[docs/SECURITY-OPERATIONS.md](docs/SECURITY-OPERATIONS.md).
+[docs/process/VERIFY-RELEASE.md](docs/process/VERIFY-RELEASE.md). The SK-1 Compose setup is described in
+[docs/SK-1.md](docs/SK-1.md); deployment hardening beyond it and incident handling for a running deployment
+(revocation, key compromise, audit anchoring, tenant offboarding) are part of the full package
+(see [CONTACT.md](CONTACT.md)).

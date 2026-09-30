@@ -54,7 +54,7 @@ release gate, with the three central invariants checked.
 
 ## Consequences
 
-- A semantic change (AGENTS.md) now also reviews the model: when a rule of `decide()`,
+- A semantic change ([GOVERNANCE.md](../GOVERNANCE.md)) now also reviews the model: when a rule of `decide()`,
   delegation, derivation, lifecycle, release or relabelling changes, the model and, where
   needed, a broken configuration change with it, and the workflow must pass.
 - Results are bounded model checking. They show that no counterexample exists within the

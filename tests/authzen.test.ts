@@ -15,7 +15,7 @@ import { ControlPlane } from '../reference/control.ts';
 import { MemoryStore } from '../reference/store.ts';
 import { bindings, kbFixture } from '../examples/fixture.ts';
 import type { State } from '../reference/types.ts';
-import { AuthzenClient } from '../sdk/typescript/index.ts';
+import { AuthzenClient } from './http-client.ts';
 import { readFileSync } from 'node:fs';
 import { close, listen } from './support.ts';
 
@@ -285,7 +285,7 @@ test('a supplemental policy verdict applies as in the engine, including unsuppor
   assert.equal((await run('garbage')).context.reason_admin.code, 'POLICY_UNAVAILABLE');
 });
 
-test('SDK client for PEPs and the published OpenAPI document match the listener', async () => {
+test('Test client for PEPs and the published OpenAPI document match the listener', async () => {
   const t = await setup();
   try {
     const client = new AuthzenClient(t.base, pepToken);

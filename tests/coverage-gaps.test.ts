@@ -79,13 +79,6 @@ test('R90: the per-PEP evaluation budget counts every batch item, refuses with 4
   } finally { await close(server); }
 });
 
-test('R103: the per-instance scope of limiter state is documented', () => {
-  const text = doc('docs/OPERATIONS.md');
-  assert.match(text, /per process/);
-  assert.match(text, /replica count/);
-  assert.match(text, /AKAC_SHARED_STATE=postgres/);
-});
-
 test('R131: the implementations table states who wrote each implementation and claims no independence', () => {
   const text = doc('docs/IMPLEMENTATIONS.md');
   const table = text.slice(text.indexOf('## Implementations'), text.indexOf('## Results per vector file')).split('\n').filter(l => l.startsWith('|'));

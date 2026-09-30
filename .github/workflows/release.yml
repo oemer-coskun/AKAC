@@ -16,25 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  helm-lint:
-    name: Helm lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - name: Lint chart
-        run: |
-          docker run --rm -v "${{ github.workspace }}/deploy/helm:/charts" \
-            alpine/helm:3.16.2@sha256:a19a2968fd672336d39771f6c899781424d725229148656dbc2a1e305003cdec \
-            lint /charts/akac
-
   image:
     name: Build, sign and publish image
-    needs: helm-lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -111,7 +94,6 @@ jobs:
 
   source:
     name: Source tarball, SBOM and signatures
-    needs: helm-lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

@@ -150,7 +150,7 @@ export const JOB_LOCK_CLASS = 1095450948;
  * skips the run instead of queueing. The lock is released when the job ends, and by
  * PostgreSQL when the session ends, so a crashed holder never blocks later runs.
  * Advisory locks are cluster-local: they do not serialize across a failover to a
- * replica that was promoted while the old primary still runs (see docs/HA.md).
+ * replica that was promoted while the old primary still runs.
  */
 export class PostgresJobLock implements JobLock {
   readonly shared = true;

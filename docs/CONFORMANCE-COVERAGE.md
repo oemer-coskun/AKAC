@@ -191,7 +191,7 @@ Budgets of the decision core (`LIMITS` in `reference/policy.ts`); exceeding one 
 | `path` | 128 | derivation path length (depth of the source chain) |
 | `grants` | 32 | grants in one delegation ancestry |
 
-Other published limits: request limits of the listeners (`docs/OPERATIONS.md`, `AUTHZEN_LIMITS`, `ADMIN_LIMITS`), 64 sources per request, 128 direct sources per run, five-minute context lifetime (`docs/ARCHITECTURE.md`).
+Other published limits: request limits of the listeners (the operations guide, `AUTHZEN_LIMITS`, `ADMIN_LIMITS`), 64 sources per request, 128 direct sources per run, five-minute context lifetime (`docs/ARCHITECTURE.md`).
 
 ## Mutation testing of the decision core
 
@@ -262,7 +262,7 @@ The mutants below survive the whole suite and are reported separately (`conforma
 
 ### Findings from the analysis
 
-- `lineageLive()` counts a node on every visit, including a revisit of a shared source, before its memo check, while `visible()` and `transitiveClassification()` count each node once. A record with many references to few shared sources can therefore be visible to `visible()` and still be reported not live by `lineageLive()` at 1024 references, and the 4096-edge budget of `lineageLive()` can never bind (rule E5). Fail-closed, so not a security defect; the three traversals should share one budget definition. Not changed here: a behaviour change needs the specification and an ADR (AGENTS.md).
+- `lineageLive()` counts a node on every visit, including a revisit of a shared source, before its memo check, while `visible()` and `transitiveClassification()` count each node once. A record with many references to few shared sources can therefore be visible to `visible()` and still be reported not live by `lineageLive()` at 1024 references, and the 4096-edge budget of `lineageLive()` can never bind (rule E5). Fail-closed, so not a security defect; the three traversals should share one budget definition. Not changed here: a behaviour change needs the specification and an ADR (GOVERNANCE.md).
 - `lineage()` reports `truncated` for a chain of exactly `LIMITS.path` (128) descendants: the depth counter is compared before the empty frontier is noticed, so the bound is one level early. Conservative; pinned by `tests/mutation-core.test.ts`.
 - The portable decision vectors compare effect and reason code but not the decision category (`deny` or `defer`, R29); only unit tests and the differential comparison see it. A `category` member in decision vectors would make R29 portable.
 - Cycle safety in `visible()`, `transitiveClassification()` and the role closure does not depend on the in-progress marker alone: without it the recursion ends in a stack overflow that the enclosing `try` turns into the same denial (rule E2). The explicit marker is the intended defence and is what makes the failure cheap; the mutation run shows that the backstop exists.

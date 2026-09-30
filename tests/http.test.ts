@@ -6,9 +6,9 @@ import { createGateway } from '../reference/http.ts';
 import { Engine } from '../reference/engine.ts';
 import { MemoryStore } from '../reference/store.ts';
 import { fixture, bindings } from '../examples/fixture.ts';
-import { AkacClient } from '../sdk/typescript/index.ts';
+import { AkacClient } from './http-client.ts';
 const token = 'test-only-credential-never-deploy-0000000000000';
-test('API and SDK: real requests, strict envelopes, binding and output protection', async () => {
+test('API and client: real requests, strict envelopes, binding and output protection', async () => {
   const server = createGateway(new Engine(new MemoryStore(fixture())), [{ token, binding: bindings.intern }]);
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const address = server.address(); assert.ok(address && typeof address !== 'string');

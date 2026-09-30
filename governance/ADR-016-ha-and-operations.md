@@ -2,15 +2,15 @@
 
 Status: proposed for AKAC 0.6 (draft). No external review has taken place.
 Requirements: [AKAC 0.6](../spec/AKAC-0.6.md) (R136..R142).
-Guides: [HA.md](../docs/HA.md), [KEY-CUSTODY.md](../docs/KEY-CUSTODY.md),
-[OPERATIONS.md](../docs/OPERATIONS.md), [PERFORMANCE.md](../docs/PERFORMANCE.md).
+Guides: the high-availability guide, the key custody guide,
+the operations guide, [PERFORMANCE.md](../docs/PERFORMANCE.md).
 
 ## Context
 
-The Helm chart runs two to six replicas, yet rate limits and admin Idempotency-Key
+Deployments run several replicas, yet rate limits and admin Idempotency-Key
 records were per process (R103 documented it), retention and reconcile could run on
-several replicas or CronJob pods at once, checkpoint keys were files in the pod, the
-chart had no alert rules or verification job, and neither performance nor retrieval
+several replicas or job instances at once, checkpoint keys were files in the pod, there
+were no alert rules or verification job, and neither performance nor retrieval
 quality on a real embedding model had been measured.
 
 ## Decision
@@ -37,8 +37,8 @@ quality on a real embedding model had been measured.
    adapter (HTTP, injected `fetch`, pinned key version and public key, every signature
    verified before use). Rotation is a keyring (`active`, `retired` with a window,
    `revoked`). Anchoring is a `CheckpointAnchor` hook with a file implementation; network
-   publishing (for example through `bonus/transparency-export`) is documented, not
-   shipped, because core code must not import bonus modules (ADR-010).
+   publishing (for example through a transparency export) is not
+   shipped, because core code must not import optional modules (ADR-010).
 6. **Verification as a job.** `scripts/checkpoint.ts verify` checks chain, recomputed
    root, stored tree and anchored checkpoints (with a keyring). The chart schedules it
    (CronJob) and ships a PrometheusRule with SLO burn-rate alerts. A backup/restore drill
@@ -70,6 +70,6 @@ quality on a real embedding model had been measured.
 - Advisory locks are local to one PostgreSQL primary; after a failover a job that still
   runs against the old primary is not serialized with one on the new primary.
 - A restore to a point before the last anchored checkpoint makes verification fail by
-  design (a rollback); HA.md describes how to record such an incident.
+  design (a rollback); the high-availability guide describes how to record such an incident.
 - No availability, latency or recovery figure is claimed; SLO targets and RPO/RTO are
   operator choices supported by the drill, the benchmarks and the alerts.

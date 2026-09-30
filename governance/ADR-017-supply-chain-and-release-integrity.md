@@ -2,7 +2,7 @@
 
 Status: proposed for AKAC 0.6 (draft). No external review has taken place. Process
 documents: [VERIFY-RELEASE.md](../docs/process/VERIFY-RELEASE.md),
-[OPENSSF-BADGE.md](../docs/process/OPENSSF-BADGE.md). Workflows:
+the OpenSSF badge notes. Workflows:
 `.github/workflows/release.yml`, `ci.yml`, `scorecard.yml`.
 
 ## Context
@@ -11,7 +11,7 @@ Releases (tags `v*`) produced a signed container image only. A consumer had no s
 archive, no SBOM attached to the release, and no check that the image build can be repeated.
 OpenSSF Scorecard (run in CI) showed no signed-release evidence to look for because the release
 carried no assets. Scorecard results read from the repository's code-scanning alerts on
-2026-09-29: Pinned-Dependencies 9 (one unpinned base image in `bonus/openshell-profiles/lab`),
+2026-09-29: Pinned-Dependencies 9,
 Security-Policy 4, Code-Review 0, Branch-Protection 4, CII-Best-Practices 0, Maintained 0 (repository
 younger than 90 days). The public Scorecard API returned no result because `publish_results` was
 false.

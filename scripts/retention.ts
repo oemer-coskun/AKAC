@@ -6,7 +6,7 @@ import { jobLock } from './job-lock.ts';
 // `now` and whose lineage carries no legal hold, in bounded batches until done. The
 // admin actor must hold security-admin; every batch and every erasure is audited.
 // With AKAC_RETRIEVAL=vector the vector index is reconciled afterwards, which drops
-// the chunks of erased documents. Backups are NOT reached: see docs/RETENTION.md.
+// the chunks of erased documents. Backups are NOT reached.
 // Runs are serialized per tenant across instances and CronJob pods (job lock, ADR-016):
 // when another run holds the lock this run is skipped (exit 0, logged).
 const [tenant, admin, at] = process.argv.slice(2);

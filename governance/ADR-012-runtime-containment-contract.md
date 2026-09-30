@@ -36,7 +36,7 @@ NVIDIA or OASP interface, and no conformance to OASP is claimed.
    and `{"type":"max_output_classification","value":"<level>"}`. A profile id is
    an AKAC identifier that names an operator-reviewed runtime template. Mapping
    ids to a concrete runtime is an integration, kept outside the core (for
-   example a bonus module under ADR-010 for one runtime).
+   example an optional module under ADR-010 for one runtime).
 2. **Per-tenant policy records.** `RuntimeProfilePolicy {id, tenant,
    classification, destinationClass?, profiles, active}`, security-admin only,
    audited, stored like destinations (PostgreSQL migration 008, `(tenant, id)`
@@ -131,11 +131,11 @@ NVIDIA or OASP interface, and no conformance to OASP is claimed.
    active policy keep the 0.4 digest, and the digest is independent of the store
    (the set is loaded in full, bounded at 256). Control-plane and AuthZEN refusal
    entries, which do not load the set, are unchanged.
-10. **Integration templates must not widen each other.** The bonus OpenShell
-   adapter renders all four domains into one sandbox policy; its tool and
-   credential templates add `network_policies` entries. The first version merged
-   them into any network profile, so `network/deny-all` was not deny-all. Templates
-   now declare the sections they write, and the network profile is authoritative
+10. **Integration templates must not widen each other.** A runtime
+   adapter that renders all four domains into one sandbox policy must not let its tool and
+   credential templates add `network_policies` entries to any network profile, or
+   `network/deny-all` would not be deny-all. Templates
+   declare the sections they write, and the network profile is authoritative
    for `network_policies`: `deny-all` admits no other domain's entry, the
    allowlist profiles admit only entries whose hosts are in their allowlist, and
    anything else makes `apply()` throw (the caller denies).

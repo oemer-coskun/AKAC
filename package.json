@@ -21,11 +21,9 @@
     "coverage:matrix": "node scripts/coverage-matrix.ts",
     "test:mutation": "stryker run",
     "test:postgres": "node --test tests/postgres.test.ts",
-    "test:bonus": "node --test \"bonus/**/*.test.ts\"",
     "lint:spec": "node scripts/lint-spec.ts",
     "bench": "node bench/run.ts",
-    "drill:backup": "node scripts/backup-drill.ts",
-    "check:all": "npm run check && npm run test:bonus"
+    "drill:backup": "node scripts/backup-drill.ts"
   },
   "dependencies": {
     "jose": "6.2.12",

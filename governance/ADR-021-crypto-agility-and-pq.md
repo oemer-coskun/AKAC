@@ -2,8 +2,8 @@
 
 Status: proposed for AKAC 0.6 (draft). No external review has taken place.
 Requirements: [AKAC 0.6](../spec/AKAC-0.6.md) (R159..R166).
-Guides: [CRYPTO-AGILITY.md](../docs/CRYPTO-AGILITY.md), [KEY-CUSTODY.md](../docs/KEY-CUSTODY.md),
-[CONFIDENTIAL-COMPUTING.md](../docs/CONFIDENTIAL-COMPUTING.md).
+Guides: [CRYPTO-AGILITY.md](../docs/CRYPTO-AGILITY.md), the key custody guide,
+the confidential-computing guide.
 
 ## Context
 

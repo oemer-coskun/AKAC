@@ -274,8 +274,8 @@ an implementation.
 
 Merged from [0.6-operations](drafts/0.6-operations.md). These requirements concern deployments with more than one gateway instance, checkpoint key custody and audit verification. They change no authorization decision: nothing that 0.5 denied becomes an allow, and no allow depends on the new state.
 Decision: [ADR-016](../governance/ADR-016-ha-and-operations.md). Operator
-guidance: [HA.md](../docs/HA.md), [KEY-CUSTODY.md](../docs/KEY-CUSTODY.md),
-[OPERATIONS.md](../docs/OPERATIONS.md).
+guidance: the high-availability guide, the key custody guide,
+the operations guide.
 
 **R136 — Shared rate windows.** (Refines R103.) A gateway MAY keep its request
 budgets (R100) in a store shared by every instance of the deployment. When it does,
@@ -521,7 +521,7 @@ Merged from [0.6-crypto](drafts/0.6-crypto.md). These requirements concern the s
 Decision: [ADR-021](../governance/ADR-021-crypto-agility-and-pq.md). Operator
 guidance and the inventory of every cryptographic use:
 [CRYPTO-AGILITY.md](../docs/CRYPTO-AGILITY.md); key handling:
-[KEY-CUSTODY.md](../docs/KEY-CUSTODY.md).
+the key custody guide.
 
 Sources for the algorithms: NIST FIPS 204 (ML-DSA) and FIPS 205 (SLH-DSA), both
 published as final standards on 13 August 2024; RFC 8032 (Ed25519); RFC 8785 (JCS);

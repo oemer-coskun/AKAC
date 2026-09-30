@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AnchorMonitor, RetrievalDisabled } from '../reference/anchors.ts';
 import type { Embedder } from '../reference/embedding.ts';
-import { AdminClient } from '../sdk/typescript/index.ts';
+import { AdminClient } from './http-client.ts';
 import { start, tokens } from './support.ts';
 
 /** Embedder whose output can be rotated (drift) or made to fail. */
@@ -53,7 +53,7 @@ test('rebaseline route: creates the first baseline from the pending state', asyn
   } finally { await w.stop(); }
 });
 
-test('rebaseline route: 404 without anchors, SDK method', async () => {
+test('rebaseline route: 404 without anchors, client method', async () => {
   const w = await start();
   try {
     assert.equal((await w.call(tokens.sec, 'POST', '/admin/v1/index/anchors/rebaseline')).status, 404);

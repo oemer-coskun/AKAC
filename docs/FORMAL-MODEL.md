@@ -173,7 +173,7 @@ drafts are R45–R59 and R60–R71). Vectors are in `conformance/`; tests in `te
 
 ## Maintaining the model
 
-A semantic change to a rule listed in the operational table (AGENTS.md: specification,
-conformance evidence and an ADR) also updates the model: change the operator, keep or add a
+A semantic change to a rule listed in the operational table (specification,
+conformance evidence and an ADR, see [GOVERNANCE.md](../GOVERNANCE.md)) also updates the model: change the operator, keep or add a
 broken configuration that shows the affected property still bites, and run `bash formal/check.sh`.
 If a bound has to grow, record the new state counts and times here.

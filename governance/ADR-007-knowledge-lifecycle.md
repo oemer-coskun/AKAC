@@ -2,7 +2,7 @@
 
 Status: proposed for reference 0.4.0; internal review only, external security and
 legal review outstanding. Requirements: [0.4 knowledge lifecycle draft](../spec/drafts/0.4-knowledge-lifecycle.md).
-Operator guide: [RETENTION.md](../docs/RETENTION.md).
+Operator guide: the retention and erasure guide.
 
 ## Context
 
@@ -94,7 +94,7 @@ checks.
   re-checks the ancestry of every indexed document that has sources.
 - Erasure removes content from the authoritative rows and the vector index. It
   does not reach backups, WAL history, dead tuples before VACUUM, logs of
-  integrations, or copies outside AKAC; RETENTION.md states the operator's
+  integrations, or copies outside AKAC; the retention and erasure guide states the operator's
   obligations. Crypto-shredding is not implemented.
 - Lineage bounds mean very large lineages cannot be erased in one operation by the
   reference implementation; they can always be quarantined.

@@ -8,7 +8,7 @@ import { Ingestor } from '../reference/ingest.ts';
 import { Metrics } from '../reference/metrics.ts';
 import { MemoryStore } from '../reference/store.ts';
 import { MemoryVectorIndex } from '../reference/vector.ts';
-import { AdminClient } from '../sdk/typescript/index.ts';
+import { AdminClient } from './http-client.ts';
 import { close, listen, tokens } from './support.ts';
 import { derived, lifecycleWorld, LINEAGE, now } from './lifecycle-fixture.ts';
 import type { State } from '../reference/types.ts';

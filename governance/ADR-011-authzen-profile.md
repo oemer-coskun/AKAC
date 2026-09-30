@@ -61,4 +61,4 @@ that is deliberately shaped like AuthZEN's decision entity.
 - Not implemented: Search APIs, signed metadata, capability URNs. Interoperability
   with third-party PEPs has not been tested.
 - The listener adds an attack surface: it needs its own NetworkPolicy and credential
-  rotation (`docs/SECURITY-OPERATIONS.md`).
+  rotation (the security operations guide).

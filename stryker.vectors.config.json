@@ -11,7 +11,7 @@
     "reference/lifecycle.ts"
   ],
   "ignorePatterns": [
-    ".git", "node_modules/.cache", "reports", "bench", "bonus", "deploy", "docs", "formal", "governance", "legal", "scripts", "tests", "implementations"
+    ".git", "node_modules/.cache", "reports", "bench", "deploy", "docs", "formal", "governance", "legal", "scripts", "tests", "implementations"
   ],
   "reporters": ["clear-text", "progress", "json", "html"],
   "jsonReporter": { "fileName": "reports/mutation-vectors/mutation.json" },

@@ -37,4 +37,4 @@ in 0.5.0 (see the errata log).
 The process is only as strong as the people in it: with one maintainer, "review" is
 self-review plus a waiting period, and the documents say so. Evidence that would justify a
 stronger claim (external review, second implementation, a second maintainer) is prepared in
-[docs/process/EXTERNAL-ASSURANCE.md](../docs/process/EXTERNAL-ASSURANCE.md), not asserted.
+the assurance preparation notes, not asserted.

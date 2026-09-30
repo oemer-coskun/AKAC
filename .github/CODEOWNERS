@@ -1,5 +1,5 @@
 # Review requests are automatic for these paths. Enforcement ("Require review from Code Owners")
-# is a repository setting the owner must enable; see docs/process/OWNER-CHECKLIST.md.
+# is a repository setting the owner must enable.
 *                       @oemer-coskun
 /.github/               @oemer-coskun
 /spec/                  @oemer-coskun

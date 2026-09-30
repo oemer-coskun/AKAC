@@ -12,7 +12,7 @@ import { ControlPlane } from '../reference/control.ts';
 import { MemoryStore } from '../reference/store.ts';
 import { createGateway } from '../reference/http.ts';
 import { createAdminGateway } from '../reference/admin.ts';
-import { AdminClient, AkacClient } from '../sdk/typescript/index.ts';
+import { AdminClient, AkacClient } from './http-client.ts';
 import { close, listen, world } from './support.ts';
 
 const issuer = 'https://identity.example.test', now = () => Math.floor(Date.now() / 1000);
@@ -230,7 +230,7 @@ test('DPoP guard: option validation, clock skew configuration and replay cache b
   }
 });
 
-test('SDK clients sign requests with a DPoP signer', async () => {
+test('Test clients sign requests with a DPoP signer', async () => {
   const s = await servers('required', 'required');
   try {
     const h = await holder();

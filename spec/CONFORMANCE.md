@@ -28,7 +28,7 @@ RuntimeContainment/0.5 and Lifecycle/0.4 profiles and are required by them from 
 govern the conformance material and how results are reported, and R132–R135 the formal model;
 neither adds an access rule.
 
-Sections R72–R78 (token binding, optional) and R91–R99 (cache isolation, operator obligations) of [AKAC 0.4](AKAC-0.4.md) are not separate profiles. The token binding requirements apply to a listener that enables DPoP and are covered by `tests/dpop.test.ts`; the cache isolation requirements are deployment obligations that the reference cannot enforce and no vector covers. The bonus modules under [bonus/](../bonus/README.md) are not part of any profile.
+Sections R72–R78 (token binding, optional) and R91–R99 (cache isolation, operator obligations) of [AKAC 0.4](AKAC-0.4.md) are not separate profiles. The token binding requirements apply to a listener that enables DPoP and are covered by `tests/dpop.test.ts`; the cache isolation requirements are deployment obligations that the reference cannot enforce and no vector covers. Optional add-on modules are not part of any profile.
 
 No profile claim implies automatic SSO, network sandboxing or provider-side deletion. This repository MUST NOT be described as a full production-conformant deployment without verifying the integration prerequisites.
 
@@ -156,7 +156,7 @@ Expected allow or deny is stated per vector and classified as in the outcome tab
 | R60–R66 | Destination vectors; `destinations.test.ts`: tenant scope, profile gate, run restriction, legacy behavior, narrowing-only property, obligation intersection |
 | R67 | `destinations.test.ts`, `authzen.test.ts`: read-only evaluation and `context.destination` |
 | R68–R69 | `destinations.test.ts`: attenuation of `destinations` and `maxResults`, result limit |
-| R70 | Enforcement boundary: integration contract ([INTEGRATIONS.md](../docs/INTEGRATIONS.md)); no vector |
+| R70 | Enforcement boundary: integration contract (the integration guide); no vector |
 | R71 | `admin-lifecycle.test.ts`, `destinations-postgres.test.ts`: administration, epoch advance, storage |
 
 Egress itself (R70 is a decision, not a network control) is enforced by the

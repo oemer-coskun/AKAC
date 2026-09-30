@@ -88,7 +88,7 @@ Short-circuited requests omit the remaining evaluations.
    different profiles for one domain never occur in one decision) and `max_output_classification`
    (0.5: label every output derived from the content at least this high).
    An obligation of an unknown type is a deny. The core provides `enforceable(obligations, supported)`
-   (`reference/decision.ts`); `ProtectedRuntime` and the passages bonus runtime show the pattern.
+   (`reference/decision.ts`); `ProtectedRuntime` shows the pattern.
 3. A PEP that does not understand `context.obligations` at all must not be used for records that can
    carry them (confidential and above always do). AuthZEN 1.0 defines no obligation member; the
    AuthZEN working-group obligations work is a draft, so this member is an AKAC extension.
@@ -98,7 +98,7 @@ Short-circuited requests omit the remaining evaluations.
 
 Every evaluation that reaches the PDP is one audit entry (operation `authzen_evaluate`, actor the mapped
 user, `runId` the grant, allow or deny with a closed reason code, obligations of an allow), included in
-the tenant Merkle tree and provable with the routes in `docs/OPERATIONS.md` (audit proofs). A 400 for a
+the tenant Merkle tree and provable with the audit proof routes of the admin API. A 400 for a
 missing required member is not an evaluation and has no audit entry. Request content is not recorded.
 
 ## Verification

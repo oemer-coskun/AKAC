@@ -42,7 +42,7 @@
     },
     {
      "file": "tests/http.test.ts",
-     "name": "API and SDK: real requests, strict envelopes, binding and output protection"
+     "name": "API and client: real requests, strict envelopes, binding and output protection"
     },
     {
      "file": "tests/core.test.ts",
@@ -596,10 +596,6 @@
     {
      "file": "tests/runtime.test.ts",
      "name": "revocation while provider works blocks the final answer"
-    },
-    {
-     "file": "tests/integrations.test.ts",
-     "name": "OpenAI proxy: a provider without clearance receives nothing; the output gate binds the caller"
     }
    ]
   },
@@ -1869,7 +1865,7 @@
    "tests": [
     {
      "file": "tests/http.test.ts",
-     "name": "API and SDK: real requests, strict envelopes, binding and output protection"
+     "name": "API and client: real requests, strict envelopes, binding and output protection"
     },
     {
      "file": "tests/authzen.test.ts",
@@ -2005,10 +2001,6 @@
     {
      "file": "tests/ha.test.ts",
      "name": "HA seams: in-memory rate windows count per (tenant, scope, key), reset per window and refuse when full"
-    },
-    {
-     "file": "tests/coverage-gaps.test.ts",
-     "name": "R103: the per-instance scope of limiter state is documented"
     }
    ],
    "operator": {

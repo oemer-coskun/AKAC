@@ -114,7 +114,7 @@ services:
       AKAC_AUTHZEN_CREDENTIALS_FILE: ${AKAC_AUTHZEN_CREDENTIALS_FILE:-}
       AKAC_AUTHZEN_REASONS: ${AKAC_AUTHZEN_REASONS:-}
       # 0.6: the HTTP gateway denies runtime_profile obligations unless every client runs inside a tested runtime enforcer
-      # (docs/RUNTIME-CONTAINMENT.md); shared rate limits and idempotency records live in PostgreSQL (docs/HA.md).
+      # (docs/RUNTIME-CONTAINMENT.md); shared rate limits and idempotency records live in PostgreSQL.
       AKAC_RUNTIME_OBLIGATIONS: ${AKAC_RUNTIME_OBLIGATIONS:-deny}
       AKAC_SHARED_STATE: ${AKAC_SHARED_STATE:-postgres}
     secrets: [pg_app_password]
@@ -142,7 +142,7 @@ services:
     networks: [backend, ingress, admin]
 
 # Passwords are supplied as files, never embedded in connection URLs or the environment.
-# Create them once (untracked; see docs/DEPLOYMENT.md):
+# Create them once (untracked; see docs/QUICKSTART.md):
 #   umask 077 && mkdir -p secrets && openssl rand -hex 24 > secrets/pg_owner_password && openssl rand -hex 24 > secrets/pg_app_password
 #   chmod 0444 secrets/pg_*_password   # readable by the container users; the directory stays 0700
 # They are bind-mounted read-only under /run/secrets, which also works with read_only: true
@@ -168,7 +168,7 @@ networks:
     internal: true
   # Admin control plane (8788) and metrics (9464). Must never share an
   # ingress/load balancer with the agent API network. Loopback-only here
-  # because this file is a local/CI demonstration, not a production topology;
-  # see deploy/helm for NetworkPolicy-enforced separation.
+  # because this file is a local/CI demonstration and the SK-1 single-node
+  # configuration, not a multi-node topology.
   admin:
     driver: bridge

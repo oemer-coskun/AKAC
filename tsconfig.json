@@ -6,6 +6,6 @@
     "noUncheckedIndexedAccess": true, "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["reference/**/*.ts", "adapters/**/*.ts", "sdk/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "conformance/**/*.ts", "scripts/**/*.ts", "bonus/**/*.ts", "bench/**/*.ts"],
+  "include": ["reference/**/*.ts", "adapters/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "conformance/**/*.ts", "scripts/**/*.ts", "bench/**/*.ts"],
   "exclude": ["node_modules", "bench/quality/node_modules"]
 }

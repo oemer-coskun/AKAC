@@ -6,7 +6,7 @@ import { ControlPlane } from '../reference/control.ts';
 import { MemoryStore } from '../reference/store.ts';
 import { verifyAudit } from '../reference/audit.ts';
 import type { Audit, Knowledge } from '../reference/types.ts';
-import { AdminClient } from '../sdk/typescript/index.ts';
+import { AdminClient } from './http-client.ts';
 import { start, tokens, world } from './support.ts';
 
 test('admin API: each route is authorized by the matching standing role', async () => {

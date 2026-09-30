@@ -116,7 +116,7 @@ export function check(matrixPath = join(root, 'conformance', 'coverage', 'matrix
   const vectors = vectorIds();
   const titleCache = new Map<string, Set<string> | null>();
   const titlesOf = (file: string) => {
-    if (!titleCache.has(file)) titleCache.set(file, existsSync(join(root, file)) && /^(tests|bonus)\/.*\.test\.ts$/.test(file) ? testTitles(file) : null);
+    if (!titleCache.has(file)) titleCache.set(file, existsSync(join(root, file)) && /^tests\/.*\.test\.ts$/.test(file) ? testTitles(file) : null);
     return titleCache.get(file)!;
   };
   const used = new Set<string>();

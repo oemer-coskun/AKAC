@@ -1,7 +1,7 @@
 import { migrate } from '../adapters/postgres.ts';
 import { ConfigError, requireConnectionUrl } from '../reference/config.ts';
 // Runs pending PostgreSQL migrations as the schema owner, then exits. Intended for a
-// release job (Helm hook, Compose service) so the gateway role needs no DDL rights.
+// release job (Compose service) so the gateway role needs no DDL rights.
 let url: string | undefined;
 try { url = requireConnectionUrl(process.env, 'AKAC_MIGRATION_DATABASE_URL'); } catch (error) {
   if (error instanceof ConfigError) { for (const p of error.problems) console.error(`configuration error: ${p}`); process.exit(2); }

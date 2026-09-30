@@ -32,7 +32,7 @@ import type { Audit } from '../reference/types.ts';
 //     stream (and, with a keyring, its signature under the verifier policy: --allow-alg / --policy, default every
 //     registered algorithm; a classical-only checkpoint newer or larger than the first verified post-quantum one is
 //     refused as a downgrade unless --allow-classical-after-pq). Exit 0 when everything verifies, 1 otherwise.
-//     Used by the Helm audit-verify CronJob and the backup/restore drill.
+//     Used by scheduled audit verification and the backup/restore drill.
 const first = process.argv[2];
 const fail = (message: string, code = 2): never => { console.error(message); process.exit(code); };
 const readJson = (file: string): unknown => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return fail(`not readable JSON: ${file}`); } };

@@ -25,7 +25,7 @@ export type RuntimeLease = { runtimeRevision: string; release?: () => Promise<vo
 /**
  * Isolation of an enforcer's runtime (R112):
  * - 'sandbox-wide' (the default when absent): one runtime policy is in force for
- *   everything the runtime holds (for example one OpenShell sandbox policy).
+ *   everything the runtime holds (for example one sandbox policy).
  *   ProtectedRuntime serializes every execution through such an enforcer: apply,
  *   provider call, revision check, final release and lease release of one
  *   execution complete before the next execution's apply().
@@ -69,8 +69,7 @@ export type RuntimeOptions = { enforcer?: RuntimeEnforcer; enforcerDeadlineMs?: 
  * the answer must name that destination's class or id, or the runtime fails closed
  * before the provider (or the caller) receives anything.
  *
- * This 0.4 list is kept unchanged for runtimes that reuse it (for example the bonus
- * passage runtime): they do not enforce the 0.5 containment obligations, so they
+ * This 0.4 list is kept unchanged for runtimes that reuse it (for example a passage-level runtime): they do not enforce the 0.5 containment obligations, so they
  * deny decisions that carry them (fail closed).
  */
 export const RUNTIME_OBLIGATIONS: readonly ObligationType[] = ['audit_level', 'max_context_ttl_ms', 'no_persist', 'destination_restricted'];

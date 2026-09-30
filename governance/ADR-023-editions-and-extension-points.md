@@ -2,8 +2,8 @@
 
 Status: proposed for AKAC 0.6 (draft). No external review has taken place.
 Related: [AKAC 0.6](../spec/AKAC-0.6.md) (R181 and the section "Extension points only
-narrow"), [EDITIONS.md](../docs/EDITIONS.md), [TIERS.md](../docs/TIERS.md),
-[ADR-010](ADR-010-bonus-boundary.md) (the same boundary rule for the bonus modules).
+narrow"), [EDITIONS.md](../docs/EDITIONS.md), the feature tier list,
+[ADR-010](ADR-010-optional-module-boundary.md) (the same boundary rule for optional modules).
 
 ## Context
 
@@ -49,7 +49,7 @@ that uses it, and the specification would no longer describe the product.
    module, script or package dependency names an enterprise module; nothing in this
    repository requires a licence key or a call to a vendor service. `tests/boundary.test.ts`
    checks the module specifiers of the core sources and the dependencies of
-   `package.json`, as it does for the bonus modules (ADR-010).
+   `package.json`, as it does for optional modules (ADR-010).
 4. **Semantics first, in public.** A behaviour that changes whether a request is
    allowed is specified, implemented and tested in the community edition first, with an
    ADR and conformance vectors, under [CHANGE-CONTROL.md](../spec/CHANGE-CONTROL.md). An
