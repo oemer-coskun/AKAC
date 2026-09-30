@@ -9,7 +9,7 @@ I design and build production-oriented enterprise AI platforms, from requirement
 | LinkedIn | [linkedin.com/in/oemer-coskun53](https://www.linkedin.com/in/oemer-coskun53) |
 | GitHub | [github.com/oemer-coskun](https://github.com/oemer-coskun) |
 
-Get in touch about AI architecture work, adopting AKAC, the separately available industry profiles, the enterprise edition, independent reviews or collaboration. Security vulnerabilities go through [SECURITY.md](SECURITY.md), not email or public issues.
+Get in touch about AI architecture work, adopting AKAC, separately scoped implementation packages and services, independent reviews or collaboration. Delivery details and terms are discussed directly. Security vulnerabilities go through [SECURITY.md](SECURITY.md), not email or public issues.
 
 ## Role and focus
 

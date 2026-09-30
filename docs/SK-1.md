@@ -34,4 +34,4 @@ retrieval; the per-tenant audit chain. This is the full open core: nothing in th
 - The hash embedder is not semantic; use a real embedding model for real content.
 - No external review or certification; SK-1 is a configuration bundle, not an assurance level of its own.
 
-SK-2 to SK-4 deployments are part of the full package (see [CONTACT.md](../CONTACT.md)).
+For other classes, supply the deployment-specific implementations and operator controls required by the public [security-class matrix](profiles/SECURITY-CLASSES.md). Separately scoped adoption assistance can be discussed through [CONTACT.md](../CONTACT.md).

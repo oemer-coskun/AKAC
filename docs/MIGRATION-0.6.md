@@ -50,8 +50,8 @@ rehearsed by the project, and rollback is untested and therefore unsupported** (
 
 ## Settings by security class
 
-Presets for SK-2 to SK-4 and the tenant settings (data applied with
-`PUT /admin/v1/settings`) are part of the full package (see [CONTACT.md](../CONTACT.md)). "Required" follows
+The following table describes public settings and operator obligations, not a private deployment recipe.
+Tenant settings are applied with `PUT /admin/v1/settings`. "Required" follows
 [SECURITY-CLASSES.md](profiles/SECURITY-CLASSES.md); nothing here has been reviewed by an external party.
 
 | Setting | SK-1 | SK-2 | SK-3 | SK-4 |

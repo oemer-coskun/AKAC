@@ -52,7 +52,7 @@ Contract: [RUNTIME-CONTAINMENT.md](RUNTIME-CONTAINMENT.md), [ADR-012](../governa
 
 ## Structured threat models (0.6)
 
-Detailed threat models (STRIDE for the gateway, LINDDUN privacy, agent-specific threats) are part of the full package (see [CONTACT.md](../CONTACT.md)). They are author-written, unreviewed by third parties, and are not an assessment.
+The tables above document the public gateway assumptions, mitigations and residual risks. A production deployment needs its own integration-specific threat assessment; this repository makes no assurance claim about separately maintained review material.
 
 ## Required integration controls
 

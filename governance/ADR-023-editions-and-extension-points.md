@@ -2,7 +2,7 @@
 
 Status: proposed for AKAC 0.6 (draft). No external review has taken place.
 Related: [AKAC 0.6](../spec/AKAC-0.6.md) (R181 and the section "Extension points only
-narrow"), [EDITIONS.md](../docs/EDITIONS.md), the feature tier list,
+narrow"), [EDITIONS.md](../docs/EDITIONS.md), the public security-class matrix,
 [ADR-010](ADR-010-optional-module-boundary.md) (the same boundary rule for optional modules).
 
 ## Context
@@ -29,11 +29,10 @@ that uses it, and the specification would no longer describe the product.
    vectors, the reference gateway with every decision rule, the second implementation,
    the formal model, every extension point as a typed interface with a documented
    default, and development providers for them (for example a local content key
-   provider and a Vault Transit checkpoint signer example). An *enterprise edition*, if
-   and when one exists, consists of implementations that fill those extension points
-   (production key and HSM providers, detection and filtering, policy packs,
-   connectors, workflows) and of services around them. It has no decision semantics of
-   its own.
+   provider and a Vault Transit checkpoint signer example). Separately offered
+   implementation packages can fill the public extension points and provide adoption
+   services. Their inventory, implementation details and delivery terms are not
+   published here. They have no decision semantics of their own.
 2. **Hooks can only narrow.** An extension point MAY deny, redact, clean, add an
    obligation, raise a label, lower a clearance, slow a caller down or require an extra
    approval. It MUST NOT allow what the core denies, widen a projection, relabel

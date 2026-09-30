@@ -40,7 +40,7 @@ The vector index only narrows what is searched; `decide()` re-checks every candi
 
 ## Security classes
 
-Four classes bundle features and obligations by the assurance a deployment needs. A class is a configuration bundle, not a certification. Full feature matrix: [SECURITY-CLASSES.md](docs/profiles/SECURITY-CLASSES.md). SK-1 runs with Docker Compose ([SK-1.md](docs/SK-1.md)); SK-2 to SK-4 deployments are part of the full package.
+Four classes bundle features and obligations by the assurance a deployment needs. A class is a configuration bundle, not a certification. Full feature matrix: [SECURITY-CLASSES.md](docs/profiles/SECURITY-CLASSES.md). SK-1 runs with Docker Compose ([SK-1.md](docs/SK-1.md)); other classes require deployment-specific implementations and operator controls, including items marked planned in the matrix.
 
 | Class | Typical use | Threat assumption | Key required features |
 |---|---|---|---|
@@ -53,26 +53,13 @@ Nothing in AKAC makes a deployment compliant with any law.
 
 ## Editions
 
-This repository is the Community edition (MIT-0): decision semantics, the reference gateway, the conformance suite and the extension points (hooks that can only narrow a decision and fail closed). Every feature a security class requires is testable here. See [EDITIONS.md](docs/EDITIONS.md).
+This repository is the Community edition (MIT-0): decision semantics, the reference gateway, the conformance suite and the extension points (hooks that can only narrow a decision and fail closed). Implemented Community mechanisms are testable here; production hook implementations and operator controls need deployment-specific evidence, and planned requirements remain blockers. See [EDITIONS.md](docs/EDITIONS.md).
 
 ## Full package
 
-The public repository contains the specification, reference gateway and evidence; the full package adds the following. Inquiries via [CONTACT.md](CONTACT.md).
+Separately scoped implementation packages and architecture services may be available for enterprise adoption. Availability, supported integrations, delivery scope and terms are agreed directly; this repository does not publish a private module inventory, implementation recipes or an internal roadmap. Inquiries via [CONTACT.md](CONTACT.md).
 
-- Industry profiles: financial services, healthcare, legal, manufacturing IP, public sector, research and education, SaaS platforms
-- Production deployment: Helm chart and presets for SK-2 to SK-4
-- High availability, backup and disaster recovery runbooks
-- Key custody and HSM/KMS integration guidance
-- Security operations: monitoring, alerting, incident playbooks
-- Retention and erasure operations
-- Integrations: MCP resource gateway, LangChain retriever, OpenAI-compatible proxy, TypeScript SDK
-- Enterprise hook implementations: PII redaction, content sanitizing, canary tokens, semantic no-go rules, anomaly scoring, policy analysis
-- Add-on modules: hybrid retrieval, multimodal, approval workflow, policy replay, transparency export, classification mapping, policy adapters, passage-level control, sandbox runtime profiles
-- Detailed threat models: STRIDE, LINDDUN privacy, agentic threats
-- Regulatory control mapping
-- Confidential-computing (TEE) guidance
-- Research directions and roadmap
-- Assurance preparation: external audit, OpenSSF
+Public interfaces, decision rules, safe-use requirements and reproducible Community evidence remain here. See [EDITIONS.md](docs/EDITIONS.md) and the [publication boundary](docs/process/PUBLICATION-BOUNDARY.md). No commercial package is needed to exercise the public conformance suite.
 
 ## What's in the box
 

@@ -68,4 +68,4 @@ Migrations have no down scripts, and 0.3 code cannot verify a stream that contai
 
 ## Not covered
 
-Erasure does not reach backups, replica history or storage remnants; take that into account before promising erasure (retention and erasure operations are part of the full package). Cache isolation ([R91-R99](../spec/AKAC-0.4.md)) needs work in your runtime and inference stack; nothing in the upgrade changes it.
+Erasure does not reach backups, replica history or storage remnants; take that into account before promising erasure (backup and storage-layer erasure remain operator responsibilities). Cache isolation ([R91-R99](../spec/AKAC-0.4.md)) needs work in your runtime and inference stack; nothing in the upgrade changes it.

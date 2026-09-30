@@ -6,3 +6,10 @@ repos:
     hooks:
       - id: gitleaks
         args: ["--config=.gitleaks.toml"]
+  - repo: local
+    hooks:
+      - id: akac-publication-boundary
+        name: AKAC public publication boundary
+        entry: node scripts/check-publication.ts --staged
+        language: system
+        pass_filenames: false

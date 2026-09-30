@@ -37,6 +37,8 @@ jobs:
           cache: npm
       - run: python3 --version
       - run: npm ci --ignore-scripts
+      - name: Check public publication boundary (files and private metadata)
+        run: npm run check:publication
       - name: Install pinned OPA binary
         run: |
           curl -fsSL --retry 3 https://openpolicyagent.org/downloads/v1.9.0/opa_linux_amd64_static -o opa

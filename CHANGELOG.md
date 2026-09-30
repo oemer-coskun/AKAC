@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Upgrade steps for each release are in the
 `docs/MIGRATION-*.md` files. No external security review, audit or certification has taken place for any release.
 
+## Unreleased
+
+- Reduce public descriptions of separately offered packages; retain Community contracts, safety requirements and evidence.
+- Remove a review screenshot containing internal metadata; replace the AI-generated review record with a limited public note.
+- Add a publication-boundary policy and checks in CI and pre-commit for private metadata, unapproved assets and out-of-scope files.
+- Existing public Git history and MIT-0 grants are unchanged; current-tree cleanup does not recall earlier copies.
+
 ## 0.6.0 - 2026-09-30
 
 - Identity and authority: delegation chains, break-glass grants, approval quorum, heartbeat-bound grants.

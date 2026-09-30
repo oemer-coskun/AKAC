@@ -13,7 +13,7 @@ implemented, and a deployment that needs them cannot claim the class until they 
 | SK-3 | Regulated | Finance, health, legal, insurance: regulated data, audits, incident reporting |
 | SK-4 | High-Assurance | Classified or export-controlled material, critical infrastructure, defence, crown-jewel IP |
 
-SK-1 is public and deploys with Docker Compose ([SK-1.md](../SK-1.md)). Presets and production deployment for SK-2 to SK-4, and industry profiles, are part of the full package (see [CONTACT.md](../../CONTACT.md)).
+SK-1 has a public Docker Compose example ([SK-1.md](../SK-1.md)). Other classes require deployment-specific implementations and operator controls. This matrix describes Community contracts and obligations, not private deployment presets. Availability of separately scoped assistance is discussed through [CONTACT.md](../../CONTACT.md).
 
 ## Feature by class
 
@@ -46,7 +46,7 @@ R = required, Rec = recommended, O = optional, - = not needed. Status is that of
 | Heartbeat-bound grants, RFC 8693 actor chains, risk-signal hook | implemented in 0.6 | - | Rec | Rec | R |
 | Access attestation export for recertification | planned | - | R | R | R |
 | Embedding anchors against drift | implemented in 0.6 | - | Rec | R | R |
-| **Edition** | - | Community | Community; full package optional | Community carries every required feature; the full package typical | Community carries every required feature; the full package typical |
+| **Public scope** | - | Community reference | Community contracts plus operator controls | Community contracts plus operator implementations; planned items remain blockers | Community contracts plus operator implementations; planned items remain blockers |
 
 Note on checkpoint keys: at SK-3, key custody in a KMS takes precedence over a post-quantum signature. The SK-3 configuration signs
 with a HashiCorp Vault Transit `ed25519` key at a pinned version (format 2); Vault Transit
@@ -59,7 +59,7 @@ such signer and refuses to start with the SK-4 configuration; it never falls bac
 
 The Community edition contains every mandatory security semantic for every class. Where a required item is a hook (for example an approval
 gate that enforces two distinct approvers), the Community edition defines the contract and a default; a deployment can
-satisfy the requirement with its own implementation. The full package adds hook implementations and deployment material.
+satisfy the requirement with its own implementation. Separately supplied implementations must satisfy the same public contracts. Planned requirements remain unsatisfied until implemented and evidenced.
 
 ## SK-1 Basis
 
@@ -79,7 +79,7 @@ of the database; review of who holds admin credentials.
 **Evidence auditors expect.** Configuration export, list of administrators, sample of audit entries. For SK-1 few
 audits will ask.
 
-**Deployment.** Public, Docker Compose: [SK-1.md](../SK-1.md). Deployments for SK-2 to SK-4 are part of the full package.
+**Deployment.** Public, Docker Compose: [SK-1.md](../SK-1.md). Other classes require the implementations and operator controls specified above.
 
 
 ## SK-2 Enterprise

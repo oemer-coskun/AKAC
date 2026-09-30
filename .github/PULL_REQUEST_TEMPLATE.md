@@ -10,6 +10,8 @@
 - [ ] OPA / PostgreSQL checks run when relevant
 - [ ] Limitations and skipped tests disclosed
 - [ ] No secrets or private documents
+- [ ] `npm run check:publication` passes; publication scope reviewed under docs/process/PUBLICATION-BOUNDARY.md
+- [ ] New assets and AI-assisted review records checked for private metadata and unsupported assurance claims
 - [ ] AI assistance disclosed, if used
 
 ## License and contribution confirmation

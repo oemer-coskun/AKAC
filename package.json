@@ -9,6 +9,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "check:publication": "node scripts/check-publication.ts",
     "check": "tsc --noEmit && npm test",
     "test": "node --test tests/*.test.ts",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.ts",

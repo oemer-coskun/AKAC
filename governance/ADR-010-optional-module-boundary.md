@@ -4,10 +4,8 @@ Status: proposed for reference 0.4.0. No external review yet.
 
 ## Context
 
-Useful extensions exist that the AKAC specification does not require and that build
-on standards or methods of very different maturity: rank fusion for retrieval, policy
-engines, provenance for images, human approval workflows, transparency exports, replay
-of audited decisions. Some follow working-group drafts that may change. If they lived
+Optional extensions can build on standards or methods of different maturity.
+Some follow working-group drafts that may change. If they lived
 in the core, every conformance claim would silently depend on them, their dependencies
 and their changing upstream status, and a defect in an optional module could weaken an
 invariant of the specification.
@@ -15,7 +13,8 @@ invariant of the specification.
 ## Decision
 
 1. **Optional modules are separate from the core.** They are self-contained and are not
-   part of this repository; they are part of the full package ([EDITIONS.md](../docs/EDITIONS.md)).
+   part of this repository. Availability and scope of separately offered components
+   are agreed directly ([EDITIONS.md](../docs/EDITIONS.md)).
 2. **Not part of conformance.** No AKAC profile, requirement number or portable
    vector covers an optional module, and no conformance claim may mention one. The
    specification (`spec/`) does not reference them as requirements.

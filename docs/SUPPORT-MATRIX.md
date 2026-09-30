@@ -15,7 +15,7 @@ Status column describes reference 0.6.0 (specification 0.6, a draft project spec
 | pgvector compartment tables | Implemented (`migrations/002`, `PgVectorIndex`): forced RLS, token pre-filter, HNSW with iterative scans; tested on PostgreSQL 17 with pgvector 0.8; recall tested on synthetic data only |
 | Dedicated database for the `restricted` compartment | Implemented as `RoutedVectorIndex` and `AKAC_VECTOR_RESTRICTED_DATABASE_URL`; the separate instance, network and key custody are deployment responsibility |
 | Vector reconciliation, relabel and revocation | Implemented (`Ingestor`): `INDEX_PENDING`, `reconcile`, `relabel`, removal of inactive or expired documents; bounded per call |
-| Hybrid lexical/vector fusion, passage-level results | Not in this repository (add-on modules are part of the full package) |
+| Hybrid lexical/vector fusion, passage-level results | Outside the Community implementation; no claim of supported private implementation is made here |
 | Indexing of derived memories | Not implemented |
 | Memory derivation and recipient checks | Implemented |
 | Memory and SQLite persistence | Implemented; partitioned per tenant, one coarse transaction, single node |
@@ -33,13 +33,13 @@ Status column describes reference 0.6.0 (specification 0.6, a draft project spec
 | Provider isolation / outbound proxy | Deployment responsibility; not supplied. Destination profiles (0.4) let AKAC decide and audit release targets; a proxy or gateway must enforce them |
 | Declassification / cross-tenant federation | Denied |
 | Retention, legal holds and erasure of knowledge content (0.4) | Implemented as mechanisms (R53-R59): `retainUntil`, legal holds anywhere in the lineage, cascade erasure to tombstones, retention job; not legally reviewed |
-| Erasure from backups, replica history and storage remnants | Not implemented; deployment responsibility (operator guidance is part of the full package) |
+| Erasure from backups, replica history and storage remnants | Not implemented; deployment responsibility |
 | Signed audit checkpoints | Implemented and tested (format 1 and, in 0.4, format 2); 0.6: `CheckpointSigner` with a Vault Transit example adapter (tested against a mock only), keyring rotation, file anchoring hook and a verify job; network anchoring is not shipped; a server-held key attests only what that server saw |
 | Shared rate limits, admin idempotency, job locks (0.6) | Implemented over PostgreSQL (migration 009, forced RLS) and tested with two gateway instances on one database; concurrency caps stay per instance; no availability or RTO figure is claimed |
 | Logical source expiry | Implemented transitively; physical removal of content only through erasure (R53) |
 | Provider input/output adapter | Implemented; synthetic-provider tests, no network sandbox |
 | Python decision interoperability | Same-project generated comparisons for the 0.2 and 0.3 decision rules; not external certification. The Python evaluator does not implement the 0.4 lifecycle or destination decisions |
-| Control mapping to external frameworks | Part of the full package; mapping only, no certification or attestation |
+| Control mapping to external frameworks | Outside the Community scope; no certification or attestation |
 | Structured decisions: decision id, closed reason codes, policy digest, obligations (0.4) | Implemented (R32-R39); obligation shape is draft-aligned with the AuthZEN working-group draft, not a conformance claim |
 | Obligation enforcement | `ProtectedRuntime` enforces the four obligations; any other caller must enforce them or deny |
 | Runtime obligations on the agent HTTP listener (0.6) | The listener cannot confine the runtime that receives content. By default (`AKAC_RUNTIME_OBLIGATIONS=deny`) a disclosure whose allow would carry `runtime_profile` is denied (`UNSUPPORTED_OBLIGATION`), rolled back and audited. `trusted-enforcer` returns the obligations and is an operator declaration that every client runs inside a runtime enforcer; AKAC cannot verify it ([RUNTIME-CONTAINMENT.md](RUNTIME-CONTAINMENT.md)) |

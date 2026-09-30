@@ -9,6 +9,14 @@ test-results/
 bench-results/
 backup-drill-evidence.json
 
+# Private work belongs in a separate access-controlled repository, never in this checkout.
+private/
+internal-docs/
+commercial/
+customer-data/
+*.bundle
+*.bak
+
 # mutation testing output
 .stryker-tmp/
 reports/

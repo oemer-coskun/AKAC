@@ -17,6 +17,13 @@ record real test results, including skipped checks.
 Never include secrets, real customer documents or private reference material.
 Third-party source must retain its license and required attribution.
 
+Before publishing, run `npm run check:publication` and follow
+[the publication boundary](docs/process/PUBLICATION-BOUNDARY.md). Public contracts,
+safe-use requirements and reproducible evidence belong here; private implementation
+recipes, internal repository metadata, customer-specific configuration and commercial
+material belong in separately access-controlled systems. A pattern check cannot
+decide whether a new design discloses private know-how: human review is also required.
+
 Not even synthetic credentials: connection URLs in code, tests, Compose, CI and
 docs never carry a password. Supply database passwords as files
 (`AKAC_DATABASE_PASSWORD_FILE` and its companions, Docker/Kubernetes secrets) and,

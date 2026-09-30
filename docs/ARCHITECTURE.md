@@ -132,7 +132,7 @@ Audit records form one hash chain per tenant, with ordered sequence numbers, rul
 
 ## Observability
 
-A separate metrics listener exposes Prometheus counters and histograms with closed label sets (route templates, status, operation, reason class); tenant, subject, resource, query, token and content never appear as labels. Structured JSON logs carry request and trace ids and no content or credentials. Filter mismatches, candidate-source failures, index writes, pending documents and reconcile runs are counted. Counters are per process. Operations guidance is part of the full package (see [CONTACT.md](../CONTACT.md)).
+A separate metrics listener exposes Prometheus counters and histograms with closed label sets (route templates, status, operation, reason class); tenant, subject, resource, query, token and content never appear as labels. Structured JSON logs carry request and trace ids and no content or credentials. Filter mismatches, candidate-source failures, index writes, pending documents and reconcile runs are counted. Counters are per process. Production alerting, incident handling and operating procedures must be established and tested by the operator; they are not an assurance claim of this reference.
 
 ## Extension contracts
 
