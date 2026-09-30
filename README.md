@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/akac-hero.jpg" alt="Knowledge sources from public to restricted flow through the AKAC policy fabric to an AI agent; every derived output inherits the highest classification of the sources it was built from." width="100%">
+  <img src="docs/assets/akac-hero.png" alt="Knowledge sources from public to restricted flow through the AKAC policy fabric to an AI agent; every derived output inherits the highest classification of the sources it was built from." width="100%">
 </p>
 
 # AKAC
